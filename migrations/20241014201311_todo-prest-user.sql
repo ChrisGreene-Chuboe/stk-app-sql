@@ -1,7 +1,7 @@
 -- Add migration script here
 --create schema api
-create role postrest_web_anon nologin;
-grant usage on schema public to postrest_web_anon;
-grant all on todo to postrest_web_anon;
-create role postrest login ;
-grant postrest_web_anon to postrest;
+create role postgrest_web_anon nologin;
+grant usage on schema public to postgrest_web_anon;
+grant all on todo to postgrest_web_anon;
+create role postgrest login ;
+grant postgrest_web_anon to postgrest;
