@@ -1,4 +1,3 @@
--- Add migration script here
 
 CREATE ROLE stk_todo_superuser NOLOGIN;
 

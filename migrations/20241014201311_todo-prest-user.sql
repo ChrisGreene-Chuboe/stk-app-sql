@@ -1,5 +1,5 @@
--- Add migration script here
---create schema api
+
+--create PostgREST artifacts
 CREATE ROLE postgrest_web_anon NOLOGIN;
 GRANT USAGE ON schema api TO postgrest_web_anon;
 GRANT ALL ON api.stk_todo TO postgrest_web_anon;
