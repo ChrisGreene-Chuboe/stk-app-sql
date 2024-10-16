@@ -23,17 +23,28 @@ in pkgs.mkShell {
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
-      initdb "$PGDATA" && echo "listen_addresses = ''" >> $PGDATA/postgresql.conf
-      pg_ctl start -o "-k $PGDATA" -l "$PGDATA/postgresql.log"
-      createdb $PGDATABASE
+      initdb -D "$PGDATA" --no-locale --encoding=UTF8 --username=$PGUSER && echo "listen_addresses = '''" >> $PGDATA/postgresql.conf
+      pg_ctl start -o "-k \"$PGDATA\"" -l "$PGDATA/postgresql.log"
+      createdb $PGDATABASE -h $PGDATA -U $PGUSER 
     else
       echo "Starting PostgreSQL..."
-      pg_ctl start -o "-k $PGDATA" -l "$PGDATA/postgresql.log"
+      pg_ctl start -o "-k \"$PGDATA\"" -l "$PGDATA/postgresql.log"
     fi
 
+    # create link to migrations directory
+    ln -s ../migrations/ migrations
+
     echo "PostgreSQL is running using Unix socket in $PGDATA"
+    echo "To connect, issue: psql -h \$PWD/pgdata/ -d stk_todo_db"
     echo "To run migrations, use the 'run-migrations' command"
 
-    trap "pg_ctl stop" EXIT
+    cleanup() {
+      echo "Stopping PostgreSQL and cleaning up..."
+      pg_ctl stop
+      rm -rf "$PGDATA"
+      rm migrations
+    }
+
+    trap cleanup EXIT
   '';
 }
