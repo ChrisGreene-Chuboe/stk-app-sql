@@ -15,3 +15,7 @@ sqlx migrate add test01
 ```
 
 This will result in a new file created in the migration directory with a date stamp prefix.
+
+## Testing
+
+The [shell.nix](./test/shell.nix) nix-shell helps you quickly test migrations as you make changes.

@@ -1,5 +1,16 @@
 { pkgs ? import <nixpkgs> {} }:
 
+# Prerequisites
+  # install Nix package manager or be using NixOS
+
+# The purpose of this shell is to:
+  # install postgresql
+  # install sqlx-cli
+  # create a local psql cluster (in this directory)
+  # run the migrations and report success or failure
+  # allow you to view and interact with the results using 'psqlx'
+  # destroy all artifacts upon leaving the shell
+
 let
   # Function to run migrations
   runMigrations = pkgs.writeShellScriptBin "run-migrations" ''
