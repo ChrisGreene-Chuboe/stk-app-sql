@@ -25,7 +25,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT ALL ON SEQUENCES TO stk_todo_superu
 ALTER ROLE stk_todo_superuser SET search_path TO private, api;
 
 -- Drop public schema since not needed
-DROP SCHEMA IF EXISTS public CASCADE;
+--DROP SCHEMA IF EXISTS public CASCADE;
 
 create table private.stk_todo_x (
   stk_todo_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
