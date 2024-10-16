@@ -20,6 +20,7 @@ in pkgs.mkShell {
     export PGUSER=postgres
     export PGDATABASE=stk_todo_db
     export DATABASE_URL="postgresql:///$PGDATABASE?host=$PGDATA"
+    alias psqlx="psql -h $PWD/pgdata/ -d stk_todo_db"
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
@@ -35,7 +36,7 @@ in pkgs.mkShell {
     ln -s ../migrations/ migrations
 
     echo "PostgreSQL is running using Unix socket in $PGDATA"
-    echo "To connect, issue: psql -h \$PWD/pgdata/ -d stk_todo_db"
+    echo "To connect, issue: psqlx"
     echo "To run migrations, use the 'run-migrations' command"
 
     cleanup() {
