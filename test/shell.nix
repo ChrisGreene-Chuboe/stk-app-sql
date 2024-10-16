@@ -35,6 +35,8 @@ in pkgs.mkShell {
     # create link to migrations directory
     ln -s ../migrations/ migrations
 
+    run-migrations
+
     echo "PostgreSQL is running using Unix socket in $PGDATA"
     echo "To connect, issue: psqlx"
     echo "To run migrations, use the 'run-migrations' command"
