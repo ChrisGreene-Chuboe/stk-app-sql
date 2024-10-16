@@ -3,8 +3,6 @@ CREATE ROLE stk_todo_superuser NOLOGIN;
 
 ALTER DATABASE stk_todo_db OWNER TO stk_todo_superuser;
 
-GRANT CONNECT ON DATABASE stk_todo_db TO stk_todo_superuser;
-
 -- Create and configure private schema
 CREATE SCHEMA IF NOT EXISTS private;
 GRANT USAGE, CREATE ON SCHEMA private TO stk_todo_superuser;

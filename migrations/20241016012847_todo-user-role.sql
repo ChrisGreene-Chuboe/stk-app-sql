@@ -1,7 +1,6 @@
 
 -- create todo user role
 CREATE ROLE stk_todo_user NOLOGIN;
---GRANT CONNECT ON DATABASE stk_todo_db TO stk_todo_user;
 GRANT USAGE ON SCHEMA api TO stk_todo_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA api TO stk_todo_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA api TO stk_todo_user;
