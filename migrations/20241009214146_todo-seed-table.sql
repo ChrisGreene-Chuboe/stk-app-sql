@@ -1,6 +1,6 @@
 -- Add migration script here
 
-CREATE ROLE stk_todo_superuser;
+CREATE ROLE stk_todo_superuser NOLOGIN;
 
 ALTER DATABASE stk_todo_db OWNER TO stk_todo_superuser;
 
