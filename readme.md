@@ -1,4 +1,4 @@
-# chuck-stack-todo-app 
+# stk-todo-app-sql 
 
 The purpose of this repository is to support the [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/stk-todo-app.nix) chuck-stack application. 
 
