@@ -1,7 +1,7 @@
 { pkgs ? import <nixpkgs> {} }:
 
 # Prerequisites
-  # install Nix package manager or be using NixOS
+  # install Nix package manager or use NixOS
 
 # The purpose of this shell is to:
   # install postgresql
@@ -27,11 +27,10 @@ in pkgs.mkShell {
 
   shellHook = ''
     export PGDATA="$PWD/pgdata"
-    export PGHOST="$PGDATA"
     export PGUSER=postgres
     export PGDATABASE=stk_todo_db
     export DATABASE_URL="postgresql:///$PGDATABASE?host=$PGDATA"
-    alias psqlx="psql -h $PWD/pgdata/ -d stk_todo_db"
+    alias psqlx="psql -h $PWD/pgdata/ -d $PGDATABASE"
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
@@ -48,9 +47,14 @@ in pkgs.mkShell {
 
     run-migrations
 
+    echo ""
+    echo "***************************************************"
     echo "PostgreSQL is running using Unix socket in $PGDATA"
-    echo "To connect, issue: psqlx"
+    echo "Issue \"psqlx\" to connect to $PGDATABASE database"
     echo "To run migrations, use the 'run-migrations' command"
+    echo "Note: this database will be destroyed on shell exit"
+    echo "***************************************************"
+    echo ""
 
     cleanup() {
       echo "Stopping PostgreSQL and cleaning up..."
