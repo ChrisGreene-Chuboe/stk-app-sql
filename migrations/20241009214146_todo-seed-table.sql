@@ -4,7 +4,7 @@ CREATE ROLE stk_todo_superuser NOLOGIN;
 ALTER DATABASE stk_todo_db OWNER TO stk_todo_superuser;
 
 -- Create and configure private schema
-CREATE SCHEMA IF NOT EXISTS private;
+CREATE SCHEMA IF NOT EXISTS private AUTHORIZATION stk_todo_superuser;
 GRANT USAGE, CREATE ON SCHEMA private TO stk_todo_superuser;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA private TO stk_todo_superuser;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA private TO stk_todo_superuser;
@@ -12,7 +12,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA private GRANT SELECT, INSERT, UPDATE, DELETE 
 ALTER DEFAULT PRIVILEGES IN SCHEMA private GRANT ALL ON SEQUENCES TO stk_todo_superuser;
 
 -- Create and configure api schema
-CREATE SCHEMA IF NOT EXISTS api;
+CREATE SCHEMA IF NOT EXISTS api AUTHORIZATION stk_todo_superuser;
 GRANT USAGE, CREATE ON SCHEMA api TO stk_todo_superuser;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA api TO stk_todo_superuser;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA api TO stk_todo_superuser;
@@ -21,10 +21,12 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT ALL ON SEQUENCES TO stk_todo_superu
 
 ALTER ROLE stk_todo_superuser SET search_path TO private, api;
 
--- Drop public schema since not needed
---DROP SCHEMA IF EXISTS public CASCADE;
+--Note: leaving public schema since used by sqlx migration
+ALTER SCHEMA public OWNER TO stk_todo_superuser;
 
-create table private.stk_todo_x (
+--SET ROLE stk_todo_superuser;
+
+CREATE TABLE private.stk_todo (
   stk_todo_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -35,7 +37,7 @@ create table private.stk_todo_x (
   date_due TIMESTAMPTZ
 );
 
-create view api.stk_todo as select * from private.stk_todo_x;
+CREATE VIEW api.stk_todo AS SELECT * FROM private.stk_todo;
 
 INSERT INTO api.stk_todo (name) VALUES
   ('perform vitory lap'), ('pat self on back'), ('hug and kiss those you love');
