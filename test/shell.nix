@@ -40,10 +40,10 @@ in pkgs.mkShell {
       pg_ctl start -o "-k \"$PGDATA\"" -l "$PGDATA/postgresql.log"
       createdb $PGDATABASE -h $PGDATA -U $PGUSERSU
       # Note: the following commands need to stay in sync with chuck-stack-nix => nixos => stk-todo-app.nix => services.postgresql.initscript
-      psql -h $PGDATA -U $PGUSERSU -c "CREATE ROLE $PGUSER login"
+      psql -h $PGDATA -U $PGUSERSU -c "CREATE ROLE $PGUSER LOGIN CREATEROLE"
       psql -h $PGDATA -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $PGUSER"
     else
-      echo "exiting with error - cannot fine $PGDATA directory"
+      echo "exiting with error - $PGDATA directory is not empty"
       exit 1
     fi
 
