@@ -27,19 +27,24 @@ in pkgs.mkShell {
 
   shellHook = ''
     export PGDATA="$PWD/pgdata"
-    export PGUSER=postgres
+    export PGUSERSU=postgres
+    export PGUSER=stk_todo_superuser
     export PGDATABASE=stk_todo_db
-    export DATABASE_URL="postgresql:///$PGDATABASE?host=$PGDATA"
+    # next line is used by sqlx-cli
+    export DATABASE_URL="postgresql://$PGUSER/$PGDATABASE?host=$PGDATA"
     alias psqlx="psql -h $PWD/pgdata/ -d $PGDATABASE"
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
-      initdb -D "$PGDATA" --no-locale --encoding=UTF8 --username=$PGUSER && echo "listen_addresses = '''" >> $PGDATA/postgresql.conf
+      initdb -D "$PGDATA" --no-locale --encoding=UTF8 --username=$PGUSERSU && echo "listen_addresses = '''" >> $PGDATA/postgresql.conf
       pg_ctl start -o "-k \"$PGDATA\"" -l "$PGDATA/postgresql.log"
-      createdb $PGDATABASE -h $PGDATA -U $PGUSER 
+      createdb $PGDATABASE -h $PGDATA -U $PGUSERSU
+      # Note: the following commands need to stay in sync with chuck-stack-nix => nixos => stk-todo-app.nix => services.postgresql.initscript
+      psql -h $PGDATA -U $PGUSERSU -c "CREATE ROLE $PGUSER login"
+      psql -h $PGDATA -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $PGUSER"
     else
-      echo "Starting PostgreSQL..."
-      pg_ctl start -o "-k \"$PGDATA\"" -l "$PGDATA/postgresql.log"
+      echo "exiting with error - cannot fine $PGDATA directory"
+      exit 1
     fi
 
     # create link to migrations directory
