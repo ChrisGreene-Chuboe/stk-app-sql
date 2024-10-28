@@ -19,7 +19,7 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA api TO stk_todo_superuser;
 ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO stk_todo_superuser;
 ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT ALL ON SEQUENCES TO stk_todo_superuser;
 
-ALTER ROLE stk_todo_superuser SET search_path TO private, api;
+ALTER ROLE stk_todo_superuser SET search_path TO public, private, api;
 
 --Note: leaving public schema since used by sqlx migration
 --ALTER SCHEMA public OWNER TO stk_todo_superuser;
