@@ -1,4 +1,6 @@
 
+create domain "text/html" as text;
+
 CREATE TABLE IF NOT EXISTS private.stk_form_post (
   stk_form_post_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -8,7 +10,7 @@ CREATE TABLE IF NOT EXISTS private.stk_form_post (
   description TEXT
 );
 
-CREATE OR REPLACE FUNCTION api.stk_form_post_fn(json) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION api.stk_form_post_fn(json) RETURNS "text/html" AS $$
 BEGIN
     INSERT INTO private.stk_form_post (form_data)
     VALUES ($1);
