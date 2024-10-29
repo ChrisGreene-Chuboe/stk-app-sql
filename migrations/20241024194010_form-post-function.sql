@@ -8,10 +8,11 @@ CREATE TABLE IF NOT EXISTS private.stk_form_post (
   description TEXT
 );
 
-CREATE OR REPLACE FUNCTION api.stk_form_post_fn(json) RETURNS void AS $$
+CREATE OR REPLACE FUNCTION api.stk_form_post_fn(json) RETURNS text AS $$
 BEGIN
     INSERT INTO private.stk_form_post (form_data)
     VALUES ($1);
+    RETURN 'Submitted - Thank you!!';
 END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER;
