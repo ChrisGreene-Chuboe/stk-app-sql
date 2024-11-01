@@ -5,17 +5,30 @@ create or replace function api.html_sanitize(text) returns text as $$
   select replace(replace(replace(replace(replace($1, '&', '&amp;'), '"', '&quot;'),'>', '&gt;'),'<', '&lt;'), '''', '&apos;')
 $$ language sql;
 
+create or replace function api.html_sanitize(text[]) returns text[] as $$
+  select array(
+    select api.html_sanitize(t)
+    from unnest($1) as t
+  )
+$$ language sql;
+
 -- generic function to return data from any table or view
 -- example usage:
   -- select api.genhtml('api','stk_todo' , 'v', array['name']);
-CREATE OR REPLACE FUNCTION api.html_table(text, text, text, text[])
+CREATE OR REPLACE FUNCTION api.html_table(
+    p_schemaname text,
+    p_tablename text,
+    p_tabletype text,
+    p_columnnames text[]
+)
   RETURNS text AS $BODY$
 
 DECLARE
-  schemaname ALIAS FOR $1;
-  tablename ALIAS FOR $2;
-  tabletype ALIAS FOR $3; -- r for table and v for view
-  columnnames ALIAS FOR $4;
+  schemaname TEXT := api.html_sanitize(p_schemaname);
+  tablename TEXT := api.html_sanitize(p_tablename);
+  -- tabletype => r for table and v for view
+  tabletype TEXT := api.html_sanitize(p_tabletype);
+  columnnames TEXT[] := api.html_sanitize(p_columnnames);
   result TEXT := '';
   searchsql TEXT := '';
   var_match TEXT := '';
