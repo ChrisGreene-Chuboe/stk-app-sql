@@ -18,7 +18,6 @@ $$ language sql;
 CREATE OR REPLACE FUNCTION api.html_table(
     p_schemaname text,
     p_tablename text,
-    p_tabletype text,
     p_columnnames text[]
 )
   RETURNS text AS $BODY$
@@ -27,7 +26,6 @@ DECLARE
   schemaname TEXT := api.html_sanitize(p_schemaname);
   tablename TEXT := api.html_sanitize(p_tablename);
   -- tabletype => r for table and v for view
-  tabletype TEXT := api.html_sanitize(p_tabletype);
   columnnames TEXT[] := api.html_sanitize(p_columnnames);
   result TEXT := '';
   searchsql TEXT := '';
@@ -35,8 +33,19 @@ DECLARE
   col TEXT;
   header TEXT;
   column_exists BOOLEAN;
+  tabletype TEXT;
 
 BEGIN
+  -- Determine the table type (table or view)
+  SELECT CASE WHEN table_type = 'BASE TABLE' THEN 'r' ELSE 'v' END
+  INTO tabletype
+  FROM information_schema.tables
+  WHERE table_schema = schemaname
+    AND table_name = tablename;
+
+  IF tabletype IS NULL THEN
+    RAISE EXCEPTION 'Table or view %.% does not exist', schemaname, tablename;
+  END IF;
 
   header := '<thead>' || E'\n' || E'\t' || '<tr>' || E'\n';
   searchsql := 'SELECT ';
@@ -113,7 +122,7 @@ create or replace function api.index() returns "text/html" as $$
           </form>
           <div id="todo-list-area">
             $html$
-              || api.html_table('api','stk_todo','v',array['name','description','is_active']) ||
+              || api.html_table('api','stk_todo',array['name','description','is_active']) ||
             $html$
           <div>
         </article>
