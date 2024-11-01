@@ -37,13 +37,15 @@ BEGIN
         AND attname = ANY(columnnames)
   LOOP
     header := header || E'\t\t' || '<th>' ||  upper(col.attname) || '</th>' || E'\n';
-    searchsql := searchsql || $QUERY$ '<td>' || $QUERY$ || col.attname || $QUERY$ || '</td>' $QUERY$ ;
+    searchsql := searchsql || $QUERY$ '<td>' || coalesce($QUERY$ || col.attname || $QUERY$,'') || '</td>' ||$QUERY$ ;
   END LOOP;
+  searchsql := substring(searchsql from 1 for length(searchsql) - 2); --remove last concatenate
   header := header || E'\t' || '</tr>' || E'\n' || '</thead>' || E'\n';
-  RAISE NOTICE 'Debug: header is %', header;
-  RAISE NOTICE 'Debug: searchsql is %', searchsql;
 
   searchsql := searchsql || ' FROM ' || schemaname || '.' || tablename;
+
+  RAISE NOTICE 'Debug: header is %', header;
+  RAISE NOTICE 'Debug: searchsql is %', searchsql;
 
   result := '<table>' || E'\n';
   result := result || header || '<tbody>' || E'\n';
@@ -90,7 +92,7 @@ create or replace function api.index() returns "text/html" as $$
           </form>
           <div id="todo-list-area">
             $html$
-              || api.html_table('api','stk_todo','v',array['name']) ||
+              || api.html_table('api','stk_todo','v',array['name','description']) ||
             $html$
           <div>
         </article>
