@@ -1,14 +1,14 @@
 
 --create domain "text/html" as text;
 
-create or replace function api.sanitize_html(text) returns text as $$
+create or replace function api.html_sanitize(text) returns text as $$
   select replace(replace(replace(replace(replace($1, '&', '&amp;'), '"', '&quot;'),'>', '&gt;'),'<', '&lt;'), '''', '&apos;')
 $$ language sql;
 
 -- generic function to return data from any table or view
 -- example usage:
   -- select api.genhtml('api','stk_todo' , 'v', array['name']);
-CREATE OR REPLACE FUNCTION api.genhtml(text, text, text, text[])
+CREATE OR REPLACE FUNCTION api.html_table(text, text, text, text[])
   RETURNS text AS $BODY$
 
 DECLARE
@@ -36,7 +36,7 @@ BEGIN
         AND attnum > 0
         AND attname = ANY(columnnames)
   LOOP
-    header := header || E'\t\t' || '<th>' ||  upper(api.sanitize_html(col.attname)) || '</th>' || E'\n';
+    header := header || E'\t\t' || '<th>' ||  upper(col.attname) || '</th>' || E'\n';
     searchsql := searchsql || $QUERY$ || E'\n\t\t' || '<td>' || $QUERY$ || col || $QUERY$ || '</td>' $QUERY$;
   END LOOP;
   header := header || E'\t' || '</tr>' || E'\n' || '</thead>' || E'\n';
@@ -88,7 +88,7 @@ create or replace function api.index() returns "text/html" as $$
           </form>
           <div id="todo-list-area">
             $html$
-              || api.genhtml('api','stk_todo','v',array['name']) ||
+              || api.html_table('api','stk_todo','v',array['name']) ||
             $html$
           <div>
         </article>
