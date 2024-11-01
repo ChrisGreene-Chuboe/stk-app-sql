@@ -24,7 +24,7 @@ DECLARE
 
 BEGIN
 
-  header := E'\t' || '<tr>' || E'\n';
+  header := E'\t' || '<thead>' || E'\n' || E'\t' || '<tr>' || E'\n';
   searchsql := $QUERY$SELECT ''$QUERY$;
   FOR col IN SELECT attname
     FROM pg_attribute AS a
@@ -39,18 +39,18 @@ BEGIN
     header := header || E'\t\t' || '<th>' ||  col.attname || '</th>' || E'\n';
     searchsql := searchsql || $QUERY$ || E'\n\t\t' || '<td>' || $QUERY$ || col || $QUERY$ || '</td>' $QUERY$;
   END LOOP;
-  header := header || E'\t' || '</tr>' || E'\n';
+  header := header || E'\t' || '</tr>' || E'\n' || E'\t' || '</thead>' || E'\n';
 
   searchsql := searchsql || ' FROM ' || schemaname || '.' || tablename;
 
   result := '<table>' || E'\n';
-  result := result || header;
+  result := result || header || '<tbody>';
   FOR var_match IN EXECUTE(searchsql) LOOP
     IF result > '' THEN
       result := result || E'\t' || '<tr>' || var_match || E'\n\t' || '</tr>' || E'\n';
     END IF;
   END LOOP;
-  result :=  result || '</table>' || E'\n';
+  result :=  result || '</tbody>' || '</table>' || E'\n';
 
   RETURN result;
 
