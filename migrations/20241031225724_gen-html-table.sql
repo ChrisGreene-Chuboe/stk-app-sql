@@ -25,7 +25,6 @@ CREATE OR REPLACE FUNCTION api.html_table(
 DECLARE
   schemaname TEXT := api.html_sanitize(p_schemaname);
   tablename TEXT := api.html_sanitize(p_tablename);
-  -- tabletype => r for table and v for view
   columnnames TEXT[] := api.html_sanitize(p_columnnames);
   result TEXT := '';
   searchsql TEXT := '';
