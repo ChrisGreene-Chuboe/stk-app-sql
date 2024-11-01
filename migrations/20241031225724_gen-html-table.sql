@@ -47,7 +47,7 @@ BEGIN
   result := result || header || '<tbody>' || E'\n';
   FOR var_match IN EXECUTE(searchsql) LOOP
     IF result > '' THEN
-      result := result || E'\t' || '<tr>' || api.sanitize_html(var_match) || E'\n\t' || '</tr>' || E'\n';
+      result := result || E'\t' || '<tr>' || var_match || E'\n\t' || '</tr>' || E'\n';
     END IF;
   END LOOP;
   result :=  result || '</tbody>' || E'\n' || '</table>' || E'\n';
