@@ -36,7 +36,7 @@ BEGIN
         AND attnum > 0
         AND attname = ANY(columnnames)
   LOOP
-    header := header || E'\t\t' || '<th>' ||  col.attname || '</th>' || E'\n';
+    header := header || E'\t\t' || '<th>' ||  upper(col.attname) || '</th>' || E'\n';
     searchsql := searchsql || $QUERY$ || E'\n\t\t' || '<td>' || $QUERY$ || col || $QUERY$ || '</td>' $QUERY$;
   END LOOP;
   header := header || E'\t' || '</tr>' || E'\n' || '</thead>' || E'\n';
