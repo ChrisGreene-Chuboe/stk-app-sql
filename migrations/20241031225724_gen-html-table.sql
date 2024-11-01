@@ -37,7 +37,7 @@ BEGIN
         AND attname = ANY(columnnames)
   LOOP
     header := header || E'\t\t' || '<th>' ||  upper(api.sanitize_html(col.attname)) || '</th>' || E'\n';
-    searchsql := searchsql || $QUERY$ || E'\n\t\t' || '<td>' || $QUERY$ || col || $QUERY$ || '</td>' $QUERY$;
+    searchsql := searchsql || $QUERY$ || E'\n\t\t' || '<td>' || $QUERY$ || api.sanitize_html(col) || $QUERY$ || '</td>' $QUERY$;
   END LOOP;
   header := header || E'\t' || '</tr>' || E'\n' || '</thead>' || E'\n';
 
