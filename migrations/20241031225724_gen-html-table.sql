@@ -88,7 +88,7 @@ create or replace function api.index() returns "text/html" as $$
           </form>
           <div id="todo-list-area">
             $html$
-              || api.html_table('api','stk_todo','v',array['name','description']) ||
+              || api.html_table('api','stk_todo','v',array['name']) ||
             $html$
           <div>
         </article>
