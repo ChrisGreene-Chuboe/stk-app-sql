@@ -36,7 +36,7 @@ BEGIN
         AND attnum > 0
         AND attname = ANY(columnnames)
   LOOP
-    header := header || E'\t\t' || '<th>' ||  upper(col.attname) || '</th>' || E'\n';
+    header := header || E'\t\t' || '<th>' ||  upper(api.sanitize_html(col.attname)) || '</th>' || E'\n';
     searchsql := searchsql || $QUERY$ || E'\n\t\t' || '<td>' || $QUERY$ || col || $QUERY$ || '</td>' $QUERY$;
   END LOOP;
   header := header || E'\t' || '</tr>' || E'\n' || '</thead>' || E'\n';
@@ -47,7 +47,7 @@ BEGIN
   result := result || header || '<tbody>' || E'\n';
   FOR var_match IN EXECUTE(searchsql) LOOP
     IF result > '' THEN
-      result := result || E'\t' || '<tr>' || var_match || E'\n\t' || '</tr>' || E'\n';
+      result := result || E'\t' || '<tr>' || api.sanitize_html(var_match) || E'\n\t' || '</tr>' || E'\n';
     END IF;
   END LOOP;
   result :=  result || '</tbody>' || E'\n' || '</table>' || E'\n';
