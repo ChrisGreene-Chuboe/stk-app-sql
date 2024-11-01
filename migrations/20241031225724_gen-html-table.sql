@@ -19,33 +19,42 @@ DECLARE
   result TEXT := '';
   searchsql TEXT := '';
   var_match TEXT := '';
-  col RECORD;
+  col TEXT;
   header TEXT;
+  column_exists BOOLEAN;
 
 BEGIN
 
   header := '<thead>' || E'\n' || E'\t' || '<tr>' || E'\n';
   searchsql := 'SELECT ';
-  FOR col IN SELECT attname
-    FROM pg_attribute AS a
-    JOIN pg_class AS c ON a.attrelid = c.oid
-    JOIN pg_namespace AS n on c.relnamespace = n.oid
-    WHERE c.relname = tablename
-        AND n.nspname = schemaname
-        AND c.relkind = tabletype
-        AND attnum > 0
-        AND attname = ANY(columnnames)
+
+  -- Loop through the provided column names
+  FOREACH col IN ARRAY columnnames
   LOOP
-    header := header || E'\t\t' || '<th>' ||  upper(col.attname) || '</th>' || E'\n';
-    searchsql := searchsql || $QUERY$ '<td>' || coalesce($QUERY$ || col.attname || $QUERY$,'') || '</td>' ||$QUERY$ ;
+    -- Check if the column exists in the table
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = schemaname
+        AND table_name = tablename
+        AND column_name = col
+    ) INTO column_exists;
+
+    IF column_exists THEN
+      header := header || E'\t\t' || '<th>' ||  upper(col) || '</th>' || E'\n';
+      searchsql := searchsql || $QUERY$ '<td>' || coalesce($QUERY$ || col || $QUERY$::text,'') || '</td>' ||$QUERY$ ;
+    ELSE
+      RAISE WARNING 'Column % does not exist in table %.%', col, schemaname, tablename;
+    END IF;
   END LOOP;
+
   searchsql := substring(searchsql from 1 for length(searchsql) - 2); --remove last concatenate
   header := header || E'\t' || '</tr>' || E'\n' || '</thead>' || E'\n';
 
   searchsql := searchsql || ' FROM ' || schemaname || '.' || tablename;
 
-  RAISE NOTICE 'Debug: header is %', header;
-  RAISE NOTICE 'Debug: searchsql is %', searchsql;
+  --RAISE NOTICE 'Debug: header is %', header;
+  --RAISE NOTICE 'Debug: searchsql is %', searchsql;
 
   result := '<table>' || E'\n';
   result := result || header || '<tbody>' || E'\n';
