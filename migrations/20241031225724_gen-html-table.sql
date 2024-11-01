@@ -25,7 +25,7 @@ DECLARE
 BEGIN
 
   header := '<thead>' || E'\n' || E'\t' || '<tr>' || E'\n';
-  searchsql := $QUERY$SELECT ''$QUERY$;
+  searchsql := 'SELECT ';
   FOR col IN SELECT attname
     FROM pg_attribute AS a
     JOIN pg_class AS c ON a.attrelid = c.oid
@@ -37,9 +37,11 @@ BEGIN
         AND attname = ANY(columnnames)
   LOOP
     header := header || E'\t\t' || '<th>' ||  upper(col.attname) || '</th>' || E'\n';
-    searchsql := searchsql || $QUERY$ || E'\n\t\t' || '<td>' || $QUERY$ || col || $QUERY$ || '</td>' $QUERY$;
+    searchsql := searchsql || $QUERY$ '<td>' || $QUERY$ || col.attname || $QUERY$ || '</td>' $QUERY$ ;
   END LOOP;
   header := header || E'\t' || '</tr>' || E'\n' || '</thead>' || E'\n';
+  RAISE NOTICE 'Debug: header is %', header;
+  RAISE NOTICE 'Debug: searchsql is %', searchsql;
 
   searchsql := searchsql || ' FROM ' || schemaname || '.' || tablename;
 
