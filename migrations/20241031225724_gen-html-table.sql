@@ -100,7 +100,6 @@ create or replace function api.index() returns "text/html" as $$
     </head>
     <body>
       <main class="container"
-            <!--style="max-width: 600px"-->
             hx-headers='{"Accept": "text/html"}'>
         <article>
           <h5 style="text-align: center;">
