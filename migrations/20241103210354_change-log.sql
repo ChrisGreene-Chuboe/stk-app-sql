@@ -1,4 +1,9 @@
 
+-- todo
+  -- create stk_change_log table
+  -- create stk_change_log_exclude table to exclude based on table or role - do not track on itself
+  -- update t1000_change_log function to write to table and check for exclusions 
+
 CREATE OR REPLACE FUNCTION private.t1000_change_log()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -122,5 +127,3 @@ select private.stk_table_trigger_create();
 -- insert into private.delme_trigger values ('name1','desc1');
 -- update private.delme_trigger set description = 'desc1 - updated';
 -- delete from private.delme_trigger;
-
-
