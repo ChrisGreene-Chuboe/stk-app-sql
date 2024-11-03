@@ -15,6 +15,10 @@ $$ language sql;
 -- generic function to return data from any table or view
 -- example usage:
   -- select api.genhtml('api','stk_todo' , 'v', array['name']);
+-- Notes:
+  -- this function seems to be in a good state
+  -- there is no way to specify where or order
+-- reference: https://stackoverflow.com/questions/4265155/generate-html-from-postgresql-function
 CREATE OR REPLACE FUNCTION api.html_table(
     p_schemaname text,
     p_tablename text,
@@ -93,6 +97,10 @@ $BODY$
   LANGUAGE 'plpgsql' VOLATILE;
 
 -- example function that acts like a web server and returns an index - home page showing todos
+-- Notes:
+  -- incomplete: todo_add not yet supported
+  -- incomplete: would be nice to have delete and edit icons
+-- reference: https://docs.postgrest.org/en/v12/how-tos/providing-html-content-using-htmx.html#providing-html-content-using-htmx
 create or replace function api.index() returns "text/html" as $$
   select $html$
     <!DOCTYPE html>
