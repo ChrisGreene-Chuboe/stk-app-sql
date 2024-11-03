@@ -1,5 +1,4 @@
 
-
 CREATE OR REPLACE FUNCTION private.t1000_change_log()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -77,85 +76,51 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
 RETURNS void AS $$
 DECLARE
-    table_record RECORD;
-    trigger_name TEXT;
+    my_table_record RECORD;
+    my_trigger_name TEXT;
 BEGIN
-    FOR table_record IN
+    FOR my_table_record IN
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = 'private'
           AND table_type = 'BASE TABLE'
     LOOP
         -- Derive the trigger name from the table name
-        trigger_name := table_record.table_name || '_tgr_t1000';
+        my_trigger_name := my_table_record.table_name || '_tgr_t1000';
 
         -- Check if the trigger already exists
         IF NOT EXISTS (
             SELECT 1
             FROM information_schema.triggers
             WHERE trigger_schema = 'private'
-              AND event_object_table = table_record.table_name
-              AND trigger_name = trigger_name
+              AND event_object_table = my_table_record.table_name
+              AND trigger_name = my_trigger_name
         ) THEN
             -- Create the trigger if it doesn't exist
             EXECUTE format(
                 'CREATE TRIGGER %I
                  AFTER INSERT OR UPDATE OR DELETE ON private.%I
                  FOR EACH ROW EXECUTE FUNCTION private.t1000_change_log()',
-                trigger_name,
-                table_record.table_name
+                my_trigger_name,
+                my_table_record.table_name
             );
 
-            RAISE NOTICE 'Created trigger % on table private.%', trigger_name, table_record.table_name;
+            RAISE NOTICE 'Created trigger % on table private.%', my_trigger_name, my_table_record.table_name;
         ELSE
-            RAISE NOTICE 'Trigger % already exists on table private.%', trigger_name, table_record.table_name;
+            --RAISE NOTICE 'Trigger % already exists on table private.%', my_trigger_name, my_table_record.table_name;
         END IF;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
 
 
---CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
---RETURNS event_trigger AS $$
---DECLARE
---    obj record;
---    trigger_name text;
---    current_db text;
---BEGIN
---    -- Get the current database name
---    SELECT current_database() INTO current_db;
---
---    FOR obj IN SELECT * FROM pg_event_trigger_ddl_commands()
---               WHERE command_tag = 'CREATE TABLE'
---                 AND (schema_name = 'private' OR schema_name IS NULL)
---    LOOP
---        -- Check if the table is in the current database and 'private' schema
---        IF obj.object_identity ~ ('^' || current_db || '\.private\.') THEN
---            ---- create change log ----
---            -- Derive the trigger name from the table name
---            trigger_name := obj.object_identity || '_tgr_t1000';
---
---            EXECUTE format(
---                'CREATE TRIGGER %I
---                 AFTER INSERT OR UPDATE OR DELETE ON %s
---                 FOR EACH ROW EXECUTE FUNCTION private.t1000_change_log()',
---                trigger_name,
---                obj.object_identity
---            );
---            ---- create change log ----
---        END IF;
---    END LOOP;
---END;
---$$ LANGUAGE plpgsql;
+select private.stk_table_trigger_create();
 
--- Create the event trigger
---CREATE EVENT TRIGGER stk_table_trigger_create_event ON ddl_command_end WHEN TAG IN ('CREATE TABLE') EXECUTE FUNCTION private.stk_table_trigger_create();
-
--- manual test
--- create table private.delme (name text, description text);
--- --create trigger delme_trg after insert or update or delete on private.delme for each row execute function private.t1000_change_log();
--- insert into private.delme values ('name1','desc1');
--- update private.delme set description = 'desc1 - updated';
--- delete from private.delme;
+---- manual test
+-- create table private.delme_trigger (name text, description text);
+-- select private.stk_table_trigger_create();
+-- insert into private.delme_trigger values ('name1','desc1');
+-- update private.delme_trigger set description = 'desc1 - updated';
+-- delete from private.delme_trigger;
 
 
