@@ -1,8 +1,21 @@
 
--- todo
-  -- create stk_change_log table
-  -- create stk_change_log_exclude table to exclude based on table or role - do not track on itself
-  -- update t1000_change_log function to write to table and check for exclusions 
+
+CREATE TABLE private.stk_change_log (
+  stk_change_log_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  table_name text,
+  changes jsonb
+);
+
+CREATE TABLE private.stk_change_log_exclude (
+  stk_change_log_exclude_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  table_name text
+);
+
+insert into private.stk_change_log_exclude (table_name) values ('stk_change_log');
 
 CREATE OR REPLACE FUNCTION private.t1000_change_log()
 RETURNS TRIGGER AS $$
@@ -15,7 +28,19 @@ DECLARE
     is_different BOOLEAN;
     old_value TEXT;
     new_value TEXT;
+    is_excluded BOOLEAN;
 BEGIN
+    SELECT EXISTS (
+        SELECT 1
+        FROM private.stk_change_log_exclude
+        WHERE table_name = TG_TABLE_NAME
+    ) INTO is_excluded;
+
+    -- If the table is excluded, exit the function
+    IF is_excluded THEN
+        RETURN NULL;
+    END IF;
+
     IF TG_OP = 'INSERT' THEN
         new_row := NEW;
         FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = TG_TABLE_NAME LOOP
@@ -29,7 +54,7 @@ BEGIN
                         'column', column_name,
                         'new_value', column_value
                     );
-                    RAISE NOTICE '%', json_output;
+                    INSERT INTO private.stk_change_log (table_name, changes) VALUES (TG_TABLE_NAME, json_output);
                 END IF;
             END IF;
         END LOOP;
@@ -52,7 +77,7 @@ BEGIN
                     'old_value', old_value,
                     'new_value', new_value
                 );
-                RAISE NOTICE '%', json_output;
+                INSERT INTO private.stk_change_log (table_name, changes) VALUES (TG_TABLE_NAME, json_output);
             END IF;
         END LOOP;
     ELSIF TG_OP = 'DELETE' THEN
@@ -68,7 +93,7 @@ BEGIN
                         'column', column_name,
                         'old_value', column_value
                     );
-                    RAISE NOTICE '%', json_output;
+                    INSERT INTO private.stk_change_log (table_name, changes) VALUES (TG_TABLE_NAME, json_output);
                 END IF;
             END IF;
         END LOOP;
@@ -127,3 +152,4 @@ select private.stk_table_trigger_create();
 -- insert into private.delme_trigger values ('name1','desc1');
 -- update private.delme_trigger set description = 'desc1 - updated';
 -- delete from private.delme_trigger;
+-- select * from private.stk_change_log;
