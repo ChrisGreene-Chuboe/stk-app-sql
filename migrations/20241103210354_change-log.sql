@@ -116,12 +116,14 @@ DECLARE
     my_table_record RECORD;
     my_trigger_name TEXT;
 BEGIN
+
     FOR my_table_record IN
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = 'private'
           AND table_type = 'BASE TABLE'
     LOOP
+        -- START: create triggers for change_log (tgr_t1000)
         -- Derive the trigger name from the table name
         my_trigger_name := my_table_record.table_name || '_tgr_t1000';
 
@@ -146,6 +148,7 @@ BEGIN
         ELSE
             --RAISE NOTICE 'Trigger % already exists on table private.%', my_trigger_name, my_table_record.table_name;
         END IF;
+        -- END: create triggers for change_log (tgr_t1000)
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
