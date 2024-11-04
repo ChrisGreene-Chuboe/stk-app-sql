@@ -5,6 +5,7 @@
 
 -- Create and configure private schema
 CREATE SCHEMA IF NOT EXISTS private;
+COMMENT ON SCHEMA private is 'schema used to encapsulate data and private functions';
 GRANT USAGE, CREATE ON SCHEMA private TO stk_todo_superuser;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA private TO stk_todo_superuser;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA private TO stk_todo_superuser;
@@ -13,6 +14,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA private GRANT ALL ON SEQUENCES TO stk_todo_su
 
 -- Create and configure api schema
 CREATE SCHEMA IF NOT EXISTS api;
+COMMENT ON SCHEMA api is 'schema used to create a public interface to the private schema';
 GRANT USAGE, CREATE ON SCHEMA api TO stk_todo_superuser;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA api TO stk_todo_superuser;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA api TO stk_todo_superuser;
@@ -36,8 +38,11 @@ CREATE TABLE private.stk_todo (
   description TEXT,
   date_due TIMESTAMPTZ
 );
+COMMENT ON TABLE private.stk_todo IS 'table to hold task and todos';
 
 CREATE VIEW api.stk_todo AS SELECT * FROM private.stk_todo;
+COMMENT ON VIEW api.stk_todo IS 'table to hold task and todos';
 
-INSERT INTO api.stk_todo (name) VALUES
-  ('perform vitory lap'), ('pat self on back'), ('hug and kiss those you love');
+----sample data
+--INSERT INTO api.stk_todo (name) VALUES
+--  ('perform vitory lap'), ('pat self on back'), ('hug and kiss those you love');

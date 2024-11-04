@@ -4,6 +4,7 @@
 create or replace function api.html_sanitize(text) returns text as $$
   select replace(replace(replace(replace(replace($1, '&', '&amp;'), '"', '&quot;'),'>', '&gt;'),'<', '&lt;'), '''', '&apos;')
 $$ language sql;
+COMMENT ON FUNCTION api.html_sanitize(text) IS 'utility function to safely accept function parameters';
 
 create or replace function api.html_sanitize(text[]) returns text[] as $$
   select array(
@@ -11,6 +12,7 @@ create or replace function api.html_sanitize(text[]) returns text[] as $$
     from unnest($1) as t
   )
 $$ language sql;
+COMMENT ON FUNCTION api.html_sanitize(text[]) IS 'pass through function to accept an array input';
 
 -- generic function to return data from any table or view
 -- example usage:
@@ -95,6 +97,7 @@ BEGIN
 END;
 $BODY$
   LANGUAGE 'plpgsql' VOLATILE;
+COMMENT ON FUNCTION api.html_table(text, text, text[]) IS 'convert psql table to html table'; 
 
 -- example function that acts like a web server and returns an index - home page showing todos
 -- Notes:
@@ -141,3 +144,4 @@ create or replace function api.index() returns "text/html" as $$
     </html>
   $html$;
 $$ language sql;
+COMMENT ON FUNCTION api.index() IS 'function to support PostgREST that acts like a homepage index dynamic page';

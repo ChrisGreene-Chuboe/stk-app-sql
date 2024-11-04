@@ -10,6 +10,7 @@ CREATE TABLE private.stk_change_log (
   batch_id TEXT,
   changes JSONB
 );
+COMMENT ON TABLE private.stk_change_log IS 'table to hold column level changes including inserts, updates and deletes to all table not in stk_change_log_exclude';
 
 CREATE TABLE private.stk_change_log_exclude (
   stk_change_log_exclude_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -17,6 +18,7 @@ CREATE TABLE private.stk_change_log_exclude (
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   table_name TEXT
 );
+COMMENT ON TABLE private.stk_change_log_exclude IS 'table identifyinig all table_names that should not maintain change logs';
 
 insert into private.stk_change_log_exclude (table_name) values ('stk_change_log');
 
@@ -109,6 +111,7 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION private.t1000_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
 
 CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
 RETURNS void AS $$
@@ -152,8 +155,9 @@ BEGIN
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION private.stk_table_trigger_create() is 'Finds all tables that are missing triggers - such as change log';
 
-
+-- update all tables
 select private.stk_table_trigger_create();
 
 ---- manual test

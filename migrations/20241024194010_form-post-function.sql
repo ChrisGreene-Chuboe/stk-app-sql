@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS private.stk_form_post (
   form_data json NOT NULL,
   description TEXT
 );
+COMMENT ON TABLE private.stk_form_post IS 'table used to receive html form posts';
 
 CREATE OR REPLACE FUNCTION api.stk_form_post_fn(json) RETURNS "text/html" AS $$
 BEGIN
@@ -18,5 +19,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER;
+COMMENT ON FUNCTION api.stk_form_post_fn(json) IS 'api function used to write to stk_form_post table';
 
 GRANT EXECUTE ON FUNCTION api.stk_form_post_fn(json) TO postgrest_web_anon;

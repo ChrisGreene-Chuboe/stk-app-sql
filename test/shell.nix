@@ -41,6 +41,7 @@ in pkgs.mkShell {
       createdb $PGDATABASE -h $PGDATA -U $PGUSERSU
       # Note: the following commands need to stay in sync with chuck-stack-nix => nixos => stk-todo-app.nix => services.postgresql.initscript
       psql -h $PGDATA -U $PGUSERSU -c "CREATE ROLE $PGUSER LOGIN CREATEROLE"
+      psql -h $PGDATA -U $PGUSERSU -c "COMMENT ON ROLE $PGUSER IS 'superuser role to administer the $PGDATABASE';"
       psql -h $PGDATA -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $PGUSER"
     else
       echo "exiting with error - $PGDATA directory is not empty"
