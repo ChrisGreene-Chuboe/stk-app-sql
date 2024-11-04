@@ -159,5 +159,7 @@ select private.stk_table_trigger_create();
 -- insert into private.delme_trigger (name, description) values ('name1','desc1');
 -- insert into private.delme_trigger (name, description) values ('name2',null);
 -- update private.delme_trigger set description = 'desc1 - updated' where name='name1';
+-- update private.delme_trigger set description = 'desc2 - updated' where name='name2';
+-- update private.delme_trigger set description = null where name='name2';
 -- delete from private.delme_trigger;
--- select batch_id, table_name, column_name, record_uu, changes from private.stk_change_log order by created desc;
+-- select batch_id, table_name, column_name, record_uu, changes from private.stk_change_log;
