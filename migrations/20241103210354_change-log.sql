@@ -4,15 +4,18 @@ CREATE TABLE private.stk_change_log (
   stk_change_log_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  table_name text,
-  changes jsonb
+  table_name TEXT,
+  record_uu UUID,
+  column_name TEXT,
+  batch_id TEXT,
+  changes JSONB
 );
 
 CREATE TABLE private.stk_change_log_exclude (
   stk_change_log_exclude_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  table_name text
+  table_name TEXT
 );
 
 insert into private.stk_change_log_exclude (table_name) values ('stk_change_log');
@@ -29,6 +32,9 @@ DECLARE
     old_value TEXT;
     new_value TEXT;
     is_excluded BOOLEAN;
+    table_pk_name TEXT;
+    record_uu UUID;
+    batch_id TEXT;
 BEGIN
     SELECT EXISTS (
         SELECT 1
@@ -41,24 +47,26 @@ BEGIN
         RETURN NULL;
     END IF;
 
+    SELECT TG_TABLE_NAME || '_uu' INTO table_pk_name;
+    SELECT gen_random_uuid() INTO batch_id;
+
     IF TG_OP = 'INSERT' THEN
+        EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING NEW;
         new_row := NEW;
         FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = TG_TABLE_NAME LOOP
-            IF new_row.* IS NOT NULL THEN
-                EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO STRICT column_value USING new_row;
-                IF column_value IS NOT NULL THEN
-                    json_output := json_build_object(
-                        'table', TG_TABLE_NAME,
-                        'schema', TG_TABLE_SCHEMA,
-                        'operation', TG_OP,
-                        'column', column_name,
-                        'new_value', column_value
-                    );
-                    INSERT INTO private.stk_change_log (table_name, changes) VALUES (TG_TABLE_NAME, json_output);
-                END IF;
-            END IF;
+            EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO column_value USING new_row;
+            json_output := json_build_object(
+                'table', TG_TABLE_NAME,
+                'schema', TG_TABLE_SCHEMA,
+                'operation', TG_OP,
+                'column', column_name,
+                'new_value', column_value
+            );
+            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, changes)
+                VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
         END LOOP;
     ELSIF TG_OP = 'UPDATE' THEN
+        EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
         old_row := OLD;
         new_row := NEW;
         FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = TG_TABLE_NAME LOOP
@@ -77,25 +85,24 @@ BEGIN
                     'old_value', old_value,
                     'new_value', new_value
                 );
-                INSERT INTO private.stk_change_log (table_name, changes) VALUES (TG_TABLE_NAME, json_output);
+                INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, changes) 
+                    VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
             END IF;
         END LOOP;
     ELSIF TG_OP = 'DELETE' THEN
+        EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
         old_row := OLD;
         FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = TG_TABLE_NAME LOOP
-            IF old_row.* IS NOT NULL THEN
-                EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO STRICT column_value USING old_row;
-                IF column_value IS NOT NULL THEN
-                    json_output := json_build_object(
-                        'table', TG_TABLE_NAME,
-                        'schema', TG_TABLE_SCHEMA,
-                        'operation', TG_OP,
-                        'column', column_name,
-                        'old_value', column_value
-                    );
-                    INSERT INTO private.stk_change_log (table_name, changes) VALUES (TG_TABLE_NAME, json_output);
-                END IF;
-            END IF;
+            EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO STRICT column_value USING old_row;
+            json_output := json_build_object(
+                'table', TG_TABLE_NAME,
+                'schema', TG_TABLE_SCHEMA,
+                'operation', TG_OP,
+                'column', column_name,
+                'old_value', column_value
+            );
+            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, changes) 
+                VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
         END LOOP;
     END IF;
 
@@ -147,9 +154,10 @@ $$ LANGUAGE plpgsql;
 select private.stk_table_trigger_create();
 
 ---- manual test
--- create table private.delme_trigger (name text, description text);
+-- create table private.delme_trigger (delme_trigger_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(), name text, description text);
 -- select private.stk_table_trigger_create();
--- insert into private.delme_trigger values ('name1','desc1');
--- update private.delme_trigger set description = 'desc1 - updated';
+-- insert into private.delme_trigger (name, description) values ('name1','desc1');
+-- insert into private.delme_trigger (name, description) values ('name2',null);
+-- update private.delme_trigger set description = 'desc1 - updated' where name='name1';
 -- delete from private.delme_trigger;
--- select * from private.stk_change_log;
+-- select batch_id, table_name, column_name, record_uu, changes from private.stk_change_log order by created desc;
