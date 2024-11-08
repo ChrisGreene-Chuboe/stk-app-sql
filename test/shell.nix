@@ -32,7 +32,8 @@ in pkgs.mkShell {
     export PGDATABASE=stk_todo_db
     # next line is used by sqlx-cli
     export DATABASE_URL="postgresql://$PGUSER/$PGDATABASE?host=$PGDATA"
-    alias psqlx="psql -h $PWD/pgdata/ -d $PGDATABASE"
+    export PG_DB_TEST="-h $PWD/pgdata/ -d $PGDATABASE"
+    alias psqlx="psql $PG_DB_TEST"
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
