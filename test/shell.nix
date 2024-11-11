@@ -34,8 +34,8 @@ in pkgs.mkShell {
     # note next line is used by sqlx-cli
     export DATABASE_URL="postgresql://$PGUSER/$PGDATABASE?host=$PGDATA"
     # note next line used by aicaht and llm-tool to connect to db
-    export PG_DB_TEST="-h $PGDATA -d $PGDATABASE"
-    alias psqlx="psql $PG_DB_TEST"
+    export AICHAT_PG_HOST="-h $PGDATA -d $PGDATABASE"
+    alias psqlx="psql $AICHAT_PG_HOST"
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
