@@ -28,11 +28,13 @@ in pkgs.mkShell {
   shellHook = ''
     export PGDATA="$PWD/pgdata"
     export PGUSERSU=postgres
+    # note the PGUSER env var is used by psql directly
     export PGUSER=stk_todo_superuser
     export PGDATABASE=stk_todo_db
-    # next line is used by sqlx-cli
+    # note next line is used by sqlx-cli
     export DATABASE_URL="postgresql://$PGUSER/$PGDATABASE?host=$PGDATA"
-    export PG_DB_TEST="-h $PWD/pgdata/ -d $PGDATABASE"
+    # note next line used by aicaht and llm-tool to connect to db
+    export PG_DB_TEST="-h $PGDATA -d $PGDATABASE"
     alias psqlx="psql $PG_DB_TEST"
 
     if [ ! -d "$PGDATA" ]; then
@@ -55,12 +57,16 @@ in pkgs.mkShell {
     run-migrations
 
     echo ""
-    echo "***************************************************"
+    echo "******************************************************"
     echo "PostgreSQL is running using Unix socket in $PGDATA"
     echo "Issue \"psqlx\" to connect to $PGDATABASE database"
     echo "To run migrations, use the 'run-migrations' command"
+    echo "Note: \"PGUSER=stk_todo_login\" to connect as user using psqlx"
+    echo "      \"set role stk_todo_user\" in psqlx to play with the api schema"
+    echo "Note: \"PGUSER=stk_todo_superuser\" to revert"
+    echo ""
     echo "Note: this database will be destroyed on shell exit"
-    echo "***************************************************"
+    echo "******************************************************"
     echo ""
 
     cleanup() {
