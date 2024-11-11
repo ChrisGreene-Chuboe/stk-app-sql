@@ -15,3 +15,4 @@ ALTER ROLE stk_todo_user SET search_path TO api;
 CREATE ROLE stk_todo_login NOINHERIT LOGIN ;
 COMMENT ON ROLE stk_todo_login IS 'stk_todo_login role that has no priviledges except to switch to stk_todo_user';
 GRANT stk_todo_user TO stk_todo_login;
+GRANT stk_todo_user TO stk_todo_superuser; -- allow 'superuser' to play role of 'user'
