@@ -35,6 +35,7 @@ in pkgs.mkShell {
     export DATABASE_URL="postgresql://$PGUSER/$PGDATABASE?host=$PGDATA"
     # note next line used by aicaht and llm-tool to connect to db
     export AICHAT_PG_HOST="-h $PGDATA -d $PGDATABASE"
+    export AICHAT_PG_ROLE="stk_todo_user" # hard coded for short term
     alias psqlx="psql $AICHAT_PG_HOST"
 
     if [ ! -d "$PGDATA" ]; then
@@ -64,6 +65,7 @@ in pkgs.mkShell {
     echo "Note: \"PGUSER=stk_todo_login\" to connect as user using psqlx"
     echo "      \"set role stk_todo_user\" in psqlx to play with the api schema"
     echo "Note: \"PGUSER=stk_todo_superuser\" to revert"
+    echo "Note: \"export AICHAT_PG_ROLE=stk_todo_superuser\" to set AIChat role when connecting"
     echo ""
     echo "Note: this database will be destroyed on shell exit"
     echo "******************************************************"
