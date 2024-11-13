@@ -29,11 +29,11 @@ in pkgs.mkShell {
     export PGDATA="$PWD/pgdata"
     export PGUSERSU=postgres
     # note the PGUSER env var is used by psql directly
-    export STK_SUPERUSER=stk_todo_superuser
-    export STK_USER=stk_todo_login
+    export STK_SUPERUSER=stk_superuser
+    export STK_USER=stk_login
     # note next line allows for migrations to execute
     export PGUSER=$STK_SUPERUSER
-    export PGDATABASE=stk_todo_db
+    export PGDATABASE=stk_db
     # note next line is used by sqlx-cli
     export DATABASE_URL="postgresql://$STK_SUPERUSER/$PGDATABASE?host=$PGDATA"
 
@@ -60,7 +60,7 @@ in pkgs.mkShell {
     export PGUSER=$STK_USER
     # note next line used by aicaht and llm-tool to connect to db
     export AICHAT_PG_HOST="-h $PGDATA -d $PGDATABASE"
-    export AICHAT_PG_ROLE="stk_todo_api_role" # hard coded as default
+    export AICHAT_PG_ROLE="stk_api_role" # hard coded as default
     export PSQLRC="$PWD"/.psqlrc
     alias psqlx="psql $AICHAT_PG_HOST"
 
@@ -71,8 +71,9 @@ in pkgs.mkShell {
     echo "To run migrations, use the 'run-migrations' command"
     echo "Note: PGUSER = $STK_USER demonstrating user login with no abilities"
     echo "Note: AICHAT_PG_ROLE sets the desired role for both psqlx and aicaht - see impersonation"
-    echo "      export AICHAT_PG_ROLE=stk_todo_api_role #default"
-    echo "      export AICHAT_PG_ROLE=stk_todo_private_role"
+    echo "      export AICHAT_PG_ROLE=stk_api_role #default"
+    echo "      export AICHAT_PG_ROLE=stk_private_role"
+    echo "      in psqlx: show role; to see your current role"
     echo "Note: this database will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
@@ -82,12 +83,6 @@ in pkgs.mkShell {
       pg_ctl stop
       rm -rf "$PGDATA"
       rm migrations
-      export PGUSER=
-      export PSQLRC=
-      export PGDATABASE=
-      export AICHAT_PG_HOST=
-      export AICHAT_PG_ROLE=
-      export DATABASE_URL=
     }
 
     trap cleanup EXIT

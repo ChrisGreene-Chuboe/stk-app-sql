@@ -16,7 +16,7 @@ COMMENT ON FUNCTION api.html_sanitize(text[]) IS 'pass through function to accep
 
 -- generic function to return data from any table or view
 -- example usage:
-  -- select api.genhtml('api','stk_todo' , 'v', array['name']);
+  -- select api.genhtml('api','stk_wf_request' , 'v', array['name']);
 -- Notes:
   -- this function seems to be in a good state
   -- there is no way to specify where or order
@@ -99,9 +99,9 @@ $BODY$
   LANGUAGE 'plpgsql' VOLATILE;
 COMMENT ON FUNCTION api.html_table(text, text, text[]) IS 'convert psql table to html table'; 
 
--- example function that acts like a web server and returns an index - home page showing todos
+-- example function that acts like a web server and returns an index - home page showing request
 -- Notes:
-  -- incomplete: todo_add not yet supported
+  -- incomplete: request_add not yet supported
   -- incomplete: would be nice to have delete and edit icons
 -- reference: https://docs.postgrest.org/en/v12/how-tos/providing-html-content-using-htmx.html#providing-html-content-using-htmx
 create or replace function api.index() returns "text/html" as $$
@@ -124,15 +124,15 @@ create or replace function api.index() returns "text/html" as $$
           <h5 style="text-align: center;">
             PostgREST + HTMX To-Do List
           </h5>
-          <form hx-post="/rpc/add_todo"
-                hx-target="#todo-list-area"
+          <form hx-post="/rpc/add_request"
+                hx-target="#request-list-area"
                 hx-trigger="submit"
                 hx-on="htmx:afterRequest: this.reset()">
-            <input type="text" name="_task" placeholder="Add a todo...">
+            <input type="text" name="_task" placeholder="Add a request...">
           </form>
-          <div id="todo-list-area">
+          <div id="request-list-area">
             $html$
-              || api.html_table('api','stk_todo',array['name','description','is_active']) ||
+              || api.html_table('api','stk_wf_request',array['name','description','is_active']) ||
             $html$
           <div>
         </article>
