@@ -29,14 +29,13 @@ in pkgs.mkShell {
     export PGDATA="$PWD/pgdata"
     export PGUSERSU=postgres
     # note the PGUSER env var is used by psql directly
-    export PGUSER=stk_todo_superuser
+    export STK_SUPERUSER=stk_todo_superuser
+    export STK_USER=stk_todo_login
+    # note next line allows for migrations to execute
+    export PGUSER=$STK_SUPERUSER
     export PGDATABASE=stk_todo_db
     # note next line is used by sqlx-cli
-    export DATABASE_URL="postgresql://$PGUSER/$PGDATABASE?host=$PGDATA"
-    # note next line used by aicaht and llm-tool to connect to db
-    export AICHAT_PG_HOST="-h $PGDATA -d $PGDATABASE"
-    export AICHAT_PG_ROLE="stk_todo_user" # hard coded for short term
-    alias psqlx="psql $AICHAT_PG_HOST"
+    export DATABASE_URL="postgresql://$STK_SUPERUSER/$PGDATABASE?host=$PGDATA"
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
@@ -44,9 +43,9 @@ in pkgs.mkShell {
       pg_ctl start -o "-k \"$PGDATA\"" -l "$PGDATA/postgresql.log"
       createdb $PGDATABASE -h $PGDATA -U $PGUSERSU
       # Note: the following commands need to stay in sync with chuck-stack-nix => nixos => stk-todo-app.nix => services.postgresql.initscript
-      psql -h $PGDATA -U $PGUSERSU -c "CREATE ROLE $PGUSER LOGIN CREATEROLE"
-      psql -h $PGDATA -U $PGUSERSU -c "COMMENT ON ROLE $PGUSER IS 'superuser role to administer the $PGDATABASE';"
-      psql -h $PGDATA -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $PGUSER"
+      psql -h $PGDATA -U $PGUSERSU -c "CREATE ROLE $STK_SUPERUSER LOGIN CREATEROLE"
+      psql -h $PGDATA -U $PGUSERSU -c "COMMENT ON ROLE $STK_SUPERUSER IS 'superuser role to administer the $PGDATABASE';"
+      psql -h $PGDATA -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $STK_SUPERUSER"
     else
       echo "exiting with error - $PGDATA directory is not empty"
       exit 1
@@ -57,16 +56,23 @@ in pkgs.mkShell {
 
     run-migrations
 
+    # note next line sets database user to powerless user
+    export PGUSER=$STK_USER
+    # note next line used by aicaht and llm-tool to connect to db
+    export AICHAT_PG_HOST="-h $PGDATA -d $PGDATABASE"
+    export AICHAT_PG_ROLE="stk_todo_api_role" # hard coded as default
+    export PSQLRC="$PWD"/.psqlrc
+    alias psqlx="psql $AICHAT_PG_HOST"
+
     echo ""
     echo "******************************************************"
     echo "PostgreSQL is running using Unix socket in $PGDATA"
     echo "Issue \"psqlx\" to connect to $PGDATABASE database"
     echo "To run migrations, use the 'run-migrations' command"
-    echo "Note: \"PGUSER=stk_todo_login\" to connect as user using psqlx"
-    echo "      \"set role stk_todo_user\" in psqlx to play with the api schema"
-    echo "Note: \"PGUSER=stk_todo_superuser\" to revert"
-    echo "Note: \"export AICHAT_PG_ROLE=stk_todo_superuser\" to set AIChat role when connecting"
-    echo ""
+    echo "Note: PGUSER = $STK_USER demonstrating user login with no abilities"
+    echo "Note: AICHAT_PG_ROLE sets the desired role for both psqlx and aicaht - see impersonation"
+    echo "      export AICHAT_PG_ROLE=stk_todo_api_role #default"
+    echo "      export AICHAT_PG_ROLE=stk_todo_private_role"
     echo "Note: this database will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
@@ -76,6 +82,12 @@ in pkgs.mkShell {
       pg_ctl stop
       rm -rf "$PGDATA"
       rm migrations
+      export PGUSER=
+      export PSQLRC=
+      export PGDATABASE=
+      export AICHAT_PG_HOST=
+      export AICHAT_PG_ROLE=
+      export DATABASE_URL=
     }
 
     trap cleanup EXIT

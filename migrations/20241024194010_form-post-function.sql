@@ -21,4 +21,4 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 COMMENT ON FUNCTION api.stk_form_post_fn(jsonb) IS 'api function used to write to stk_form_post table';
 
-GRANT EXECUTE ON FUNCTION api.stk_form_post_fn(jsonb) TO postgrest_web_anon;
+GRANT EXECUTE ON FUNCTION api.stk_form_post_fn(jsonb) TO stk_todo_api_role;
