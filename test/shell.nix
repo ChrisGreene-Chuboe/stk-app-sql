@@ -64,6 +64,13 @@ in pkgs.mkShell {
     export PSQLRC="$PWD"/.psqlrc
     alias psqlx="psql $AICHAT_PG_HOST"
 
+    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n api > api-schema.sql
+    sed -i '/^--/d' api-schema.sql
+    sed -i '/^GRANT/d' api-schema.sql
+    sed -i '/^ALTER/d' api-schema.sql
+    
+    alias aix="aichat -r %functions% -f api-schema.sql"
+
     echo ""
     echo "******************************************************"
     echo "PostgreSQL is running using Unix socket in $PGDATA"
@@ -83,6 +90,7 @@ in pkgs.mkShell {
       pg_ctl stop
       rm -rf "$PGDATA"
       rm migrations
+      rm api-schema.sql
     }
 
     trap cleanup EXIT
