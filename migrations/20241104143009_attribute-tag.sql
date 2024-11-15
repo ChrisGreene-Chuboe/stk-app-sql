@@ -37,6 +37,9 @@ CREATE TABLE private.stk_attribute_tag_type (
 );
 COMMENT ON TABLE private.stk_attribute_tag_type IS 'Holds the types of stk_attribute_tag records. Attributes column holds a json template to be used when creating a new skt_attribute_tag record.';
 
+CREATE VIEW api.stk_attribute_tag_type AS SELECT * FROM private.stk_attribute_tag_type;
+COMMENT ON VIEW api.stk_wf_request_type IS 'Holds the types of stk_attribute_tag records. Attributes column holds a json template to be used when creating a new skt_attribute_tag record.';
+
 CREATE TABLE private.stk_attribute_tag (
   stk_attribute_tag_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -55,6 +58,10 @@ CREATE TABLE private.stk_attribute_tag (
   attributes JSONB
 );
 COMMENT ON TABLE private.stk_attribute_tag IS 'Holds attribute tag records that describe other records in the system as referenced by table_name and record_uu. The attributes column holds the actual json attribute tag values used to describe the foreign record.';
+
+CREATE VIEW api.stk_attribute_tag AS SELECT * FROM private.stk_attribute_tag;
+COMMENT ON VIEW api.stk_attribute_tag IS 'Holds attribute tag records that describe other records in the system as referenced by table_name and record_uu. The attributes column holds the actual json attribute tag values used to describe the foreign record.';
+
 
 ---- test attribute tag type values
 --INSERT INTO private.stk_attribute_tag_type (name, description, attributes, attribute_tag_type) VALUES

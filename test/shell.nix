@@ -85,7 +85,11 @@ in pkgs.mkShell {
     sed -i '/^CREATE TRIGGER/d' schema-private.sql
     sed -i '/ADD CONSTRAINT/d' schema-private.sql
 
+    STK_DOCS=chuckstack.github.io
+    git clone --depth 1 https://github.com/chuckstack/$STK_DOCS
+
     alias aix="aichat -r %functions% -f schema-api.sql -f schema-enum.sql -f schema-private.sql"
+    alias aix-conv="aichat -r %functions% -f schema-api.sql -f schema-enum.sql -f schema-private.sql -f $STK_DOCS/src-ls/postgres-conventions.md"
 
     echo ""
     echo "******************************************************"
@@ -96,7 +100,9 @@ in pkgs.mkShell {
     echo "Note: AICHAT_PG_ROLE sets the desired role for both psqlx and aicaht - see impersonation"
     echo "      export AICHAT_PG_ROLE=stk_api_role #default"
     echo "      export AICHAT_PG_ROLE=stk_private_role"
-    echo "      in psqlx: show role; to see your current role"
+    echo "      psqlx: show role; to see your current role"
+    echo "Note: aix - an alias including the current db schema"
+    echo "Note: aix-conv - an alias including aix + website conventions"
     echo "Note: this database will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
@@ -105,6 +111,7 @@ in pkgs.mkShell {
       echo "Stopping PostgreSQL and cleaning up..."
       pg_ctl stop
       rm -rf "$PGDATA"
+      rm -rf "$STK_DOCS"
       rm migrations
       rm schema-api.sql
       rm schema-enum.sql
