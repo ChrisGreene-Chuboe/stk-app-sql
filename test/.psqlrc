@@ -6,7 +6,7 @@
 \pset null '[NULL]'
 \x auto
 \set VERBOSITY verbose
-\set HISTFILE ~/.psql_history.d/psql_history- :DBNAME-:userlogged-:datetag
+\set HISTFILE .psql_history
 \set HISTCONTROL ignoredups
 \set COMP_KEYWORD_CASE upper
 \set PSQL_EDITOR /usr/bin/vim

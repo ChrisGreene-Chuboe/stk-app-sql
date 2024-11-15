@@ -51,3 +51,9 @@ COMMENT ON TABLE private.stk_wf_request IS 'Holds wf_request records';
 CREATE VIEW api.stk_wf_request AS SELECT * FROM private.stk_wf_request;
 COMMENT ON VIEW api.stk_wf_request IS 'Holds wf_request records';
 
+--INSERT INTO api.stk_wf_request_type (wf_request_type, name, description)
+--VALUES 
+--('NONE', 'None', 'General purpose with no automation or validation'),
+--('SUPPORT', 'Support', 'Support purpose with limited automation or validation'),
+--('ACTION', 'Action', 'Action purpose with no automation or validation')
+--;

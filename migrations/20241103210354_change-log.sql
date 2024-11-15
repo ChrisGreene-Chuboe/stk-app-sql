@@ -110,7 +110,8 @@ BEGIN
 
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER;
 COMMENT ON FUNCTION private.t1000_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
 
 CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
@@ -154,7 +155,8 @@ BEGIN
         -- END: create triggers for change_log (tgr_t1000)
     END LOOP;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER;
 COMMENT ON FUNCTION private.stk_table_trigger_create() is 'Finds all tables that are missing triggers - such as change log';
 
 -- update all tables

@@ -64,19 +64,28 @@ in pkgs.mkShell {
     export PSQLRC="$PWD"/.psqlrc
     alias psqlx="psql $AICHAT_PG_HOST"
 
-    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n api > api-schema.sql
-    sed -i '/^--/d' api-schema.sql
-    sed -i '/^GRANT/d' api-schema.sql
-    sed -i '/^ALTER/d' api-schema.sql
+    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n api > schema-api.sql
+    sed -i '/^--/d' schema-api.sql
+    sed -i '/^GRANT/d' schema-api.sql
+    sed -i '/^ALTER/d' schema-api.sql
 
-    echo "" >> api-schema.sql
-    echo "---- the following represent all enum values ----" >> api-schema.sql
-    echo "" >> api-schema.sql
-
-    echo "--select * from api.enum_value" >> api-schema.sql
-    psql -U stk_superuser $AICHAT_PG_HOST -c "select * from api.enum_value" >> api-schema.sql
+    echo "---- the following represent all enum values ----" > schema-enum.sql
+    echo "" >> schema-enum.sql
+    echo "--select * from api.enum_value" >> schema-enum.sql
+    psql -U stk_superuser $AICHAT_PG_HOST -c "select * from api.enum_value" >> schema-enum.sql
     
-    alias aix="aichat -r %functions% -f api-schema.sql"
+    echo "---- the following represent all private table defaults ----" > schema-private.sql
+    echo "---- we are includes these values so that you can see the default values for the tables behind the api views ----" >> schema-private.sql
+    echo "---- when inserting records, to do set colums with default values unless the default is not desired ----" >> schema-private.sql
+    echo "" >> schema-private.sql
+    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n private --table='stk*' >> schema-private.sql
+    sed -i '/^--/d' schema-private.sql
+    sed -i '/^GRANT/d' schema-private.sql
+    sed -i '/^ALTER/d' schema-private.sql
+    sed -i '/^CREATE TRIGGER/d' schema-private.sql
+    sed -i '/ADD CONSTRAINT/d' schema-private.sql
+
+    alias aix="aichat -r %functions% -f schema-api.sql -f schema-enum.sql -f schema-private.sql"
 
     echo ""
     echo "******************************************************"
@@ -97,7 +106,10 @@ in pkgs.mkShell {
       pg_ctl stop
       rm -rf "$PGDATA"
       rm migrations
-      rm api-schema.sql
+      rm schema-api.sql
+      rm schema-enum.sql
+      rm schema-private.sql
+      rm .psql_history
     }
 
     trap cleanup EXIT
