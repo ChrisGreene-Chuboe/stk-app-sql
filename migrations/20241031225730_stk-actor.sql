@@ -60,16 +60,10 @@ CREATE UNIQUE INDEX stk_actor_psql_user_uidx ON private.stk_actor (lower(psql_us
 CREATE VIEW api.stk_actor AS SELECT * FROM private.stk_actor;
 COMMENT ON VIEW api.stk_actor IS 'Holds actor records';
 
-select private.stk_table_trigger_create();
+INSERT INTO private.stk_actor_type ( actor_type, name) VALUES 
+( 'NONE', 'NONE');
 
-INSERT INTO private.stk_actor_type (
-    actor_type, name
-) VALUES (
-    'NONE', 'NONE'
-);
-
-INSERT INTO private.stk_actor (
-    stk_actor_type_uu, name, psql_user
-) VALUES (
-    (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_login', 'stk_login'
-);
+INSERT INTO private.stk_actor ( stk_actor_type_uu, name, psql_user) VALUES 
+( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_login', 'stk_login'),
+( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_superuser', 'stk_superuser')
+;
