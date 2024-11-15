@@ -4,16 +4,31 @@ CREATE TYPE private.attribute_tag_type AS ENUM (
     'NONE',
     'CONTRACT',
     'ATTACHMENT',
+    'LOCATION',
     'TABLE',
     'COLUMN'
 );
 COMMENT ON TYPE private.attribute_tag_type IS 'used in code to automate attribute tag types';
 
+INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
+('attribute_tag_type', 'NONE', 'General purpose with no automation or validation'),
+('attribute_tag_type', 'CONTRACT', 'Contract with limited automation or validation'),
+('attribute_tag_type', 'ATTACHMENT', 'Attachment with no automation or validation'),
+('attribute_tag_type', 'LOCATION', 'Location with no automation or validation'),
+('attribute_tag_type', 'TABLE', 'Table attributes with no automation or validation'),
+('attribute_tag_type', 'COLUMN', 'Column attributes with no automation or validation')
+;
+
 CREATE TABLE private.stk_attribute_tag_type (
   stk_attribute_tag_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --created_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_user(stk_user_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --updated_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_user(stk_user_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
+  is_default BOOLEAN NOT NULL DEFAULT false,
   attribute_tag_type private.attribute_tag_type NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -25,7 +40,14 @@ COMMENT ON TABLE private.stk_attribute_tag_type IS 'Holds the types of stk_attri
 CREATE TABLE private.stk_attribute_tag (
   stk_attribute_tag_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --created_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_user(stk_user_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --updated_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_user(stk_user_uu),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_template BOOLEAN NOT NULL DEFAULT false,
+  is_valid BOOLEAN NOT NULL DEFAULT true,
   table_name TEXT,
   record_uu UUID,
   stk_attribute_tag_type_uu UUID,
