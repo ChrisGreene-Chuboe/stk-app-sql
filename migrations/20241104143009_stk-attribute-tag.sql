@@ -31,10 +31,10 @@ CREATE TABLE private.stk_attribute_tag_type (
   stk_attribute_tag_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   --created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_user(stk_user_uu),
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   --updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_user(stk_user_uu),
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_default BOOLEAN NOT NULL DEFAULT false,
   attribute_tag_type private.attribute_tag_type NOT NULL,
@@ -52,10 +52,10 @@ CREATE TABLE private.stk_attribute_tag (
   stk_attribute_tag_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   --created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_user(stk_user_uu),
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   --updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_user(stk_user_uu),
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
@@ -70,6 +70,7 @@ COMMENT ON TABLE private.stk_attribute_tag IS 'Holds attribute tag records that 
 CREATE VIEW api.stk_attribute_tag AS SELECT * FROM private.stk_attribute_tag;
 COMMENT ON VIEW api.stk_attribute_tag IS 'Holds attribute tag records that describe other records in the system as referenced by table_name and record_uu. The attributes column holds the actual json attribute tag values used to describe the foreign record.';
 
+select private.stk_table_trigger_create();
 
 ---- test attribute tag type values
 --INSERT INTO private.stk_attribute_tag_type (name, description, attributes, attribute_tag_type) VALUES

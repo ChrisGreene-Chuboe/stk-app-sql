@@ -16,7 +16,11 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 CREATE TABLE private.stk_statistic_type (
   stk_statistic_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --created_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --updated_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   statistic_type private.statistic_type NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
@@ -32,7 +36,11 @@ COMMENT ON VIEW api.stk_statistic_type IS 'Holds the types of stk_statistic reco
 CREATE UNLOGGED TABLE private.stk_statistic (
   stk_statistic_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --created_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --updated_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   table_name TEXT,
   record_uu UUID,
@@ -49,6 +57,8 @@ COMMENT ON VIEW api.stk_statistic IS 'Holds statistic records';
 
 --ignore in changelog
 insert into private.stk_change_log_exclude (table_name) values ('stk_statistic');
+select private.stk_table_trigger_create();
+
 select private.stk_table_trigger_create();
 
 ----sample data for stk_statistic_type

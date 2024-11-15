@@ -18,7 +18,11 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 CREATE TABLE private.stk_wf_request_type (
   stk_wf_request_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --created_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --updated_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_default BOOLEAN NOT NULL DEFAULT false,
   wf_request_type private.wf_request_type NOT NULL,
@@ -34,7 +38,11 @@ COMMENT ON VIEW api.stk_wf_request_type IS 'Holds the types of stk_wf_request re
 CREATE TABLE private.stk_wf_request (
   stk_wf_request_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --created_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  --updated_by_uu uuid NOT NULL,
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
@@ -42,9 +50,6 @@ CREATE TABLE private.stk_wf_request (
   CONSTRAINT fk_stk_wf_request_type FOREIGN KEY (stk_wf_request_type_uu) REFERENCES private.stk_wf_request_type(stk_wf_request_type_uu),
   stk_wf_request_parent_uu UUID,
   CONSTRAINT fk_stk_wf_request_parent FOREIGN KEY (stk_wf_request_parent_uu) REFERENCES private.stk_wf_request(stk_wf_request_uu),
-  date_started TIMESTAMPTZ,
-  date_completed TIMESTAMPTZ,
-  date_due TIMESTAMPTZ,
   name TEXT NOT NULL,
   description TEXT
 );
@@ -52,6 +57,8 @@ COMMENT ON TABLE private.stk_wf_request IS 'Holds wf_request records';
 
 CREATE VIEW api.stk_wf_request AS SELECT * FROM private.stk_wf_request;
 COMMENT ON VIEW api.stk_wf_request IS 'Holds wf_request records';
+
+select private.stk_table_trigger_create();
 
 --INSERT INTO api.stk_wf_request_type (wf_request_type, name, description)
 --VALUES 

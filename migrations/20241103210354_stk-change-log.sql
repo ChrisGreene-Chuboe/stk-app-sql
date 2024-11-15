@@ -12,6 +12,9 @@ CREATE TABLE private.stk_change_log (
 );
 COMMENT ON TABLE private.stk_change_log IS 'table to hold column level changes including inserts, updates and deletes to all table not in stk_change_log_exclude';
 
+CREATE VIEW api.stk_change_log AS SELECT * FROM private.stk_change_log;
+COMMENT ON VIEW api.stk_change_log IS 'Holds change_log records';
+
 CREATE TABLE private.stk_change_log_exclude (
   stk_change_log_exclude_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
