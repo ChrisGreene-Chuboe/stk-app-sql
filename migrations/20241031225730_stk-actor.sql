@@ -67,3 +67,20 @@ INSERT INTO private.stk_actor ( stk_actor_type_uu, name, psql_user) VALUES
 ( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_login', 'stk_login'),
 ( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_superuser', 'stk_superuser')
 ;
+
+ALTER TABLE private.stk_actor
+ADD COLUMN created_by_uu uuid,
+ADD COLUMN updated_by_uu uuid,
+ADD CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
+ADD CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
+;
+
+UPDATE private.stk_actor
+SET created_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser'),
+updated_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser')
+;
+
+ALTER TABLE private.stk_actor
+ALTER COLUMN created_by_uu SET NOT NULL,
+ALTER COLUMN updated_by_uu SET NOT NULL
+;

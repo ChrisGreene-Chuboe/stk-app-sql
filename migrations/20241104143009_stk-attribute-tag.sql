@@ -1,5 +1,8 @@
 
 
+-- set session to show stk_superuser as the actor performing all the tasks
+SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
+
 CREATE TYPE private.attribute_tag_type AS ENUM (
     'NONE',
     'CONTRACT',

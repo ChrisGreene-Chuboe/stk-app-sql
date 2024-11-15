@@ -1,5 +1,8 @@
 
 
+-- set session to show stk_superuser as the actor performing all the tasks
+SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
+
 CREATE TABLE private.stk_change_log (
   stk_change_log_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
