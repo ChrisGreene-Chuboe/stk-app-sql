@@ -1,12 +1,17 @@
 
 
 CREATE TYPE private.statistic_type AS ENUM (
+    'RECORD_SUMMARY',
     'GRAND_TOTAL',
     'TAX_TOTAL',
     'LIFETIME_REVENUE',
     'YTD_REVENUE'
 );
 COMMENT ON TYPE private.statistic_type IS 'used in code to drive statistic visibility and functionality';
+
+INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
+('statistic_type', 'RECORD_SUMMARY', 'Provides a summary of the record for easy lookup')
+;
 
 CREATE TABLE private.stk_statistic_type (
   stk_statistic_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,6 +24,9 @@ CREATE TABLE private.stk_statistic_type (
   statistic JSONB NOT NULL -- used to hold a template json object. Used as the source when creating a new stk_statistic record.
 );
 COMMENT ON TABLE private.stk_statistic_type IS 'Holds the types of stk_statistic records. Statistic column holds a json template to be used when creating a new stk_statistic record.';
+
+CREATE VIEW api.stk_statistic_type AS SELECT * FROM private.stk_statistic_type;
+COMMENT ON VIEW api.stk_statistic_type IS 'Holds the types of stk_statistic records.';
 
 -- note: unlogged because this is de-normalized data - it can be re-calculated if lost during database crash
 CREATE UNLOGGED TABLE private.stk_statistic (
@@ -35,6 +43,9 @@ CREATE UNLOGGED TABLE private.stk_statistic (
   statistic JSONB NOT NULL
 );
 COMMENT ON TABLE private.stk_statistic IS 'Holds the system statistic records that make retriving cached calculations easier and faster without changing the actual table. Statistic column holds the actual json values used to describe the statistic.';
+
+CREATE VIEW api.stk_statistic AS SELECT * FROM private.stk_statistic;
+COMMENT ON VIEW api.stk_statistic IS 'Holds statistic records';
 
 --ignore in changelog
 insert into private.stk_change_log_exclude (table_name) values ('stk_statistic');

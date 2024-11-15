@@ -1,16 +1,18 @@
 
 
 CREATE TYPE private.wf_request_type AS ENUM (
-    'NONE',
-    'SUPPORT',
-    'ACTION'
+    'NOTE',
+    'DISCUSS',
+    'NOTICE',
+    'ACTION',
+    'TODO',
+    'CHECKLIST'
 );
 COMMENT ON TYPE private.wf_request_type IS 'Enum used in code to automate and validate wf_request types.';
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES 
-('wf_request_type', 'NONE', 'General purpose with no automation or validation'),
-('wf_request_type', 'SUPPORT', 'Support purpose with limited automation or validation'),
-('wf_request_type', 'ACTION', 'Action purpose with no automation or validation')
+('wf_request_type', 'NOTE', 'Action purpose with no automation or validation'),
+('wf_request_type', 'CHECKLIST', 'Action purpose with no automation or validation')
 ;
 
 CREATE TABLE private.stk_wf_request_type (

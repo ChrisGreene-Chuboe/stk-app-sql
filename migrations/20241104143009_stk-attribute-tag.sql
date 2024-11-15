@@ -3,8 +3,20 @@
 CREATE TYPE private.attribute_tag_type AS ENUM (
     'NONE',
     'CONTRACT',
+    'EMAIL',
+    'PHONE',
+    'SNS',
+    'NOTE',
+    'TRANSLATION',
+    'ACTIVITY',
+    'INTEREST_AREA',
     'ATTACHMENT',
     'LOCATION',
+    'DATE_START',
+    'DATE_END',
+    'DATE_RANGE',
+    'SHARE',
+    'ERROR',
     'TABLE',
     'COLUMN'
 );
@@ -12,10 +24,6 @@ COMMENT ON TYPE private.attribute_tag_type IS 'used in code to automate attribut
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 ('attribute_tag_type', 'NONE', 'General purpose with no automation or validation'),
-('attribute_tag_type', 'CONTRACT', 'Contract with limited automation or validation'),
-('attribute_tag_type', 'ATTACHMENT', 'Attachment with no automation or validation'),
-('attribute_tag_type', 'LOCATION', 'Location with no automation or validation'),
-('attribute_tag_type', 'TABLE', 'Table attributes with no automation or validation'),
 ('attribute_tag_type', 'COLUMN', 'Column attributes with no automation or validation')
 ;
 
