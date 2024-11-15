@@ -120,6 +120,7 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 COMMENT ON FUNCTION private.t1000_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
 
+--function to create all needed triggers
 CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
 RETURNS void AS $$
 DECLARE

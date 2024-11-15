@@ -5,6 +5,8 @@ CREATE TABLE private.enum_comment (
     enum_type text NOT NULL,
     enum_value text NOT NULL,
     comment text,
+    created TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated TIMESTAMPTZ NOT NULL DEFAULT now(),
 	UNIQUE (enum_type, enum_value)
 );
 COMMENT ON TABLE private.enum_comment IS 'table to hold comments on enum values';

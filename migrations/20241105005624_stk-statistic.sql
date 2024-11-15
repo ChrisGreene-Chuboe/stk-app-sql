@@ -63,6 +63,7 @@ insert into private.stk_change_log_exclude (table_name) values ('stk_statistic')
 select private.stk_table_trigger_create();
 
 select private.stk_table_trigger_create();
+select private.stk_trigger_created_updated();
 
 ----sample data for stk_statistic_type
 --INSERT INTO private.stk_statistic_type (statistic_type, search_key, description, statistic) VALUES
