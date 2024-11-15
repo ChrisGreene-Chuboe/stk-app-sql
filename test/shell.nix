@@ -68,6 +68,13 @@ in pkgs.mkShell {
     sed -i '/^--/d' api-schema.sql
     sed -i '/^GRANT/d' api-schema.sql
     sed -i '/^ALTER/d' api-schema.sql
+
+    echo "" >> api-schema.sql
+    echo "---- the following represent all enum values ----" >> api-schema.sql
+    echo "" >> api-schema.sql
+
+    echo "--select * from api.enum_value" >> api-schema.sql
+    psql -U stk_superuser $AICHAT_PG_HOST -c "select * from api.enum_value" >> api-schema.sql
     
     alias aix="aichat -r %functions% -f api-schema.sql"
 
