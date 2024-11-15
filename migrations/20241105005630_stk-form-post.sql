@@ -1,4 +1,8 @@
 
+
+-- set session to show stk_superuser as the actor performing all the tasks
+SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
+
 create domain "text/html" as text;
 
 CREATE TABLE IF NOT EXISTS private.stk_form_post (
