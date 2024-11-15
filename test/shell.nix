@@ -61,6 +61,7 @@ in pkgs.mkShell {
     # note next line used by aicaht and llm-tool to connect to db
     export AICHAT_PG_HOST="-h $PGDATA -d $PGDATABASE"
     export AICHAT_PG_ROLE="stk_api_role" # hard coded as default
+    export AICHAT_PG_SESSION="'{\"psql_user\": \"$STK_USER\"}'" # hard coded as default
     export PSQLRC="$PWD"/.psqlrc
     alias psqlx="psql $AICHAT_PG_HOST"
 
