@@ -12,11 +12,11 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 CREATE TABLE private.stk_actor_type (
   stk_actor_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  --created_by_uu uuid NOT NULL, -- created below...
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu), -- created below...
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  --updated_by_uu uuid NOT NULL, -- created below...
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu), -- created below...
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_default BOOLEAN NOT NULL DEFAULT false,
   actor_type private.actor_type NOT NULL,
@@ -32,11 +32,11 @@ COMMENT ON VIEW api.stk_actor_type IS 'Holds the types of stk_actor records.';
 CREATE TABLE private.stk_actor (
   stk_actor_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  --created_by_uu uuid NOT NULL, -- created below...
+  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu), -- created below...
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  --updated_by_uu uuid NOT NULL, -- created below...
+  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu), -- created below...
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
@@ -65,7 +65,8 @@ INSERT INTO private.stk_actor_type ( actor_type, name) VALUES
 
 INSERT INTO private.stk_actor ( stk_actor_type_uu, name, psql_user) VALUES 
 ( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_login', 'stk_login'),
-( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_superuser', 'stk_superuser')
+( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_superuser', 'stk_superuser'),
+( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'unknown', 'unknown')
 ;
 
 ALTER TABLE private.stk_actor
@@ -81,6 +82,23 @@ updated_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_su
 ;
 
 ALTER TABLE private.stk_actor
+ALTER COLUMN created_by_uu SET NOT NULL,
+ALTER COLUMN updated_by_uu SET NOT NULL
+;
+
+ALTER TABLE private.stk_actor_type
+ADD COLUMN created_by_uu uuid,
+ADD COLUMN updated_by_uu uuid,
+ADD CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
+ADD CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
+;
+
+UPDATE private.stk_actor_type
+SET created_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser'),
+updated_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser')
+;
+
+ALTER TABLE private.stk_actor_type
 ALTER COLUMN created_by_uu SET NOT NULL,
 ALTER COLUMN updated_by_uu SET NOT NULL
 ;
