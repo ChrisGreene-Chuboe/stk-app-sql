@@ -11,27 +11,19 @@ CREATE TABLE private.enum_comment (
     updated_by_uu uuid, -- allow null and no fk because created so early
 	UNIQUE (enum_type, enum_value)
 );
-COMMENT ON TABLE private.enum_comment IS 'table to hold comments on enum values';
-
-CREATE OR REPLACE FUNCTION private.enum_value(enum_name text)
-RETURNS TABLE (enum_value text, comment text)
-AS $$
-BEGIN
-    RETURN QUERY EXECUTE format(
-        'SELECT e.enum_value::text, c.comment
-         FROM (SELECT unnest(enum_range(NULL::%I.%I))::text AS enum_value) e
-         LEFT JOIN private.enum_comment c ON c.enum_type = %L AND c.enum_value = e.enum_value::text',
-        'private',
-        enum_name,
-        enum_name
-    );
-END;
-$$ LANGUAGE plpgsql
-SECURITY DEFINER;
-COMMENT ON FUNCTION private.enum_value(text) IS 'function to extract enum values into table with comments';
+COMMENT ON TABLE private.enum_comment IS 'The `enum_comment` table holds comments on enum values. This table exists because psql does not have the ability to comment on enum values directly.';
 
 CREATE OR REPLACE VIEW api.enum_value AS
-SELECT 'wf_request_type'::text AS enum_name, enum_value, comment
-FROM private.enum_value('wf_request_type');
-COMMENT ON VIEW api.enum_value IS 'Show enum values and comments';
+SELECT
+    t.typname AS enum_name,
+    e.enumlabel AS enum_value,
+    ec.comment
+FROM pg_type t
+JOIN pg_enum e ON t.oid = e.enumtypid
+JOIN pg_namespace n ON n.oid = t.typnamespace
+LEFT JOIN private.enum_comment ec ON ec.enum_type = t.typname AND ec.enum_value = e.enumlabel
+WHERE t.typtype = 'e'
+    AND n.nspname = 'private'
+ORDER BY enum_name, e.enumsortorder;
 
+COMMENT ON VIEW api.enum_value IS 'Shows all `api` schema enum types in the database with their values and comments';
