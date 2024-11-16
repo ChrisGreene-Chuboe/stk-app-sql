@@ -6,7 +6,11 @@ SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
 CREATE TABLE private.stk_change_log (
   stk_change_log_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   table_name TEXT,
   record_uu UUID,
   column_name TEXT,
@@ -120,62 +124,62 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 COMMENT ON FUNCTION private.t1000_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
 
---function to create all needed triggers
-CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
-RETURNS void AS $$
-DECLARE
-    my_table_record RECORD;
-    my_trigger_name TEXT;
-BEGIN
-
-    FOR my_table_record IN
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'private'
-          AND table_type = 'BASE TABLE'
-    LOOP
-        -- START: create triggers for change_log (tgr_t1000)
-        -- Derive the trigger name from the table name
-        my_trigger_name := my_table_record.table_name || '_tgr_t1000';
-
-        -- Check if the trigger already exists
-        IF NOT EXISTS (
-            SELECT 1
-            FROM information_schema.triggers
-            WHERE trigger_schema = 'private'
-              AND event_object_table = my_table_record.table_name
-              AND trigger_name = my_trigger_name
-        ) THEN
-            -- Create the trigger if it doesn't exist
-            EXECUTE format(
-                'CREATE TRIGGER %I
-                 AFTER INSERT OR UPDATE OR DELETE ON private.%I
-                 FOR EACH ROW EXECUTE FUNCTION private.t1000_change_log()',
-                my_trigger_name,
-                my_table_record.table_name
-            );
-
-            RAISE NOTICE 'Created trigger % on table private.%', my_trigger_name, my_table_record.table_name;
-        ELSE
-            --RAISE NOTICE 'Trigger % already exists on table private.%', my_trigger_name, my_table_record.table_name;
-        END IF;
-        -- END: create triggers for change_log (tgr_t1000)
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql
-SECURITY DEFINER;
-COMMENT ON FUNCTION private.stk_table_trigger_create() is 'Finds all tables that are missing triggers - such as change log';
-
--- update all tables
-select private.stk_table_trigger_create();
-
----- manual test
--- create table private.delme_trigger (delme_trigger_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(), name text, description text);
--- select private.stk_table_trigger_create();
--- insert into private.delme_trigger (name, description) values ('name1','desc1');
--- insert into private.delme_trigger (name, description) values ('name2',null);
--- update private.delme_trigger set description = 'desc1 - updated' where name='name1';
--- update private.delme_trigger set description = 'desc2 - updated' where name='name2';
--- update private.delme_trigger set description = null where name='name2';
--- delete from private.delme_trigger;
--- select batch_id, table_name, column_name, record_uu, changes from private.stk_change_log;
+----function to create all needed triggers
+--CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
+--RETURNS void AS $$
+--DECLARE
+--    my_table_record RECORD;
+--    my_trigger_name TEXT;
+--BEGIN
+--
+--    FOR my_table_record IN
+--        SELECT table_name
+--        FROM information_schema.tables
+--        WHERE table_schema = 'private'
+--          AND table_type = 'BASE TABLE'
+--    LOOP
+--        -- START: create triggers for change_log (tgr_t1000)
+--        -- Derive the trigger name from the table name
+--        my_trigger_name := my_table_record.table_name || '_tgr_t1000';
+--
+--        -- Check if the trigger already exists
+--        IF NOT EXISTS (
+--            SELECT 1
+--            FROM information_schema.triggers
+--            WHERE trigger_schema = 'private'
+--              AND event_object_table = my_table_record.table_name
+--              AND trigger_name = my_trigger_name
+--        ) THEN
+--            -- Create the trigger if it doesn't exist
+--            EXECUTE format(
+--                'CREATE TRIGGER %I
+--                 AFTER INSERT OR UPDATE OR DELETE ON private.%I
+--                 FOR EACH ROW EXECUTE FUNCTION private.t1000_change_log()',
+--                my_trigger_name,
+--                my_table_record.table_name
+--            );
+--
+--            RAISE NOTICE 'Created trigger % on table private.%', my_trigger_name, my_table_record.table_name;
+--        ELSE
+--            --RAISE NOTICE 'Trigger % already exists on table private.%', my_trigger_name, my_table_record.table_name;
+--        END IF;
+--        -- END: create triggers for change_log (tgr_t1000)
+--    END LOOP;
+--END;
+--$$ LANGUAGE plpgsql
+--SECURITY DEFINER;
+--COMMENT ON FUNCTION private.stk_table_trigger_create() is 'Finds all tables that are missing triggers - such as change log';
+--
+---- update all tables
+--select private.stk_table_trigger_create();
+--
+------ manual test
+---- create table private.delme_trigger (delme_trigger_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(), name text, description text);
+---- select private.stk_table_trigger_create();
+---- insert into private.delme_trigger (name, description) values ('name1','desc1');
+---- insert into private.delme_trigger (name, description) values ('name2',null);
+---- update private.delme_trigger set description = 'desc1 - updated' where name='name1';
+---- update private.delme_trigger set description = 'desc2 - updated' where name='name2';
+---- update private.delme_trigger set description = null where name='name2';
+---- delete from private.delme_trigger;
+---- select batch_id, table_name, column_name, record_uu, changes from private.stk_change_log;

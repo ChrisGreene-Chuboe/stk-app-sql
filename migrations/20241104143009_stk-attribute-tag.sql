@@ -73,7 +73,8 @@ COMMENT ON TABLE private.stk_attribute_tag IS 'Holds attribute tag records that 
 CREATE VIEW api.stk_attribute_tag AS SELECT * FROM private.stk_attribute_tag;
 COMMENT ON VIEW api.stk_attribute_tag IS 'Holds attribute tag records that describe other records in the system as referenced by table_name and record_uu. The attributes column holds the actual json attribute tag values used to describe the foreign record.';
 
-select private.stk_table_trigger_create();
+--select private.stk_table_trigger_create();
+select private.stk_trigger_create();
 
 ---- test attribute tag type values
 --INSERT INTO private.stk_attribute_tag_type (name, description, attributes, attribute_tag_type) VALUES

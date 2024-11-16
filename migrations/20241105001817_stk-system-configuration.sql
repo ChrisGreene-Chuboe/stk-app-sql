@@ -59,7 +59,8 @@ COMMENT ON TABLE private.stk_system_config IS 'Holds the system configuration re
 CREATE VIEW api.stk_system_config AS SELECT * FROM private.stk_system_config;
 COMMENT ON VIEW api.stk_system_config IS 'Holds the system configuration records that dictates how the system behaves. Configuration column holds the actual json configuration values used to describe the system configuration.';
 
-select private.stk_table_trigger_create();
+--select private.stk_table_trigger_create();
+select private.stk_trigger_create();
 
 ----sample data for stk_system_config_type
 --INSERT INTO private.stk_system_config_type (system_config_level_type, search_key, description, configuration) VALUES
