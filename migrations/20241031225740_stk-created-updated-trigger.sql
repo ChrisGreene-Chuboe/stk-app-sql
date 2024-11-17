@@ -7,6 +7,7 @@ DECLARE
     psql_user_v text;
 BEGIN
 
+    RAISE EXCEPTION '...I AM HERE...';
     BEGIN
         SELECT current_setting('stk.session', true)::json->>'psql_user' INTO psql_user_v;
     EXCEPTION
@@ -41,7 +42,6 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 COMMENT ON FUNCTION private.t1010_created_updated() IS 'manages automatic updates to created,updated,created_by_uu and updated_by_uu';
 
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,table_name,is_include,is_exclude) values (1010,'created_updated','stk_change_log',false,true);
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,table_name,is_include,is_exclude) values (1010,'created_updated','stk_delme','BEFORE INSERT OR UPDATE OR DELETE');
 
 select private.stk_trigger_create();
-

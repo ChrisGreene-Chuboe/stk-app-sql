@@ -8,24 +8,29 @@ CREATE TABLE private.stk_trigger_mgt (
   updated_by_uu uuid,
   is_include BOOLEAN NOT NULL DEFAULT false,
   is_exclude BOOLEAN NOT NULL DEFAULT false,
-  table_name TEXT NOT NULL,
+  table_name TEXT[] NOT NULL,
   function_name_prefix INTEGER NOT NULL,
-  function_name_root TEXT NOT NULL
+  function_name_root TEXT NOT NULL,
+  function_event TEXT NOT NULL,
+  CONSTRAINT stk_trigger_mgt_function_uidx UNIQUE (function_name_root)
 
 );
-COMMENT ON TABLE private.stk_trigger_mgt IS '`stk_trigger_mgt` is a table identifying all `table_name` that either need inclusion or exclusion when batch creating triggers for all listed functions.  
+COMMENT ON TABLE private.stk_trigger_mgt IS '`stk_trigger_mgt` is a table used to create triggers across mutiple tables. 
 
-Setting `is_include` to true for a record automatically excludes all tables not already included for a given function. `is_include` and `is_exclude` must have different values for any given record. Said another way, either `is_include` or `is_exclude` must be set to true.
+- Case when `is_include` and `is_exclude` are both false (default) then `table_name` is ignored and triggers are created on all tables in the `private` schema.
+- Case when `is_include` = true then only create triggers for the tables in `table_name` array.
+- Case when `is_exclude` = true then create the trigger for the `private` schema tables in `table_name` array.
 
-Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t1000 that call on a function named t1000_change_log():
+Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t1000 that call on a function named t1000_change_log() for all tables:
 
 ```sql
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,table_name,is_include,is_exclude) values (1000,''change_log'',''stk_change_log'',false,true);
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,table_name,function_event) values (1000,''change_log'',''stk_change_log'',''BEFORE INSERT OR UPDATE OR DELETE'');
 select private.stk_trigger_create();
 ```
+
 Note that triggers will be created with the `t` prefix because psql does not like it when you create objects that begin with numbers.
 
-Note that triggers are executed in alphabetical order. This is why we have a 0000-9999 number convention to easily create logical regions of execution.
+Note that triggers are executed in alphabetical order. This is why we have a 0000-9999 number convention to easily create logical regions/sequences of execution.
 ';
 
 CREATE OR REPLACE FUNCTION private.stk_trigger_create()
@@ -34,17 +39,10 @@ DECLARE
     table_record_p RECORD;
     trigger_name_p TEXT;
     function_root_p RECORD;
-    include_exists_p BOOLEAN;
 BEGIN
-    -- Loop through all distinct function_name_root in stk_trigger_mgt
-    FOR function_root_p IN (SELECT DISTINCT function_name_root,function_name_prefix FROM private.stk_trigger_mgt)
+    -- Loop through all records in stk_trigger_mgt
+    FOR function_root_p IN (SELECT * FROM private.stk_trigger_mgt)
     LOOP
-        -- Check if any records exist where is_include = true for this function_name_root
-        SELECT EXISTS (
-            SELECT 1 FROM private.stk_trigger_mgt
-            WHERE function_name_root = function_root_p.function_name_root AND is_include = true
-        ) INTO include_exists_p;
-
         -- Create triggers for tables based on include/exclude logic
         FOR table_record_p IN
             SELECT table_name
@@ -52,26 +50,15 @@ BEGIN
             WHERE table_schema = 'private'
               AND table_type = 'BASE TABLE'
               AND (
-                  (include_exists_p AND table_name IN (
-                      SELECT table_name FROM private.stk_trigger_mgt
-                      WHERE function_name_root = function_root_p.function_name_root AND is_include = true
-                  ))
+                  (function_root_p.is_exclude = false AND function_root_p.is_include = false)
                   OR
-                  (NOT include_exists_p AND table_name NOT IN (
-                      SELECT table_name FROM private.stk_trigger_mgt
-                      WHERE function_name_root = function_root_p.function_name_root AND is_exclude = true
-                  ))
+                  (function_root_p.is_include = true AND table_name = ANY(function_root_p.table_name))
+                  OR
+                  (function_root_p.is_exclude = true AND table_name != ALL(function_root_p.table_name))
               )
         LOOP
-            -- Get the function_name_prefix for the current function_name_root
-            SELECT function_name_prefix
-            INTO trigger_name_p
-            FROM private.stk_trigger_mgt
-            WHERE function_name_root = function_root_p.function_name_root
-            LIMIT 1;
-
             -- Derive the trigger name from the table name and function prefix
-            trigger_name_p := 'stk_' || table_record_p.table_name || '_tgr_t' || trigger_name_p::text;
+            trigger_name_p := table_record_p.table_name || '_tgr_t' || function_root_p.function_name_prefix::text;
 
             -- Check if the trigger already exists
             IF NOT EXISTS (
@@ -84,10 +71,11 @@ BEGIN
                 -- Create the trigger if it doesn't exist
                 EXECUTE format(
                     'CREATE TRIGGER %I
-                     AFTER INSERT OR UPDATE OR DELETE ON private.%I
+                     %s ON private.%I
                      FOR EACH ROW EXECUTE FUNCTION private.t%s_%s()',
                     trigger_name_p,
                     table_record_p.table_name,
+                    function_root_p.function_event,
                     function_root_p.function_name_prefix,
                     function_root_p.function_name_root
                 );

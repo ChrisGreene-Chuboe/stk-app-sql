@@ -22,13 +22,21 @@ COMMENT ON TABLE private.stk_change_log IS 'table to hold column level changes i
 CREATE VIEW api.stk_change_log AS SELECT * FROM private.stk_change_log;
 COMMENT ON VIEW api.stk_change_log IS 'Holds change_log records';
 
+select private.stk_trigger_create();
+
 CREATE TABLE private.stk_change_log_exclude (
   stk_change_log_exclude_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   table_name TEXT
 );
 COMMENT ON TABLE private.stk_change_log_exclude IS 'table identifyinig all table_names that should not maintain change logs';
+
+select private.stk_trigger_create();
 
 insert into private.stk_change_log_exclude (table_name) values ('stk_change_log');
 
@@ -123,6 +131,10 @@ END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 COMMENT ON FUNCTION private.t1000_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
+
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,table_name,is_include,is_exclude) values (1010,'change_log','stk_delme','BEFORE INSERT OR UPDATE OR DELETE');
+
+select private.stk_trigger_create();
 
 ----function to create all needed triggers
 --CREATE OR REPLACE FUNCTION private.stk_table_trigger_create()
