@@ -132,7 +132,7 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 COMMENT ON FUNCTION private.t1000_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
 
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,table_name,is_include,is_exclude) values (1010,'change_log','stk_delme','BEFORE INSERT OR UPDATE OR DELETE');
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (1000,'change_log','AFTER INSERT OR UPDATE OR DELETE');
 
 select private.stk_trigger_create();
 

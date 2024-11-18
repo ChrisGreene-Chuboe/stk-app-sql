@@ -8,7 +8,7 @@ CREATE TABLE private.stk_trigger_mgt (
   updated_by_uu uuid,
   is_include BOOLEAN NOT NULL DEFAULT false,
   is_exclude BOOLEAN NOT NULL DEFAULT false,
-  table_name TEXT[] NOT NULL,
+  table_name TEXT[],
   function_name_prefix INTEGER NOT NULL,
   function_name_root TEXT NOT NULL,
   function_event TEXT NOT NULL,
@@ -24,7 +24,7 @@ COMMENT ON TABLE private.stk_trigger_mgt IS '`stk_trigger_mgt` is a table used t
 Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t1000 that call on a function named t1000_change_log() for all tables:
 
 ```sql
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,table_name,function_event) values (1000,''change_log'',''stk_change_log'',''BEFORE INSERT OR UPDATE OR DELETE'');
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (1000,''change_log'',''BEFORE INSERT OR UPDATE OR DELETE'');
 select private.stk_trigger_create();
 ```
 
@@ -74,8 +74,8 @@ BEGIN
                      %s ON private.%I
                      FOR EACH ROW EXECUTE FUNCTION private.t%s_%s()',
                     trigger_name_p,
-                    table_record_p.table_name,
                     function_root_p.function_event,
+                    table_record_p.table_name,
                     function_root_p.function_name_prefix,
                     function_root_p.function_name_root
                 );
