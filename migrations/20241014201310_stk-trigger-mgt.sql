@@ -28,6 +28,13 @@ insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,fun
 select private.stk_trigger_create();
 ```
 
+Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t1000 that call on a function named t1000_change_log() for all tables except stk_change_log:
+
+```sql
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event,is_exclude,table_name) values (1000,''change_log'',''AFTER INSERT OR UPDATE OR DELETE'',true,ARRAY[''stk_change_log'']);
+select private.stk_trigger_create();
+```
+
 Note that triggers will be created with the `t` prefix because psql does not like it when you create objects that begin with numbers.
 
 Note that triggers are executed in alphabetical order. This is why we have a 0000-9999 number convention to easily create logical regions/sequences of execution.
