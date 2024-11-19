@@ -3,9 +3,9 @@
 CREATE TABLE private.stk_trigger_mgt (
   stk_trigger_mgt_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by_uu uuid,
+  created_by_uu uuid, -- allow null and no fk because created so early
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_by_uu uuid,
+  updated_by_uu uuid, -- allow null and no fk because created so early
   is_include BOOLEAN NOT NULL DEFAULT false,
   is_exclude BOOLEAN NOT NULL DEFAULT false,
   table_name TEXT[],
@@ -13,7 +13,6 @@ CREATE TABLE private.stk_trigger_mgt (
   function_name_root TEXT NOT NULL,
   function_event TEXT NOT NULL,
   CONSTRAINT stk_trigger_mgt_function_uidx UNIQUE (function_name_root)
-
 );
 COMMENT ON TABLE private.stk_trigger_mgt IS '`stk_trigger_mgt` is a table used to create triggers across mutiple tables. 
 
