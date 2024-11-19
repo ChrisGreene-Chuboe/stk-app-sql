@@ -87,7 +87,7 @@ in pkgs.mkShell {
     sed -i '/ADD CONSTRAINT/d' schema-private.sql
 
     STK_DOCS=chuckstack.github.io
-    #git clone https://github.com/chuckstack/$STK_DOCS
+    git clone https://github.com/chuckstack/$STK_DOCS
 
     alias aix="aichat -r %functions% -f schema-api.sql -f schema-enum.sql -f schema-private.sql"
     alias aix-conv="aichat -r %functions% -f schema-api.sql -f schema-enum.sql -f schema-private.sql -f $STK_DOCS/src-ls/postgres-conventions.md"
