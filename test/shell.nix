@@ -65,32 +65,37 @@ in pkgs.mkShell {
     export PSQLRC="$PWD"/.psqlrc
     alias psqlx="psql $AICHAT_PG_HOST"
 
-    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n api > schema-api.sql
-    sed -i '/^--/d' schema-api.sql
-    sed -i '/^GRANT/d' schema-api.sql
-    sed -i '/^ALTER/d' schema-api.sql
+    mkdir -p schema-details
 
-    echo "---- the following represent all enum values ----" > schema-enum.sql
-    echo "" >> schema-enum.sql
-    echo "--select * from api.enum_value" >> schema-enum.sql
-    psql -U stk_superuser $AICHAT_PG_HOST -c "select * from api.enum_value" >> schema-enum.sql
+    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n api > schema-details/schema-api.sql
+    sed -i '/^--/d' schema-details/schema-api.sql
+    sed -i '/^GRANT/d' schema-details/schema-api.sql
+    sed -i '/^ALTER/d' schema-details/schema-api.sql
+
+    echo "---- the following represent all enum values ----" > schema-details/schema-enum.txt
+    echo "" >> schema-details/schema-enum.txt
+    echo "--select * from api.enum_value" >> schema-details/schema-enum.txt
+    psql -U stk_superuser $AICHAT_PG_HOST -c "select * from api.enum_value" >> schema-details/schema-enum.txt
     
-    echo "---- the following represent all private table defaults ----" > schema-private.sql
-    echo "---- we are includes these values so that you can see the default values for the tables behind the api views ----" >> schema-private.sql
-    echo "---- when inserting records, to do set colums with default values unless the default is not desired ----" >> schema-private.sql
-    echo "" >> schema-private.sql
-    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n private --table='stk*' >> schema-private.sql
-    sed -i '/^--/d' schema-private.sql
-    sed -i '/^GRANT/d' schema-private.sql
-    sed -i '/^ALTER/d' schema-private.sql
-    sed -i '/^CREATE TRIGGER/d' schema-private.sql
-    sed -i '/ADD CONSTRAINT/d' schema-private.sql
+    echo "---- the following represent all private table defaults ----" > schema-details/schema-private.sql
+    echo "---- we are includes these values so that you can see the default values for the tables behind the api views ----" >> schema-details/schema-private.sql
+    echo "---- when inserting records, to do set colums with default values unless the default is not desired ----" >> schema-details/schema-private.sql
+    echo "" >> schema-details/schema-private.sql
+    pg_dump -U stk_superuser $AICHAT_PG_HOST --schema-only -n private --table='stk*' >> schema-details/schema-private.sql
+    sed -i '/^--/d' schema-details/schema-private.sql
+    sed -i '/^GRANT/d' schema-details/schema-private.sql
+    sed -i '/^ALTER/d' schema-details/schema-private.sql
+    sed -i '/^CREATE TRIGGER/d' schema-details/schema-private.sql
+    sed -i '/ADD CONSTRAINT/d' schema-details/schema-private.sql
 
     STK_DOCS=chuckstack.github.io
     git clone https://github.com/chuckstack/$STK_DOCS
 
-    alias aix="aichat -r %functions% -f schema-api.sql -f schema-enum.sql -f schema-private.sql"
-    alias aix-conv="aichat -r %functions% -f schema-api.sql -f schema-enum.sql -f schema-private.sql -f $STK_DOCS/src-ls/postgres-conventions.md"
+    export f="-r %functions%"
+    alias aix="aichat -f schema-details/ "
+    alias aix-conv="aichat -f schema-details/ -f $STK_DOCS/src-ls/postgres-convention/"
+
+    export AICHAT_ROLES_DIR="chuckstack.github.io/src-ls/roles/"
 
     echo ""
     echo "******************************************************"
@@ -103,7 +108,8 @@ in pkgs.mkShell {
     echo "      export AICHAT_PG_ROLE=stk_private_role"
     echo "      psqlx: show role; to see your current role"
     echo "Note: aix - an alias including the current db schema"
-    echo "Note: aix-conv - an alias including aix + website conventions"
+    echo "      aix-conv - an alias including aix + website psql conventions"
+    echo "      use \$f to execute these calls with function calling"
     echo "Note: this database will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
@@ -114,9 +120,7 @@ in pkgs.mkShell {
       rm -rf "$PGDATA"
       rm -rf "$STK_DOCS"
       rm migrations
-      rm schema-api.sql
-      rm schema-enum.sql
-      rm schema-private.sql
+      rm -rf schema-details
       rm .psql_history
     }
 

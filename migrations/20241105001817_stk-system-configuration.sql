@@ -3,14 +3,22 @@
 -- set session to show stk_superuser as the actor performing all the tasks
 SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
 
-CREATE TYPE private.system_config_level_type AS ENUM (
+CREATE TYPE private.system_config_type AS ENUM (
     'SYSTEM',
     'TENANT',
     'ENTITY',
     'ROLE',
     'USER'
 );
-COMMENT ON TYPE private.system_config_level_type IS 'used in code to drive system configuration visibility and functionality';
+COMMENT ON TYPE private.system_config_type IS 'used in code to drive system configuration visibility and functionality';
+
+INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
+('system_config_type', 'SYSTEM', 'System-wide configuration across all Tenants'),
+('system_config_type', 'TENANT', 'Tenant-wide configuration across all Entities'),
+('system_config_type', 'ENTITY', 'Entity-wide configuration across all Roles'),
+('system_config_type', 'ROLE', 'Role-wide configuration across all Users'),
+('system_config_type', 'USER', 'User-specific configuration')
+;
 
 CREATE TABLE private.stk_system_config_type (
   stk_system_config_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -21,7 +29,7 @@ CREATE TABLE private.stk_system_config_type (
   updated_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_system_config_type_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
-  system_config_level_type private.system_config_level_type NOT NULL,
+  system_config_type private.system_config_type NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   description TEXT,
   configuration JSONB NOT NULL, -- used to hold a template json object. Used as the source when creating a new stk_system_config record.
@@ -63,7 +71,7 @@ COMMENT ON VIEW api.stk_system_config IS 'Holds the system configuration records
 select private.stk_trigger_create();
 
 ----sample data for stk_system_config_type
---INSERT INTO private.stk_system_config_type (system_config_level_type, search_key, description, configuration) VALUES
+--INSERT INTO private.stk_system_config_type (system_config_type, search_key, description, configuration) VALUES
 --('SYSTEM', 'system_config', 'System-wide configuration', '{"theme": "default", "language": "en", "timezone": "UTC"}'), --test uppercase search_key
 --('TENANT', 'TENANT_CONFIG', 'Tenant-specific configuration', '{"name": "", "domain": "", "max_users": 100}'),
 --('ENTITY', 'ENTITY_CONFIG', 'Entity-level configuration', '{"entity_type": "", "custom_fields": {}}'),
@@ -78,7 +86,7 @@ select private.stk_trigger_create();
 --    description,
 --    configuration
 --) VALUES (
---    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_level_type = 'SYSTEM'),
+--    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_type = 'SYSTEM'),
 --    'GLOBAL_SYSTEM_CONFIG',
 --    'Global system-wide configuration',
 --    '{
@@ -97,7 +105,7 @@ select private.stk_trigger_create();
 --    description,
 --    configuration
 --) VALUES (
---    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_level_type = 'TENANT'),
+--    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_type = 'TENANT'),
 --    'TENANT_CONFIG_ACME',
 --    'Configuration for Acme Corporation',
 --    '{
@@ -116,7 +124,7 @@ select private.stk_trigger_create();
 --    description,
 --    configuration
 --) VALUES (
---    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_level_type = 'TENANT'),
+--    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_type = 'TENANT'),
 --    'TENANT_CONFIG_GLOBEX',
 --    'Configuration for Globex Corporation',
 --    '{
