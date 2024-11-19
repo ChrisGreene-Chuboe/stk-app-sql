@@ -21,11 +21,11 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 CREATE TABLE private.stk_wf_request_type (
   stk_wf_request_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  created_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  updated_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_default BOOLEAN NOT NULL DEFAULT false,
   wf_request_type private.wf_request_type NOT NULL,
@@ -41,11 +41,11 @@ COMMENT ON VIEW api.stk_wf_request_type IS 'Holds the types of stk_wf_request re
 CREATE TABLE private.stk_wf_request (
   stk_wf_request_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  created_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  --updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES stk_actor(stk_actor_uu),
+  updated_by_uu uuid NOT NULL,
+  CONSTRAINT fk_some_table_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
@@ -66,7 +66,7 @@ select private.stk_trigger_create();
 
 --INSERT INTO api.stk_wf_request_type (wf_request_type, name, description)
 --VALUES 
---('NONE', 'None', 'General purpose with no automation or validation'),
---('SUPPORT', 'Support', 'Support purpose with limited automation or validation'),
---('ACTION', 'Action', 'Action purpose with no automation or validation')
+--('NOTE', 'Note', 'General purpose with no automation or validation'),
+--('DISCUSS', 'Discuss', 'Action is to support multi-part, multi-actor discussion'),
+--('NOTICE', 'Notice', 'Action is to notify')
 --;
