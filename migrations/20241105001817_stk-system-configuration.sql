@@ -3,21 +3,21 @@
 -- set session to show stk_superuser as the actor performing all the tasks
 SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
 
-CREATE TYPE private.system_config_type AS ENUM (
+CREATE TYPE private.stk_system_config_type_enum AS ENUM (
     'SYSTEM',
     'TENANT',
     'ENTITY',
     'ROLE',
     'USER'
 );
-COMMENT ON TYPE private.system_config_type IS 'used in code to drive system configuration visibility and functionality';
+COMMENT ON TYPE private.stk_system_config_type_enum IS 'used in code to drive system configuration visibility and functionality';
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
-('system_config_type', 'SYSTEM', 'System-wide configuration across all Tenants'),
-('system_config_type', 'TENANT', 'Tenant-wide configuration across all Entities'),
-('system_config_type', 'ENTITY', 'Entity-wide configuration across all Roles'),
-('system_config_type', 'ROLE', 'Role-wide configuration across all Users'),
-('system_config_type', 'USER', 'User-specific configuration')
+('stk_system_config_type_enum', 'SYSTEM', 'System-wide configuration across all Tenants'),
+('stk_system_config_type_enum', 'TENANT', 'Tenant-wide configuration across all Entities'),
+('stk_system_config_type_enum', 'ENTITY', 'Entity-wide configuration across all Roles'),
+('stk_system_config_type_enum', 'ROLE', 'Role-wide configuration across all Users'),
+('stk_system_config_type_enum', 'USER', 'User-specific configuration')
 ;
 
 CREATE TABLE private.stk_system_config_type (
@@ -29,7 +29,7 @@ CREATE TABLE private.stk_system_config_type (
   updated_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_system_config_type_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
-  system_config_type private.system_config_type NOT NULL,
+  stk_system_config_type_enum private.stk_system_config_type_enum NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   description TEXT,
   configuration JSONB NOT NULL, -- used to hold a template json object. Used as the source when creating a new stk_system_config record.

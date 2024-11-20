@@ -1,12 +1,12 @@
 
 
-CREATE TYPE private.actor_type AS ENUM (
+CREATE TYPE private.stk_actor_type_enum AS ENUM (
     'NONE'
 );
-COMMENT ON TYPE private.actor_type IS 'Enum used in code to automate and validate actor types.';
+COMMENT ON TYPE private.stk_actor_type_enum IS 'Enum used in code to automate and validate actor types.';
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
-('actor_type', 'NONE', 'General purpose with no automation or validation')
+('stk_actor_type_enum', 'NONE', 'General purpose with no automation or validation')
 ;
 
 CREATE TABLE private.stk_actor_type (
@@ -17,7 +17,7 @@ CREATE TABLE private.stk_actor_type (
   updated_by_uu uuid, -- constraint created below...
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_default BOOLEAN NOT NULL DEFAULT false,
-  actor_type private.actor_type NOT NULL,
+  stk_actor_type_enum private.stk_actor_type_enum NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
@@ -56,7 +56,7 @@ CREATE UNIQUE INDEX stk_actor_psql_user_uidx ON private.stk_actor (lower(psql_us
 CREATE VIEW api.stk_actor AS SELECT * FROM private.stk_actor;
 COMMENT ON VIEW api.stk_actor IS 'Holds actor records';
 
-INSERT INTO private.stk_actor_type ( actor_type, name) VALUES 
+INSERT INTO private.stk_actor_type ( stk_actor_type_enum, name) VALUES 
 ( 'NONE', 'NONE');
 
 INSERT INTO private.stk_actor ( stk_actor_type_uu, name, psql_user) VALUES 
