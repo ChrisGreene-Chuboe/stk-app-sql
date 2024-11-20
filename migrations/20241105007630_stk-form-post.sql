@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS private.stk_form_post (
   updated_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_form_post_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
-  form_data_json jsonb NOT NULL,
+  form_data_json jsonb NOT NULL DEFAULT '{}'::jsonb,
   description TEXT
 );
 COMMENT ON TABLE private.stk_form_post IS 'table used to receive html form posts';

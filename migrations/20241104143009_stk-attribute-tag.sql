@@ -44,7 +44,7 @@ CREATE TABLE private.stk_attribute_tag_type (
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  attribute_json JSONB NOT NULL -- used to hold a template json object. used as the source when creating a new stk_attribute_tag
+  attribute_json JSONB NOT NULL DEFAULT '{}'::jsonb -- used to hold a template json object. used as the source when creating a new stk_attribute_tag
 );
 COMMENT ON TABLE private.stk_attribute_tag_type IS 'Holds the types of stk_attribute_tag records. Attributes column holds a json template to be used when creating a new skt_attribute_tag record.';
 
@@ -66,13 +66,12 @@ CREATE TABLE private.stk_attribute_tag (
   record_uu UUID,
   stk_attribute_tag_type_uu UUID,
   CONSTRAINT fk_stk_attribute_tag_tagtype FOREIGN KEY (stk_attribute_tag_type_uu) REFERENCES private.stk_attribute_tag_type(stk_attribute_tag_type_uu),
-  attribute_json JSONB
+  attribute_json JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 COMMENT ON TABLE private.stk_attribute_tag IS 'Holds attribute tag records that describe other records in the system as referenced by table_name and record_uu. The attributes column holds the actual json attribute tag values used to describe the foreign record.';
 
 CREATE VIEW api.stk_attribute_tag AS SELECT * FROM private.stk_attribute_tag;
 COMMENT ON VIEW api.stk_attribute_tag IS 'Holds attribute tag records that describe other records in the system as referenced by table_name and record_uu. The attributes column holds the actual json attribute tag values used to describe the foreign record.';
 
---select private.stk_table_trigger_create();
 select private.stk_trigger_create();
---select private.stk_table_type_create('stk_attribute_tag_type');
+select private.stk_table_type_create('stk_attribute_tag_type');
