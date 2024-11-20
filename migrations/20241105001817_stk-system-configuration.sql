@@ -33,7 +33,7 @@ CREATE TABLE private.stk_system_config_type (
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  configuration_json JSONB NOT NULL DEFAULT '{}'::jsonb, -- used to hold a template json object. Used as the source when creating a new stk_system_config record.
+  stk_system_config_type_json JSONB NOT NULL DEFAULT '{}'::jsonb, -- used to hold a template json object. Used as the source when creating a new stk_system_config record.
   CONSTRAINT stk_system_config_type_search_key_uidx UNIQUE (search_key)
 );
 COMMENT ON TABLE private.stk_system_config_type IS 'Holds the types of stk_system_config records. Configuration column holds a json template to be used when creating a new stk_system_config record.';
@@ -61,7 +61,7 @@ CREATE TABLE private.stk_system_config (
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  configuration_json JSONB NOT NULL DEFAULT '{}'::jsonb, -- settings and configuration
+  stk_system_config_json JSONB NOT NULL DEFAULT '{}'::jsonb, -- settings and configuration
   CONSTRAINT stk_system_config_search_key_uidx UNIQUE (search_key)
 );
 COMMENT ON TABLE private.stk_system_config IS 'Holds the system configuration records that dictates how the system behaves. Configuration column holds the actual json configuration values used to describe the system configuration.';
@@ -75,6 +75,7 @@ select private.stk_table_type_create('stk_system_config_type');
 
 ----TODO: the below sample data needs to be updated to reflect that type records are already created. Instead, we need to update the type records with json, then create the actual system config records.
 ----TODO: note name column added - need to update below accordingly
+----NOTE: json column name changed
 ----sample data for stk_system_config_type
 --INSERT INTO private.stk_system_config_type (system_config_type, search_key, description, configuration_json) VALUES
 --('SYSTEM', 'system_config', 'System-wide configuration', '{"theme": "default", "language": "en", "timezone": "UTC"}'), --test uppercase search_key
