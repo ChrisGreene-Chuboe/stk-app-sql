@@ -28,7 +28,7 @@ CREATE TABLE private.stk_statistic_type (
   stk_statistic_type_enum private.stk_statistic_type_enum NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   description TEXT,
-  statistic JSONB NOT NULL -- used to hold a template json object. Used as the source when creating a new stk_statistic record.
+  statistic_json JSONB NOT NULL -- used to hold a template json object. Used as the source when creating a new stk_statistic record.
 );
 COMMENT ON TABLE private.stk_statistic_type IS 'Holds the types of stk_statistic records. Statistic column holds a json template to be used when creating a new stk_statistic record.';
 
@@ -51,17 +51,13 @@ CREATE UNLOGGED TABLE private.stk_statistic (
   CONSTRAINT fk_stk_statistic_stattype FOREIGN KEY (stk_statistic_type_uu) REFERENCES private.stk_statistic_type(stk_statistic_type_uu),
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   description TEXT,
-  statistic JSONB NOT NULL
+  statistic_json JSONB NOT NULL
 );
 COMMENT ON TABLE private.stk_statistic IS 'Holds the system statistic records that make retriving cached calculations easier and faster without changing the actual table. Statistic column holds the actual json values used to describe the statistic.';
 
 CREATE VIEW api.stk_statistic AS SELECT * FROM private.stk_statistic;
 COMMENT ON VIEW api.stk_statistic IS 'Holds statistic records';
 
---ignore in changelog
---insert into private.stk_change_log_exclude (table_name) values ('stk_statistic');
---select private.stk_table_trigger_create();
+insert into private.stk_change_log_exclude (table_name) values ('stk_statistic');
 
---select private.stk_table_trigger_create();
---select private.stk_trigger_created_updated();
 select private.stk_trigger_create();

@@ -14,14 +14,14 @@ CREATE TABLE IF NOT EXISTS private.stk_form_post (
   updated_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_form_post_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
-  form_data jsonb NOT NULL,
+  form_data_json jsonb NOT NULL,
   description TEXT
 );
 COMMENT ON TABLE private.stk_form_post IS 'table used to receive html form posts';
 
 CREATE OR REPLACE FUNCTION api.stk_form_post_fn(jsonb) RETURNS "text/html" AS $$
 BEGIN
-    INSERT INTO private.stk_form_post (form_data)
+    INSERT INTO private.stk_form_post (form_data_json)
     VALUES ($1);
     RETURN 'Submitted - Thank you!!';
 END;

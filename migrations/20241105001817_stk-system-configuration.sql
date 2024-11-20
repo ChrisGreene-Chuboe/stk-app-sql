@@ -32,7 +32,7 @@ CREATE TABLE private.stk_system_config_type (
   stk_system_config_type_enum private.stk_system_config_type_enum NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   description TEXT,
-  configuration JSONB NOT NULL, -- used to hold a template json object. Used as the source when creating a new stk_system_config record.
+  configuration_json JSONB NOT NULL, -- used to hold a template json object. Used as the source when creating a new stk_system_config record.
   CONSTRAINT stk_system_config_type_search_key_uidx UNIQUE (search_key)
 );
 COMMENT ON TABLE private.stk_system_config_type IS 'Holds the types of stk_system_config records. Configuration column holds a json template to be used when creating a new stk_system_config record.';
@@ -59,7 +59,7 @@ CREATE TABLE private.stk_system_config (
   CONSTRAINT fk_stk_system_config_sysconfigtype FOREIGN KEY (stk_system_config_type_uu) REFERENCES private.stk_system_config_type(stk_system_config_type_uu),
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   description TEXT,
-  configuration JSONB NOT NULL, -- settings and configuration
+  configuration_json JSONB NOT NULL, -- settings and configuration
   CONSTRAINT stk_system_config_search_key_uidx UNIQUE (search_key)
 );
 COMMENT ON TABLE private.stk_system_config IS 'Holds the system configuration records that dictates how the system behaves. Configuration column holds the actual json configuration values used to describe the system configuration.';
@@ -71,7 +71,7 @@ COMMENT ON VIEW api.stk_system_config IS 'Holds the system configuration records
 select private.stk_trigger_create();
 
 ----sample data for stk_system_config_type
---INSERT INTO private.stk_system_config_type (system_config_type, search_key, description, configuration) VALUES
+--INSERT INTO private.stk_system_config_type (system_config_type, search_key, description, configuration_json) VALUES
 --('SYSTEM', 'system_config', 'System-wide configuration', '{"theme": "default", "language": "en", "timezone": "UTC"}'), --test uppercase search_key
 --('TENANT', 'TENANT_CONFIG', 'Tenant-specific configuration', '{"name": "", "domain": "", "max_users": 100}'),
 --('ENTITY', 'ENTITY_CONFIG', 'Entity-level configuration', '{"entity_type": "", "custom_fields": {}}'),
@@ -84,7 +84,7 @@ select private.stk_trigger_create();
 --    stk_system_config_type_uu,
 --    search_key,
 --    description,
---    configuration
+--    configuration_json
 --) VALUES (
 --    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_type = 'SYSTEM'),
 --    'GLOBAL_SYSTEM_CONFIG',
@@ -103,7 +103,7 @@ select private.stk_trigger_create();
 --    stk_system_config_type_uu,
 --    search_key,
 --    description,
---    configuration
+--    configuration_json
 --) VALUES (
 --    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_type = 'TENANT'),
 --    'TENANT_CONFIG_ACME',
@@ -122,7 +122,7 @@ select private.stk_trigger_create();
 --    stk_system_config_type_uu,
 --    search_key,
 --    description,
---    configuration
+--    configuration_json
 --) VALUES (
 --    (SELECT stk_system_config_type_uu FROM private.stk_system_config_type WHERE system_config_type = 'TENANT'),
 --    'TENANT_CONFIG_GLOBEX',

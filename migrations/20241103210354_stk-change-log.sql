@@ -15,7 +15,7 @@ CREATE TABLE private.stk_change_log (
   record_uu UUID,
   column_name TEXT,
   batch_id TEXT,
-  changes JSONB
+  change_json JSONB
 );
 COMMENT ON TABLE private.stk_change_log IS 'table to hold column level changes including inserts, updates and deletes to all table not in stk_change_log_exclude';
 
@@ -82,7 +82,7 @@ BEGIN
                 'column', column_name,
                 'new_value', column_value
             );
-            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, changes)
+            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, change_json)
                 VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
         END LOOP;
     ELSIF TG_OP = 'UPDATE' THEN
@@ -105,7 +105,7 @@ BEGIN
                     'old_value', old_value,
                     'new_value', new_value
                 );
-                INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, changes) 
+                INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, change_json) 
                     VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
             END IF;
         END LOOP;
@@ -121,7 +121,7 @@ BEGIN
                 'column', column_name,
                 'old_value', column_value
             );
-            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, changes) 
+            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, change_json) 
                 VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
         END LOOP;
     END IF;
