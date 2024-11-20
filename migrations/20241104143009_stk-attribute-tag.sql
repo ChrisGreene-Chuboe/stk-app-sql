@@ -75,4 +75,4 @@ COMMENT ON VIEW api.stk_attribute_tag IS 'Holds attribute tag records that descr
 
 --select private.stk_table_trigger_create();
 select private.stk_trigger_create();
-
+--select private.stk_table_type_create('stk_attribute_tag_type');

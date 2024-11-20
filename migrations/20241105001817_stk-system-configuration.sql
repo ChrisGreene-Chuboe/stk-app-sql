@@ -31,6 +31,7 @@ CREATE TABLE private.stk_system_config_type (
   is_active BOOLEAN NOT NULL DEFAULT true,
   stk_system_config_type_enum private.stk_system_config_type_enum NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
   description TEXT,
   configuration_json JSONB NOT NULL, -- used to hold a template json object. Used as the source when creating a new stk_system_config record.
   CONSTRAINT stk_system_config_type_search_key_uidx UNIQUE (search_key)
@@ -58,6 +59,7 @@ CREATE TABLE private.stk_system_config (
   stk_system_config_type_uu UUID DEFAULT gen_random_uuid(),
   CONSTRAINT fk_stk_system_config_sysconfigtype FOREIGN KEY (stk_system_config_type_uu) REFERENCES private.stk_system_config_type(stk_system_config_type_uu),
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
   description TEXT,
   configuration_json JSONB NOT NULL, -- settings and configuration
   CONSTRAINT stk_system_config_search_key_uidx UNIQUE (search_key)
@@ -69,7 +71,10 @@ COMMENT ON VIEW api.stk_system_config IS 'Holds the system configuration records
 
 --select private.stk_table_trigger_create();
 select private.stk_trigger_create();
+--select private.stk_table_type_create('stk_system_config_type');
 
+----TODO: the below sample data needs to be updated to reflect that type records are already created. Instead, we need to update the type records with json, then create the actual system config records.
+----TODO: note name column added - need to update below accordingly
 ----sample data for stk_system_config_type
 --INSERT INTO private.stk_system_config_type (system_config_type, search_key, description, configuration_json) VALUES
 --('SYSTEM', 'system_config', 'System-wide configuration', '{"theme": "default", "language": "en", "timezone": "UTC"}'), --test uppercase search_key

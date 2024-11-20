@@ -63,3 +63,5 @@ COMMENT ON VIEW api.stk_wf_request IS 'Holds wf_request records';
 
 --select private.stk_table_trigger_create();
 select private.stk_trigger_create();
+select private.stk_table_type_create('stk_wf_request_type');
+

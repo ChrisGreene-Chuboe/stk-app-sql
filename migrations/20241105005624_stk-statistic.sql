@@ -27,6 +27,7 @@ CREATE TABLE private.stk_statistic_type (
   is_active BOOLEAN NOT NULL DEFAULT true,
   stk_statistic_type_enum private.stk_statistic_type_enum NOT NULL,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
   description TEXT,
   statistic_json JSONB NOT NULL -- used to hold a template json object. Used as the source when creating a new stk_statistic record.
 );
@@ -50,6 +51,7 @@ CREATE UNLOGGED TABLE private.stk_statistic (
   stk_statistic_type_uu UUID DEFAULT gen_random_uuid(),
   CONSTRAINT fk_stk_statistic_stattype FOREIGN KEY (stk_statistic_type_uu) REFERENCES private.stk_statistic_type(stk_statistic_type_uu),
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
   description TEXT,
   statistic_json JSONB NOT NULL
 );
@@ -61,3 +63,4 @@ COMMENT ON VIEW api.stk_statistic IS 'Holds statistic records';
 insert into private.stk_change_log_exclude (table_name) values ('stk_statistic');
 
 select private.stk_trigger_create();
+--select private.stk_table_type_create('stk_statistic_type');
