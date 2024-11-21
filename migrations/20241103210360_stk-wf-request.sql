@@ -61,7 +61,6 @@ COMMENT ON TABLE private.stk_wf_request IS 'Holds wf_request records';
 CREATE VIEW api.stk_wf_request AS SELECT * FROM private.stk_wf_request;
 COMMENT ON VIEW api.stk_wf_request IS 'Holds wf_request records';
 
---select private.stk_table_trigger_create();
 select private.stk_trigger_create();
 select private.stk_table_type_create('stk_wf_request_type');
 
