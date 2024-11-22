@@ -10,7 +10,7 @@ CREATE TYPE private.stk_entity_type_enum AS ENUM (
 COMMENT ON TYPE private.stk_entity_type_enum IS 'Enum used in code to automate and validate entity types.';
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
-('stk_entity_type_enum', '*', 'General purpose entity'),
+('stk_entity_type_enum', '*', 'General purpose non-transactional entity'),
 ('stk_entity_type_enum', 'TRX', 'Transactional entity that supports financial entries')
 ;
 

@@ -1,0 +1,49 @@
+---- the following represent all enum values ----
+
+--select * from api.enum_value
+SET
+Time: 0.171 ms
+SET
+Time: 0.059 ms
+          enum_name          |    enum_value    |                       comment                        
+-----------------------------+------------------+------------------------------------------------------
+ stk_actor_type_enum         | NONE             | General purpose with no automation or validation
+ stk_attribute_tag_type_enum | NONE             | General purpose with no automation or validation
+ stk_attribute_tag_type_enum | CONTRACT         | [NULL]
+ stk_attribute_tag_type_enum | EMAIL            | [NULL]
+ stk_attribute_tag_type_enum | PHONE            | [NULL]
+ stk_attribute_tag_type_enum | SNS              | [NULL]
+ stk_attribute_tag_type_enum | NOTE             | [NULL]
+ stk_attribute_tag_type_enum | TRANSLATION      | [NULL]
+ stk_attribute_tag_type_enum | ACTIVITY         | [NULL]
+ stk_attribute_tag_type_enum | INTEREST_AREA    | [NULL]
+ stk_attribute_tag_type_enum | ATTACHMENT       | [NULL]
+ stk_attribute_tag_type_enum | LOCATION         | [NULL]
+ stk_attribute_tag_type_enum | DATE_START       | [NULL]
+ stk_attribute_tag_type_enum | DATE_END         | [NULL]
+ stk_attribute_tag_type_enum | DATE_RANGE       | [NULL]
+ stk_attribute_tag_type_enum | SHARE            | [NULL]
+ stk_attribute_tag_type_enum | ERROR            | [NULL]
+ stk_attribute_tag_type_enum | TABLE            | [NULL]
+ stk_attribute_tag_type_enum | COLUMN           | Column attributes with no automation or validation
+ stk_entity_type_enum        | *                | General purpose entity
+ stk_entity_type_enum        | TRX              | Transactional entity that supports financial entries
+ stk_statistic_type_enum     | RECORD_SUMMARY   | Provides a summary of the record for easy lookup
+ stk_statistic_type_enum     | GRAND_TOTAL      | [NULL]
+ stk_statistic_type_enum     | TAX_TOTAL        | [NULL]
+ stk_statistic_type_enum     | LIFETIME_REVENUE | [NULL]
+ stk_statistic_type_enum     | YTD_REVENUE      | [NULL]
+ stk_system_config_type_enum | SYSTEM           | System-wide configuration across all Tenants
+ stk_system_config_type_enum | TENANT           | Tenant-wide configuration across all Entities
+ stk_system_config_type_enum | ENTITY           | Entity-wide configuration across all Roles
+ stk_system_config_type_enum | ROLE             | Role-wide configuration across all Users
+ stk_system_config_type_enum | USER             | User-specific configuration
+ stk_wf_request_type_enum    | NOTE             | Action purpose with no automation or validation
+ stk_wf_request_type_enum    | DISCUSS          | [NULL]
+ stk_wf_request_type_enum    | NOTICE           | [NULL]
+ stk_wf_request_type_enum    | ACTION           | [NULL]
+ stk_wf_request_type_enum    | TODO             | [NULL]
+ stk_wf_request_type_enum    | CHECKLIST        | Action purpose with no automation or validation
+(37 rows)
+
+Time: 2.970 ms
