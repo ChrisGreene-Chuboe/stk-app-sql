@@ -8,7 +8,8 @@
   # install sqlx-cli
   # create a local psql cluster (in this directory)
   # run the migrations and report success or failure
-  # allow you to view and interact with the results using 'psqlx'
+  # allow you to view and interact with the results using 'psql'
+  # allow you to use the database with aichat function calling
   # destroy all artifacts upon leaving the shell
 
 let
@@ -112,17 +113,18 @@ in pkgs.mkShell {
     echo ""
     echo "******************************************************"
     echo "PostgreSQL is running using Unix socket in $PGHOST"
-    echo "Issue \"psqlx\" to connect to $PGDATABASE database"
+    echo "Issue \"psql\" to connect to $PGDATABASE database - note env vars set accordingly"
     echo "To run migrations, use the 'run-migrations' command"
     echo "Note: PGUSER = $STK_USER demonstrating user login with no abilities"
-    echo "Note: STK_PG_ROLE sets the desired role for both psqlx and aicaht - see impersonation"
+    echo "Note: STK_PG_ROLE sets the desired role for both psql and aicaht - see impersonation"
     echo "      export STK_PG_ROLE=stk_api_role #default"
     echo "      export STK_PG_ROLE=stk_private_role"
-    echo "      psqlx: show role; to see your current role"
-    echo "Note: aix - an alias including the current db schema"
+    echo "      psql: show role; to see your current role"
+    echo "Note: aix - an alias including the current db schema summary"
     echo "      aix-conv - an alias including aix + website psql conventions"
     echo "      use \$f to execute these calls with function calling"
-    echo "Note: this database will be destroyed on shell exit"
+    echo "      aix \$f -- show me all stk_actors"
+    echo "Note: this database and all artifacts will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
 
