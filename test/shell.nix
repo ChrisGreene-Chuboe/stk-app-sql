@@ -102,7 +102,8 @@ in pkgs.mkShell {
 
     export f="-r %functions%"
     alias aix="aichat -f schema-details/ "
-    alias aix-conv="aichat -f schema-details/ -f $STK_DOCS/src-ls/postgres-convention/"
+    alias aix-conv-detail="aichat -f schema-details/ -f $STK_DOCS/src-ls/postgres-convention/"
+    alias aix-conv-sum="aichat -f schema-details/ -f $STK_DOCS/src-ls/postgres-conventions.md"
 
     # note next line sets aichat environment var
     export AICHAT_ROLES_DIR="chuckstack.github.io/src-ls/roles/"
@@ -121,9 +122,13 @@ in pkgs.mkShell {
     echo "      export STK_PG_ROLE=stk_private_role"
     echo "      psql: show role; to see your current role"
     echo "Note: aix - an alias including the current db schema summary"
-    echo "      aix-conv - an alias including aix + website psql conventions"
+    echo "      aix-conv-detail - an alias including aix + website all psql conventions"
+    echo "      aix-conv-sum - an alias including aix + website summary of psql conventions"
     echo "      use \$f to execute these calls with function calling"
     echo "      aix \$f -- show me all stk_actors"
+    echo "Documentation:"
+    echo "      bat chuckstack.github.io/src-ls/postgres-conventions.md"
+    echo "      bat chuckstack.github.io/src-ls/postgres-convention/*"
     echo "Note: this database and all artifacts will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
