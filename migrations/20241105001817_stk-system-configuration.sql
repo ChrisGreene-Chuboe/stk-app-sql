@@ -22,6 +22,8 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 
 CREATE TABLE private.stk_system_config_type (
   stk_system_config_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name_gen TEXT GENERATED ALWAYS AS ('stk_system_config_type') STORED,
+  record_gen_uu UUID GENERATED ALWAYS AS (stk_system_config_type_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_system_config_type_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
@@ -49,6 +51,8 @@ EXECUTE FUNCTION private.text_search_key_uppercase();
 
 CREATE TABLE private.stk_system_config (
   stk_system_config_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name_gen TEXT GENERATED ALWAYS AS ('stk_system_config') STORED,
+  record_gen_uu UUID GENERATED ALWAYS AS (stk_system_config_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_system_config_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),

@@ -11,6 +11,8 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 
 CREATE TABLE private.stk_actor_type (
   stk_actor_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT GENERATED ALWAYS AS ('stk_actor_type') STORED,
+  record_uu UUID GENERATED ALWAYS AS (stk_actor_type_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid, -- constraint created below...
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -29,6 +31,8 @@ COMMENT ON VIEW api.stk_actor_type IS 'Holds the types of stk_actor records.';
 
 CREATE TABLE private.stk_actor (
   stk_actor_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT GENERATED ALWAYS AS ('stk_actor') STORED,
+  record_uu UUID GENERATED ALWAYS AS (stk_actor_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid, -- constraint created below...
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),

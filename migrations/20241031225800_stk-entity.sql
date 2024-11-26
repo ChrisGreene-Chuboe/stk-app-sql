@@ -16,6 +16,8 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 
 CREATE TABLE private.stk_entity_type (
   stk_entity_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT GENERATED ALWAYS AS ('stk_entity_type') STORED,
+  record_uu UUID GENERATED ALWAYS AS (stk_entity_type_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_entity_type_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
@@ -36,6 +38,8 @@ COMMENT ON VIEW api.stk_entity_type IS 'Holds the types of stk_entity records.';
 
 CREATE TABLE private.stk_entity (
   stk_entity_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT GENERATED ALWAYS AS ('stk_entity') STORED,
+  record_uu UUID GENERATED ALWAYS AS (stk_entity_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_entity_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),

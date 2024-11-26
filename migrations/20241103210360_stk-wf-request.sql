@@ -20,6 +20,8 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 
 CREATE TABLE private.stk_wf_request_type (
   stk_wf_request_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT GENERATED ALWAYS AS ('stk_wf_request_type') STORED,
+  record_uu UUID GENERATED ALWAYS AS (stk_wf_request_type_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_wf_request_type_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
@@ -40,6 +42,8 @@ COMMENT ON VIEW api.stk_wf_request_type IS 'Holds the types of stk_wf_request re
 
 CREATE TABLE private.stk_wf_request (
   stk_wf_request_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT GENERATED ALWAYS AS ('stk_wf_request') STORED,
+  record_uu UUID GENERATED ALWAYS AS (stk_wf_request_uu) STORED,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   CONSTRAINT fk_stk_wf_request_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
