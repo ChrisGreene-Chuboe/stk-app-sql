@@ -41,6 +41,6 @@ $$ LANGUAGE plpgsql
 SECURITY DEFINER;
 COMMENT ON FUNCTION private.t10110_stk_created_updated() IS 'manages automatic updates to created,updated,created_by_uu and updated_by_uu';
 
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (10110,'stk_created_updated','BEFORE INSERT OR UPDATE OR DELETE');
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (10110,'stk_created_updated','BEFORE INSERT OR UPDATE');
 
 select private.stk_trigger_create();

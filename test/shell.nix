@@ -74,6 +74,8 @@ in pkgs.mkShell {
     # note next line tells psql where to look for settings
     export PSQLRC="$PWD"/.psqlrc
 
+    mkdir -p delme/
+
     V_SCHEMA_DETAILS="schema-details/"
     mkdir -p "$V_SCHEMA_DETAILS"
 
@@ -143,6 +145,7 @@ in pkgs.mkShell {
       pg_ctl stop
       rm -rf "$PGHOST"
       rm -rf "$STK_DOCS"
+      rm -rf delme/
       rm migrations
       rm -rf "$V_SCHEMA_DETAILS"
       rm .psql_history
