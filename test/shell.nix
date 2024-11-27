@@ -74,36 +74,41 @@ in pkgs.mkShell {
     # note next line tells psql where to look for settings
     export PSQLRC="$PWD"/.psqlrc
 
-    mkdir -p schema-details
+    V_SCHEMA_DETAILS="schema-details/"
+    mkdir -p "$V_SCHEMA_DETAILS"
 
-    pg_dump --schema-only -n api > schema-details/schema-api.sql
-    sed -i '/^--/d' schema-details/schema-api.sql
-    sed -i '/^GRANT/d' schema-details/schema-api.sql
-    sed -i '/^ALTER/d' schema-details/schema-api.sql
+    V_SCHEMA_DETAILS_API="$V_SCHEMA_DETAILS/schema-api.sql"
+    V_SCHEMA_DETAILS_PRIVATE="$V_SCHEMA_DETAILS/schema-private.sql"
+    V_SCHEMA_DETAILS_ENUM="$V_SCHEMA_DETAILS/schema-enum.txt"
 
-    echo "---- the following represent all enum values ----" > schema-details/schema-enum.txt
-    echo "" >> schema-details/schema-enum.txt
-    echo "--select * from api.enum_value" >> schema-details/schema-enum.txt
-    psql -c "select * from api.enum_value" >> schema-details/schema-enum.txt
+    pg_dump --schema-only -n api > $V_SCHEMA_DETAILS_API
+    sed -i '/^--/d' $V_SCHEMA_DETAILS_API
+    sed -i '/^GRANT/d' $V_SCHEMA_DETAILS_API
+    sed -i '/^ALTER/d' $V_SCHEMA_DETAILS_API
+
+    echo "---- the following represent all enum values ----" > $V_SCHEMA_DETAILS_PRIVATE
+    echo "" >> $V_SCHEMA_DETAILS_PRIVATE
+    echo "--select * from api.enum_value" >> $V_SCHEMA_DETAILS_PRIVATE
+    psql -c "select * from api.enum_value" >> $V_SCHEMA_DETAILS_PRIVATE
     
-    echo "---- the following represent all private table defaults ----" > schema-details/schema-private.sql
-    echo "---- we are includes these values so that you can see the default values for the tables behind the api views ----" >> schema-details/schema-private.sql
-    echo "---- when inserting records, to do set colums with default values unless the default is not desired ----" >> schema-details/schema-private.sql
-    echo "" >> schema-details/schema-private.sql
-    pg_dump  --schema-only -n private --table='stk*' >> schema-details/schema-private.sql
-    sed -i '/^--/d' schema-details/schema-private.sql
-    sed -i '/^GRANT/d' schema-details/schema-private.sql
-    sed -i '/^ALTER/d' schema-details/schema-private.sql
-    sed -i '/^CREATE TRIGGER/d' schema-details/schema-private.sql
-    sed -i '/ADD CONSTRAINT/d' schema-details/schema-private.sql
+    echo "---- the following represent all private table defaults ----" > $V_SCHEMA_DETAILS_PRIVATE
+    echo "---- we are includes these values so that you can see the default values for the tables behind the api views ----" >> $V_SCHEMA_DETAILS_PRIVATE
+    echo "---- when inserting records, to do set colums with default values unless the default is not desired ----" >> $V_SCHEMA_DETAILS_PRIVATE
+    echo "" >> $V_SCHEMA_DETAILS_PRIVATE
+    pg_dump  --schema-only -n private --table='stk*' >> $V_SCHEMA_DETAILS_PRIVATE
+    sed -i '/^--/d' $V_SCHEMA_DETAILS_PRIVATE
+    sed -i '/^GRANT/d' $V_SCHEMA_DETAILS_PRIVATE
+    sed -i '/^ALTER/d' $V_SCHEMA_DETAILS_PRIVATE
+    sed -i '/^CREATE TRIGGER/d' $V_SCHEMA_DETAILS_PRIVATE
+    sed -i '/ADD CONSTRAINT/d' $V_SCHEMA_DETAILS_PRIVATE
 
     STK_DOCS=chuckstack.github.io
     git clone https://github.com/chuckstack/$STK_DOCS
 
     export f="-r %functions%"
-    alias aix="aichat -f schema-details/ "
-    alias aix-conv-detail="aichat -f schema-details/ -f $STK_DOCS/src-ls/postgres-convention/"
-    alias aix-conv-sum="aichat -f schema-details/ -f $STK_DOCS/src-ls/postgres-conventions.md"
+    alias aix="aichat -f $V_SCHEMA_DETAILS "
+    alias aix-conv-detail="aichat -f $V_SCHEMA_DETAILS -f $STK_DOCS/src-ls/postgres-convention/"
+    alias aix-conv-sum="aichat -f $V_SCHEMA_DETAILS -f $STK_DOCS/src-ls/postgres-conventions.md"
 
     # note next line sets aichat environment var
     export AICHAT_ROLES_DIR="chuckstack.github.io/src-ls/roles/"
@@ -139,7 +144,7 @@ in pkgs.mkShell {
       rm -rf "$PGHOST"
       rm -rf "$STK_DOCS"
       rm migrations
-      rm -rf schema-details
+      rm -rf "$V_SCHEMA_DETAILS"
       rm .psql_history
     }
 
