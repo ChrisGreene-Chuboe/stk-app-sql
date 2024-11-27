@@ -20,17 +20,17 @@ COMMENT ON TABLE private.stk_trigger_mgt IS '`stk_trigger_mgt` is a table used t
 - Case when `is_include` = true then only create triggers for the tables in `table_name` array.
 - Case when `is_exclude` = true then create the trigger for the `private` schema tables in `table_name` array.
 
-Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t1000 that call on a function named t1000_change_log() for all tables:
+Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t10100 that call on a function named t10100_stk_change_log() for all tables:
 
 ```sql
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (1000,''change_log'',''BEFORE INSERT OR UPDATE OR DELETE'');
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (10100,''stk_change_log'',''BEFORE INSERT OR UPDATE OR DELETE'');
 select private.stk_trigger_create();
 ```
 
-Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t1000 that call on a function named t1000_change_log() for all tables except stk_change_log:
+Here is an example that will result in creating table triggers named stk_"table_name"_tgr_t10100 that call on a function named t10100_stk_change_log() for all tables except stk_change_log:
 
 ```sql
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event,is_exclude,table_name) values (1000,''change_log'',''AFTER INSERT OR UPDATE OR DELETE'',true,ARRAY[''stk_change_log'']);
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event,is_exclude,table_name) values (10100,''stk_change_log'',''AFTER INSERT OR UPDATE OR DELETE'',true,ARRAY[''stk_change_log'']);
 select private.stk_trigger_create();
 ```
 

@@ -47,7 +47,7 @@ COMMENT ON VIEW api.stk_system_config_type IS 'Holds the types of stk_system_con
 CREATE TRIGGER stk_system_config_type_search_key_uppercase
 BEFORE INSERT OR UPDATE ON private.stk_system_config_type
 FOR EACH ROW
-EXECUTE FUNCTION private.text_search_key_uppercase();
+EXECUTE FUNCTION private.stk_text_search_key_uppercase();
 
 CREATE TABLE private.stk_system_config (
   stk_system_config_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),

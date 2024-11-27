@@ -40,7 +40,7 @@ select private.stk_trigger_create();
 
 insert into private.stk_change_log_exclude (table_name) values ('stk_change_log');
 
-CREATE OR REPLACE FUNCTION private.t1000_change_log()
+CREATE OR REPLACE FUNCTION private.t10100_stk_change_log()
 RETURNS TRIGGER AS $$
 DECLARE
     old_row RECORD;
@@ -130,9 +130,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER;
-COMMENT ON FUNCTION private.t1000_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
+COMMENT ON FUNCTION private.t10100_stk_change_log() IS 'create json object that highlight old vs new values when manipulating table records';
 
 --no table exeption
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (1000,'change_log','AFTER INSERT OR UPDATE OR DELETE');
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (10100,'stk_change_log','AFTER INSERT OR UPDATE OR DELETE');
 
 select private.stk_trigger_create();

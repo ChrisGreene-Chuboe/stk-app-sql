@@ -1,6 +1,6 @@
 
 
-CREATE OR REPLACE FUNCTION private.t1010_created_updated()
+CREATE OR REPLACE FUNCTION private.t10110_stk_created_updated()
 RETURNS TRIGGER AS $$
 DECLARE
     current_user_v uuid;
@@ -39,8 +39,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
 SECURITY DEFINER;
-COMMENT ON FUNCTION private.t1010_created_updated() IS 'manages automatic updates to created,updated,created_by_uu and updated_by_uu';
+COMMENT ON FUNCTION private.t10110_stk_created_updated() IS 'manages automatic updates to created,updated,created_by_uu and updated_by_uu';
 
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (1010,'created_updated','BEFORE INSERT OR UPDATE OR DELETE');
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event) values (10110,'stk_created_updated','BEFORE INSERT OR UPDATE OR DELETE');
 
 select private.stk_trigger_create();
