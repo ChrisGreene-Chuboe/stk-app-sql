@@ -62,7 +62,10 @@ CREATE TABLE private.stk_async (
   --stk_async_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  description TEXT
+  description TEXT,
+  batch_id TEXT,
+  date_processed TIMESTAMPTZ,
+  is_processed BOOLEAN GENERATED ALWAYS AS (date_processed IS NOT NULL) STORED
 );
 COMMENT ON TABLE private.stk_async IS 'Holds async records';
 
