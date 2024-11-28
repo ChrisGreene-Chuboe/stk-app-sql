@@ -73,60 +73,11 @@ COMMENT ON VIEW api.stk_async IS 'Holds async records';
 SELECT private.stk_trigger_create();
 SELECT private.stk_table_type_create('stk_async_type');
 
--- create pg_notify messages
-CREATE OR REPLACE FUNCTION private.t70100_stk_async_notify()
-RETURNS trigger AS $$
-DECLARE
-    payload_v jsonb;
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        payload_v = jsonb_build_object(
-            'operation', 'INSERT',
-            'table', TG_TABLE_NAME,
-            'schema', TG_TABLE_SCHEMA,
-            'data', row_to_json(NEW)
-        );
-    ELSIF TG_OP = 'UPDATE' THEN
-        payload_v = jsonb_build_object(
-            'operation', 'UPDATE',
-            'table', TG_TABLE_NAME,
-            'schema', TG_TABLE_SCHEMA,
-            'old_data', row_to_json(OLD),
-            'new_data', row_to_json(NEW)
-        );
-    ELSIF TG_OP = 'DELETE' THEN
-        payload_v = jsonb_build_object(
-            'operation', 'DELETE',
-            'table', TG_TABLE_NAME,
-            'schema', TG_TABLE_SCHEMA,
-            'data', row_to_json(OLD)
-        );
-    END IF;
-
-    PERFORM pg_notify(
-        'stk_async_notify',
-        payload_v::text
-    );
-
-    RETURN NULL;
-
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger Definition (example for stk_async table)
-CREATE TRIGGER t70100_stk_notify_changes_tbl_stk_async
-    AFTER INSERT OR UPDATE OR DELETE ON private.stk_async
-    FOR EACH ROW
-    EXECUTE FUNCTION private.t70100_stk_async_notify();
-
----- to test uncomment the following to make for easy edits
----- Trigger Definition (example for stk_async_type table)
---CREATE TRIGGER t70100_stk_notify_changes_tbl_stk_async_type
---    AFTER INSERT OR UPDATE OR DELETE ON private.stk_async_type
---    FOR EACH ROW
---    EXECUTE FUNCTION private.t70100_stk_async_notify();
---
----- in psql execute: listen stk_async_notify;
----- in psql execute: insert into api.stk_async_type (name,stk_async_type_enum) values ('test01','NONE') returning stk_async_type_uu;
----- in psql execute: update api.stk_async_type set description = 'test01' where name = 'test01';
----- in psql execute: delete from api.stk_async_type where name = 'test01';
+---- in psql execute: listen stk_async_type_notify;
+----                  insert into api.stk_async_type (name,stk_async_type_enum) values ('test01','NONE') returning stk_async_type_uu;
+----                  update api.stk_async_type set description = 'test01' where name = 'test01';
+----                  delete from api.stk_async_type where name = 'test01';
+----
+---- also note that you can from command line (tmux) execute:  psql -c "LISTEN stk_async_notify;" -f /dev/stdin 2>&1
+------ also note that you will need to enter ";" to see the notifications - they will not update automatically and I cannot get the "\watch 1" to work
+------ This allows you to test from two different sessions
