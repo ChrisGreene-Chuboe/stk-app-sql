@@ -49,7 +49,7 @@ CREATE TABLE private.stk_attribute_tag_type (
 COMMENT ON TABLE private.stk_attribute_tag_type IS 'Holds the types of stk_attribute_tag records. Attributes column holds a json template to be used when creating a new skt_attribute_tag record.';
 
 CREATE VIEW api.stk_attribute_tag_type AS SELECT * FROM private.stk_attribute_tag_type;
-COMMENT ON VIEW api.stk_wf_request_type IS 'Holds the types of stk_attribute_tag records. Attributes column holds a json template to be used when creating a new skt_attribute_tag record.';
+COMMENT ON VIEW api.stk_attribute_tag_type IS 'Holds the types of stk_attribute_tag records. Attributes column holds a json template to be used when creating a new skt_attribute_tag record.';
 
 CREATE TABLE private.stk_attribute_tag (
   stk_attribute_tag_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),

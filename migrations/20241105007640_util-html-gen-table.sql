@@ -16,7 +16,7 @@ COMMENT ON FUNCTION api.html_sanitize(text[]) IS 'pass through function to accep
 
 -- generic function to return data from any table or view
 -- example usage:
-  -- select api.genhtml('api','stk_wf_request' , 'v', array['name']);
+  -- select api.genhtml('api','stk_request' , 'v', array['name']);
 -- Notes:
   -- this function seems to be in a good state
   -- there is no way to specify where or order
@@ -132,7 +132,7 @@ create or replace function api.index() returns "text/html" as $$
           </form>
           <div id="request-list-area">
             $html$
-              || api.html_table('api','stk_wf_request',array['name','description','is_active']) ||
+              || api.html_table('api','stk_request',array['name','description','is_active']) ||
             $html$
           <div>
         </article>
