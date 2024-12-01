@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS private.stk_form_post (
   stk_form_post_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
-  CONSTRAINT fk_stk_form_post_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
+  --CONSTRAINT fk_stk_form_post_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu uuid NOT NULL,
-  CONSTRAINT fk_stk_form_post_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
+  --CONSTRAINT fk_stk_form_post_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   is_active BOOLEAN NOT NULL DEFAULT true,
   stk_form_post_json jsonb NOT NULL DEFAULT '{}'::jsonb,
   description TEXT

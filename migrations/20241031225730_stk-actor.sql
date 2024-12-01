@@ -76,9 +76,9 @@ updated_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_su
 
 ALTER TABLE private.stk_actor
 ALTER COLUMN created_by_uu SET NOT NULL,
-ALTER COLUMN updated_by_uu SET NOT NULL,
-ADD CONSTRAINT fk_stk_actor_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
-ADD CONSTRAINT fk_stk_actor_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
+ALTER COLUMN updated_by_uu SET NOT NULL
+--ADD CONSTRAINT fk_stk_actor_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
+--ADD CONSTRAINT fk_stk_actor_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
 ;
 
 UPDATE private.stk_actor_type
@@ -88,7 +88,7 @@ updated_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_su
 
 ALTER TABLE private.stk_actor_type
 ALTER COLUMN created_by_uu SET NOT NULL,
-ALTER COLUMN updated_by_uu SET NOT NULL,
-ADD CONSTRAINT fk_stk_actor_type_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
-ADD CONSTRAINT fk_stk_actor_type_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
+ALTER COLUMN updated_by_uu SET NOT NULL
+--ADD CONSTRAINT fk_stk_actor_type_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
+--ADD CONSTRAINT fk_stk_actor_type_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
 ;
