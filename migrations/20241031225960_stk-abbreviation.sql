@@ -44,6 +44,7 @@ INSERT INTO private.stk_abbreviation (search_key, name) VALUES
 ('salesrep','sales representative'),
 ('stk','stack'),
 ('trx','transaction'),
-('uu','universal_unique identifier'),
-('wf','workflow')
+('uu','universal unique identifier'),
+('wf','workflow'),
+('wfi','workflow instance')
 ;
