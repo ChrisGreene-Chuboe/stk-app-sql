@@ -7,6 +7,8 @@ CREATE TABLE private.stk_abbreviation (
   stk_abbreviation_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_name TEXT GENERATED ALWAYS AS ('stk_abbreviation') STORED,
   record_uu UUID GENERATED ALWAYS AS (stk_abbreviation_uu) STORED,
+  stk_entity_uu UUID NOT NULL,
+  CONSTRAINT fk_stk_abbreviation_entity FOREIGN KEY (stk_entity_uu) REFERENCES private.stk_entity(stk_entity_uu),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   --CONSTRAINT fk_stk_abbreviation_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
