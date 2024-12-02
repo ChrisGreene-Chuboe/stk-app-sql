@@ -30,16 +30,18 @@ BEGIN
         -- Construct and execute the INSERT statement
         EXECUTE format(
             'INSERT INTO %s (
+                search_key,
                 name,
                 description,
                 %I
             ) VALUES (
-                $1, $2, $3::%s
+                $1, $2, $3, $4::%s
             )',
             type_table_name_v,
             enum_name_v,
             enum_type_v
         ) USING
+            enum_value_record_v.enum_value,
             enum_value_record_v.enum_value,
             enum_value_record_v.comment,
             enum_value_record_v.enum_value;

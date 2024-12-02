@@ -67,8 +67,8 @@ SELECT private.stk_trigger_create();
 SELECT private.stk_table_type_create('stk_entity_type');
 
 -- create first stk_entity
-INSERT INTO private.stk_entity (stk_entity_type_uu, name, description)
-SELECT stk_entity_type_uu, name, description
+INSERT INTO private.stk_entity (stk_entity_type_uu, search_key, name, description)
+SELECT stk_entity_type_uu, name, name, description
 FROM private.stk_entity_type
 WHERE stk_entity_type_enum = '*'
 ;
