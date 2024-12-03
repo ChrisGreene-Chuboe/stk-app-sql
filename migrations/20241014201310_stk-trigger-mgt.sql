@@ -45,7 +45,21 @@ DECLARE
     table_record_p RECORD;
     trigger_name_p TEXT;
     function_root_p RECORD;
+    table_partition_child_v TEXT[];
 BEGIN
+
+    -- find all sub-partition tables so that we can exclude them - we only want to add triggers the primary tables
+    SELECT coalesce(array_agg(child.relname::TEXT),ARRAY[]::text[])
+    INTO table_partition_child_v
+    FROM pg_inherits
+        JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
+        JOIN pg_class child ON pg_inherits.inhrelid = child.oid
+        JOIN pg_namespace nmsp_parent ON nmsp_parent.oid = parent.relnamespace
+        JOIN pg_namespace nmsp_child ON nmsp_child.oid = child.relnamespace
+    WHERE parent.relkind = 'p';
+
+    --RAISE NOTICE 'Partition sub-tables: %', table_partition_child_v;
+
     -- Loop through all records in stk_trigger_mgt
     FOR function_root_p IN (SELECT * FROM private.stk_trigger_mgt)
     LOOP
@@ -62,6 +76,7 @@ BEGIN
                   OR
                   (function_root_p.is_exclude = true AND table_name != ALL(function_root_p.table_name))
               )
+              AND table_name != ALL(table_partition_child_v)
         LOOP
             -- Derive the trigger name from the table name and function prefix
             --trigger_name_p := table_record_p.table_name || '_tgr_t' || function_root_p.function_name_prefix::text;
@@ -87,9 +102,9 @@ BEGIN
                     function_root_p.function_name_root
                 );
 
-                RAISE NOTICE 'Created trigger % on table private.%', trigger_name_p, table_record_p.table_name;
+                --RAISE NOTICE 'Created trigger % on table private.%', trigger_name_p, table_record_p.table_name;
             ELSE
-                RAISE NOTICE 'Trigger % already exists on table private.%', trigger_name_p, table_record_p.table_name;
+                --RAISE NOTICE 'Trigger % already exists on table private.%', trigger_name_p, table_record_p.table_name;
             END IF;
         END LOOP;
     END LOOP;

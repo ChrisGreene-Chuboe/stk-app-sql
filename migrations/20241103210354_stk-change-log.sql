@@ -55,11 +55,23 @@ DECLARE
     table_pk_name TEXT;
     record_uu UUID;
     batch_id TEXT;
+    parent_table_name_v text;
 BEGIN
+
+    -- Get the partition parent table name if exists
+    SELECT inhparent::regclass::text
+    INTO parent_table_name_v
+    FROM pg_inherits
+    WHERE inhrelid = TG_RELID;
+
+    IF parent_table_name_v IS NULL THEN
+        parent_table_name_v := TG_TABLE_NAME;
+    END IF;
+
     SELECT EXISTS (
         SELECT 1
         FROM private.stk_change_log_exclude
-        WHERE table_name = TG_TABLE_NAME
+        WHERE table_name = parent_table_name_v
     ) INTO is_excluded;
 
     -- If the table is excluded, exit the function
@@ -67,29 +79,29 @@ BEGIN
         RETURN NULL;
     END IF;
 
-    SELECT TG_TABLE_NAME || '_uu' INTO table_pk_name;
+    SELECT parent_table_name_v || '_uu' INTO table_pk_name;
     SELECT gen_random_uuid() INTO batch_id;
 
     IF TG_OP = 'INSERT' THEN
         EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING NEW;
         new_row := NEW;
-        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = TG_TABLE_NAME LOOP
+        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = parent_table_name_v LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO column_value USING new_row;
             json_output := json_build_object(
-                'table', TG_TABLE_NAME,
+                'table', parent_table_name_v,
                 'schema', TG_TABLE_SCHEMA,
                 'operation', TG_OP,
                 'column', column_name,
                 'new_value', column_value
             );
             INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json)
-                VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
+                VALUES (batch_id, parent_table_name_v, column_name, record_uu, json_output);
         END LOOP;
     ELSIF TG_OP = 'UPDATE' THEN
         EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
         old_row := OLD;
         new_row := NEW;
-        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = TG_TABLE_NAME LOOP
+        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = parent_table_name_v LOOP
             EXECUTE format('SELECT ($1).%I::TEXT <> ($2).%I::TEXT OR (($1).%I IS NULL) <> (($2).%I IS NULL)',
                            column_name, column_name, column_name, column_name)
             INTO STRICT is_different USING old_row, new_row;
@@ -98,7 +110,7 @@ BEGIN
                 EXECUTE format('SELECT ($1).%I::TEXT, ($2).%I::TEXT', column_name, column_name)
                 INTO STRICT old_value, new_value USING old_row, new_row;
                 json_output := json_build_object(
-                    'table', TG_TABLE_NAME,
+                    'table', parent_table_name_v,
                     'schema', TG_TABLE_SCHEMA,
                     'operation', TG_OP,
                     'column', column_name,
@@ -106,23 +118,23 @@ BEGIN
                     'new_value', new_value
                 );
                 INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json) 
-                    VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
+                    VALUES (batch_id, parent_table_name_v, column_name, record_uu, json_output);
             END IF;
         END LOOP;
     ELSIF TG_OP = 'DELETE' THEN
         EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
         old_row := OLD;
-        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = TG_TABLE_NAME LOOP
+        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = parent_table_name_v LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO STRICT column_value USING old_row;
             json_output := json_build_object(
-                'table', TG_TABLE_NAME,
+                'table', parent_table_name_v,
                 'schema', TG_TABLE_SCHEMA,
                 'operation', TG_OP,
                 'column', column_name,
                 'old_value', column_value
             );
             INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json) 
-                VALUES (batch_id, TG_TABLE_NAME, column_name, record_uu, json_output);
+                VALUES (batch_id, parent_table_name_v, column_name, record_uu, json_output);
         END LOOP;
     END IF;
 
