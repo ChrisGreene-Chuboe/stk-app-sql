@@ -4,7 +4,7 @@
 SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
 
 -- create pg_notify messages
-CREATE OR REPLACE FUNCTION private.t70100_stk_notify()
+CREATE OR REPLACE FUNCTION private.t80100_stk_notify()
 RETURNS trigger AS $$
 DECLARE
     payload_v jsonb;
@@ -47,10 +47,10 @@ BEGIN
 
 END;
 $$ LANGUAGE plpgsql;
-COMMENT ON FUNCTION private.t70100_stk_notify() IS 'Create pg_notify messages for changes to records';
+COMMENT ON FUNCTION private.t80100_stk_notify() IS 'Create pg_notify messages for changes to records';
 
 --only apply to specific tables
-insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event,is_include,table_name) values (70100,'stk_notify','AFTER INSERT OR UPDATE OR DELETE',true,ARRAY['stk_async','stk_async_type']);
+insert into private.stk_trigger_mgt (function_name_prefix,function_name_root,function_event,is_include,table_name) values (80100,'stk_notify','AFTER INSERT OR UPDATE OR DELETE',true,ARRAY['stk_async','stk_async_type']);
 
 select private.stk_trigger_create();
 

@@ -1,6 +1,6 @@
 
 
-CREATE OR REPLACE FUNCTION private.t30100_stk_text_search_key_uppercase()
+CREATE OR REPLACE FUNCTION private.t10130_stk_search_key_uppercase()
 RETURNS TRIGGER AS $$
 BEGIN
     IF EXISTS (
@@ -16,5 +16,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION private.t30100_stk_text_search_key_uppercase() IS 'Utility function to make the search key column value upper case if the column exists';
+COMMENT ON FUNCTION private.t10130_stk_search_key_uppercase() IS 'Utility function to make the search key column value upper case if the column exists';
 

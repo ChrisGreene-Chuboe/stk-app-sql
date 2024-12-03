@@ -44,10 +44,10 @@ CREATE VIEW api.stk_system_config_type AS SELECT * FROM private.stk_system_confi
 COMMENT ON VIEW api.stk_system_config_type IS 'Holds the types of stk_system_config records. Configuration column holds a json template to be used when creating a new stk_system_config record.';
 
 -- Trigger for stk_system_config_type table
-CREATE TRIGGER t30100_stk_text_search_key_uppercase_tbl_stk_system_config_type
+CREATE TRIGGER t10130_stk_search_key_uppercase_tbl_stk_system_config_type
 BEFORE INSERT OR UPDATE ON private.stk_system_config_type
 FOR EACH ROW
-EXECUTE FUNCTION private.t30100_stk_text_search_key_uppercase();
+EXECUTE FUNCTION private.t10130_stk_search_key_uppercase();
 
 CREATE TABLE private.stk_system_config (
   stk_system_config_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
