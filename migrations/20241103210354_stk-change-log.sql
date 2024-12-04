@@ -55,7 +55,7 @@ DECLARE
     table_pk_name TEXT;
     record_uu UUID;
     batch_id TEXT;
-    parent_table_name_v text;
+    parent_table_name_v TEXT;
 BEGIN
 
     -- Get the partition parent table name if exists
