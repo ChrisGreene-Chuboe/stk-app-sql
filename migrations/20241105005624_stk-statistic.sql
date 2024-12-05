@@ -60,7 +60,7 @@ COMMENT ON TABLE private.stk_statistic IS 'Holds the system statistic records th
 CREATE VIEW api.stk_statistic AS SELECT * FROM private.stk_statistic;
 COMMENT ON VIEW api.stk_statistic IS 'Holds statistic records';
 
-insert into private.stk_change_log_exclude (table_name) values ('stk_statistic');
+insert into private.stk_change_log_exclude (table_name_exclude) values ('stk_statistic');
 
 select private.stk_trigger_create();
 select private.stk_table_type_create('stk_statistic_type');

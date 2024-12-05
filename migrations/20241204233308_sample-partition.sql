@@ -1,4 +1,6 @@
 -- the purpose of this file is to hold a temporary example of creating a chuck-stack table with a partition by default
+-- TODO: create update/delete trigger (like insert trigger)
+-- TODO: make insert/update/delete trigger generic so that it can be associated with all partition tables
 
 -- set session to show stk_superuser as the actor performing all the tasks
 SET stk.session = '{\"psql_user\": \"stk_superuser\"}';

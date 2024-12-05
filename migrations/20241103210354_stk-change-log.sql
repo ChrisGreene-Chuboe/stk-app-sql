@@ -24,17 +24,19 @@ select private.stk_trigger_create();
 
 CREATE TABLE private.stk_change_log_exclude (
   stk_change_log_exclude_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT generated always AS ('stk_change_log_exclude') stored,
+  record_uu UUID GENERATED ALWAYS AS (stk_change_log_exclude_uu) stored,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu uuid NOT NULL,
-  table_name TEXT
+  table_name_exclude TEXT
 );
 COMMENT ON TABLE private.stk_change_log_exclude IS 'table identifyinig all table_names that should not maintain change logs. Note: that normally a table like stk_change_log_exclude is not needed because you can simply hide a table from triggers using the private.stk_trigger_mgt table and the private.stk_trigger_create() function; however, we will eventually update this table to also be able to ignore columns (like passwords and other sensitive data) as well.';
 
 select private.stk_trigger_create();
 
-insert into private.stk_change_log_exclude (table_name) values ('stk_change_log');
+insert into private.stk_change_log_exclude (table_name_exclude) values ('stk_change_log');
 
 CREATE OR REPLACE FUNCTION private.t10100_stk_change_log()
 RETURNS TRIGGER AS $$
@@ -49,7 +51,7 @@ DECLARE
     new_value TEXT;
     is_excluded BOOLEAN;
     batch_id_v TEXT;
-    parent_table_name_v TEXT; --this is the actual table name - needed to get columns in table (in case of partition)
+    table_name_actual_parent_v TEXT; --this is the actual table name - needed to get columns in table (in case of partition)
     table_name_v TEXT; --this is the (generated) table_name returned from the table itself
     table_name_pk_v TEXT;
     record_uu_v UUID;
@@ -58,12 +60,12 @@ BEGIN
     -- Get the partition parent table name if exists
     -- split_part needed to remove schema prefix
     SELECT split_part(inhparent::regclass::text, '.', 2)
-    INTO parent_table_name_v
+    INTO table_name_actual_parent_v
     FROM pg_inherits
     WHERE inhrelid = TG_RELID;
 
-    IF parent_table_name_v IS NULL THEN
-        parent_table_name_v := TG_TABLE_NAME;
+    IF table_name_actual_parent_v IS NULL THEN
+        table_name_actual_parent_v := TG_TABLE_NAME;
     END IF;
 
     -- experiment with better way to get top level table - allows partitioned tables to report under uuid primary table
@@ -78,7 +80,7 @@ BEGIN
             SELECT OLD.record_uu INTO record_uu_v;
             --RAISE NOTICE 't10100: delete table_name,record_uu %,%:',table_name_v,record_uu_v;
         ELSE
-            SELECT parent_table_name_v INTO table_name_v;
+            SELECT table_name_actual_parent_v INTO table_name_v;
         END IF;
     EXCEPTION WHEN undefined_column THEN
         RAISE NOTICE 't10100: table_name column does not exist table_name_v,record_uu_v: %,%:',table_name_v,record_uu_v;
@@ -88,7 +90,7 @@ BEGIN
     SELECT EXISTS (
         SELECT 1
         FROM private.stk_change_log_exclude
-        WHERE table_name in (parent_table_name_v,table_name_v) 
+        WHERE table_name_exclude in (table_name_actual_parent_v,table_name_v) 
     ) INTO is_excluded;
 
     -- If the table is excluded, exit the function
@@ -96,12 +98,12 @@ BEGIN
         RETURN NULL;
     END IF;
 
-    SELECT parent_table_name_v || '_uu' INTO table_name_pk_v;
-    --SELECT split_part(parent_table_name_v, '.', 2) || '_uu' INTO table_name_pk_v;
+    SELECT table_name_actual_parent_v || '_uu' INTO table_name_pk_v;
+    --SELECT split_part(table_name_actual_parent_v, '.', 2) || '_uu' INTO table_name_pk_v;
     SELECT gen_random_uuid() INTO batch_id_v;
 
     --RAISE NOTICE 't10100 table_name_pk_v: %',table_name_pk_v;
-    --RAISE NOTICE 't10100 parent_table_name_v: %',parent_table_name_v;
+    --RAISE NOTICE 't10100 table_name_actual_parent_v: %',table_name_actual_parent_v;
 
 
     IF TG_OP = 'INSERT' THEN
@@ -109,7 +111,7 @@ BEGIN
         new_row := NEW;
         FOR column_name IN SELECT x.column_name 
             FROM information_schema.columns x 
-            WHERE x.table_name = parent_table_name_v 
+            WHERE x.table_name = table_name_actual_parent_v 
                 AND x.table_schema = 'private'
         LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO column_value USING new_row;
@@ -130,7 +132,7 @@ BEGIN
         new_row := NEW;
         FOR column_name IN SELECT x.column_name 
             FROM information_schema.columns x 
-            WHERE x.table_name = parent_table_name_v 
+            WHERE x.table_name = table_name_actual_parent_v 
                 AND x.table_schema = 'private'
         LOOP
             EXECUTE format('SELECT ($1).%I::TEXT <> ($2).%I::TEXT OR (($1).%I IS NULL) <> (($2).%I IS NULL)',
@@ -158,7 +160,7 @@ BEGIN
         old_row := OLD;
         FOR column_name IN SELECT x.column_name 
             FROM information_schema.columns x 
-            WHERE x.table_name = parent_table_name_v 
+            WHERE x.table_name = table_name_actual_parent_v 
                 AND x.table_schema = 'private'
         LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO STRICT column_value USING old_row;
