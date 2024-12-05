@@ -48,10 +48,11 @@ DECLARE
     old_value TEXT;
     new_value TEXT;
     is_excluded BOOLEAN;
-    table_pk_name TEXT;
-    record_uu UUID;
-    batch_id TEXT;
-    parent_table_name_v TEXT;
+    batch_id_v TEXT;
+    parent_table_name_v TEXT; --this is the actual table name - needed to get columns in table (in case of partition)
+    table_name_v TEXT; --this is the (generated) table_name returned from the table itself
+    table_name_pk_v TEXT;
+    record_uu_v UUID;
 BEGIN
 
     -- Get the partition parent table name if exists
@@ -65,10 +66,29 @@ BEGIN
         parent_table_name_v := TG_TABLE_NAME;
     END IF;
 
+    -- experiment with better way to get top level table - allows partitioned tables to report under uuid primary table
+    BEGIN
+        -- Try to access the column
+        IF TG_OP IN ('INSERT','UPDATE') AND NEW.table_name IS NOT NULL AND NEW.record_uu IS NOT NULL THEN
+            SELECT NEW.table_name INTO table_name_v;
+            SELECT NEW.record_uu INTO record_uu_v;
+            --RAISE NOTICE 't10100: insert-update table_name,record_uu %,%:',table_name_v,record_uu_v;
+        ELSIF TG_OP IN ('DELETE') AND OLD.table_name IS NOT NULL AND OLD.record_uu IS NOT NULL THEN
+            SELECT OLD.table_name INTO table_name_v;
+            SELECT OLD.record_uu INTO record_uu_v;
+            --RAISE NOTICE 't10100: delete table_name,record_uu %,%:',table_name_v,record_uu_v;
+        ELSE
+            SELECT parent_table_name_v INTO table_name_v;
+        END IF;
+    EXCEPTION WHEN undefined_column THEN
+        RAISE NOTICE 't10100: table_name column does not exist table_name_v,record_uu_v: %,%:',table_name_v,record_uu_v;
+        --TODO: need to return if table_name_v or record_uu_v do not exist
+    END;
+
     SELECT EXISTS (
         SELECT 1
         FROM private.stk_change_log_exclude
-        WHERE table_name = parent_table_name_v
+        WHERE table_name in (parent_table_name_v,table_name_v) 
     ) INTO is_excluded;
 
     -- If the table is excluded, exit the function
@@ -76,16 +96,16 @@ BEGIN
         RETURN NULL;
     END IF;
 
-    SELECT parent_table_name_v || '_uu' INTO table_pk_name;
-    --SELECT split_part(parent_table_name_v, '.', 2) || '_uu' INTO table_pk_name;
-    SELECT gen_random_uuid() INTO batch_id;
+    SELECT parent_table_name_v || '_uu' INTO table_name_pk_v;
+    --SELECT split_part(parent_table_name_v, '.', 2) || '_uu' INTO table_name_pk_v;
+    SELECT gen_random_uuid() INTO batch_id_v;
 
-    --RAISE NOTICE 't10100 table_pk_name: %',table_pk_name;
+    --RAISE NOTICE 't10100 table_name_pk_v: %',table_name_pk_v;
     --RAISE NOTICE 't10100 parent_table_name_v: %',parent_table_name_v;
 
 
     IF TG_OP = 'INSERT' THEN
-        EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING NEW;
+        --EXECUTE format('SELECT ($1).%I', table_name_pk_v) INTO record_uu USING NEW;
         new_row := NEW;
         FOR column_name IN SELECT x.column_name 
             FROM information_schema.columns x 
@@ -94,17 +114,18 @@ BEGIN
         LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO column_value USING new_row;
             json_output := json_build_object(
-                'table', parent_table_name_v,
-                'schema', TG_TABLE_SCHEMA,
+                'table', table_name_v,
+                'record_uu', record_uu_v,
+                'schema', 'private',
                 'operation', TG_OP,
                 'column', column_name,
                 'new_value', column_value
             );
             INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json)
-                VALUES (batch_id, parent_table_name_v, column_name, record_uu, json_output);
+                VALUES (batch_id_v, parent_table_name_v, column_name, record_uu_v, json_output);
         END LOOP;
     ELSIF TG_OP = 'UPDATE' THEN
-        EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
+        --EXECUTE format('SELECT ($1).%I', table_name_pk_v) INTO record_uu USING OLD;
         old_row := OLD;
         new_row := NEW;
         FOR column_name IN SELECT x.column_name 
@@ -120,19 +141,20 @@ BEGIN
                 EXECUTE format('SELECT ($1).%I::TEXT, ($2).%I::TEXT', column_name, column_name)
                 INTO STRICT old_value, new_value USING old_row, new_row;
                 json_output := json_build_object(
-                    'table', parent_table_name_v,
-                    'schema', TG_TABLE_SCHEMA,
+                    'table', table_name_v,
+                    'record_uu', record_uu_v,
+                    'schema', 'private',
                     'operation', TG_OP,
                     'column', column_name,
                     'old_value', old_value,
                     'new_value', new_value
                 );
                 INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json) 
-                    VALUES (batch_id, parent_table_name_v, column_name, record_uu, json_output);
+                    VALUES (batch_id_v, parent_table_name_v, column_name, record_uu_v, json_output);
             END IF;
         END LOOP;
     ELSIF TG_OP = 'DELETE' THEN
-        EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
+        --EXECUTE format('SELECT ($1).%I', table_name_pk_v) INTO record_uu USING OLD;
         old_row := OLD;
         FOR column_name IN SELECT x.column_name 
             FROM information_schema.columns x 
@@ -141,14 +163,15 @@ BEGIN
         LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO STRICT column_value USING old_row;
             json_output := json_build_object(
-                'table', parent_table_name_v,
-                'schema', TG_TABLE_SCHEMA,
+                'table', table_name_v,
+                'record_uu', record_uu_v,
+                'schema', 'private',
                 'operation', TG_OP,
                 'column', column_name,
                 'old_value', column_value
             );
             INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json) 
-                VALUES (batch_id, parent_table_name_v, column_name, record_uu, json_output);
+                VALUES (batch_id_v, parent_table_name_v, column_name, record_uu_v, json_output);
         END LOOP;
     END IF;
 
