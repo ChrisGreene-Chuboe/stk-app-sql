@@ -31,7 +31,7 @@ BEGIN
     END;
 
     IF entity_uu_v IS NULL THEN
-        RAISE NOTICE 't10120: reverting to * entity';
+        --RAISE NOTICE 't10120: reverting to * entity';
         SELECT e.stk_entity_uu
         INTO entity_uu_v
         FROM private.stk_entity e

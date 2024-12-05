@@ -80,8 +80,8 @@ BEGIN
     --SELECT split_part(parent_table_name_v, '.', 2) || '_uu' INTO table_pk_name;
     SELECT gen_random_uuid() INTO batch_id;
 
-    RAISE NOTICE 't10100 table_pk_name: %',table_pk_name;
-    RAISE NOTICE 't10100 parent_table_name_v: %',parent_table_name_v;
+    --RAISE NOTICE 't10100 table_pk_name: %',table_pk_name;
+    --RAISE NOTICE 't10100 parent_table_name_v: %',parent_table_name_v;
 
 
     IF TG_OP = 'INSERT' THEN
