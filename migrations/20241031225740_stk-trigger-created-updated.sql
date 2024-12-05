@@ -3,9 +3,25 @@
 CREATE OR REPLACE FUNCTION private.t10110_stk_created_updated()
 RETURNS TRIGGER AS $$
 DECLARE
-    current_user_v uuid;
-    psql_user_v text;
+    current_user_v UUID;
+    psql_user_v TEXT;
+    has_column_v BOOLEAN;
 BEGIN
+
+    -- Check if the table has the correct columns
+    -- asssumes that if it does not have created, then it also does not have created_by_uu, updated, ...
+    SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = TG_TABLE_SCHEMA
+        AND table_name = TG_TABLE_NAME
+        AND column_name = 'created'
+    ) INTO has_column_v;
+
+    -- If the table doesn't have the correct columns, return
+    IF NOT has_column_v THEN
+        RETURN NEW;
+    END IF;
 
     BEGIN
         SELECT current_setting('stk.session', true)::json->>'psql_user' INTO psql_user_v;

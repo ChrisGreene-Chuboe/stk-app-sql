@@ -27,13 +27,18 @@ BEGIN
         SELECT current_setting('stk.session', true)::json->>'stk_entity_uu' INTO entity_uu_v;
     EXCEPTION
         WHEN OTHERS THEN
-            --psql_user_v := 'unknown';
-            SELECT e.stk_entity_uu
-            FROM private.stk_entity e
-                JOIN private.stk_entity_type et ON e.stk_entity_type_uu = et.stk_entity_type_uu
-            WHERE et.stk_entity_type_enum = '*'
-            INTO entity_uu_v;
+            entity_uu_v := NULL;
     END;
+
+    IF entity_uu_v IS NULL THEN
+        RAISE NOTICE 't10120: reverting to * entity';
+        SELECT e.stk_entity_uu
+        INTO entity_uu_v
+        FROM private.stk_entity e
+            JOIN private.stk_entity_type et ON e.stk_entity_type_uu = et.stk_entity_type_uu
+        WHERE et.stk_entity_type_enum = '*'
+        ;
+    END IF;
 
     IF entity_uu_v IS NULL THEN 
         RAISE EXCEPTION 'no entity found in session and no default entity found';

@@ -10,15 +10,15 @@ DECLARE
 BEGIN
     -- Construct the type table name
     type_table_name_v := 'private.' || table_name_p;
-    RAISE NOTICE 'type_table_name_v:  %', type_table_name_v;
+    --RAISE NOTICE 'stk_table_type_create: type_table_name_v:  %', type_table_name_v;
 
     -- Construct the type table name
     enum_type_v := 'private.' || table_name_p || '_enum';
-    RAISE NOTICE 'enum_type_v:  %', enum_type_v;
+    --RAISE NOTICE 'stk_table_type_create: enum_type_v:  %', enum_type_v;
 
     -- derive enum name from the table name
     enum_name_v := table_name_p || '_enum';
-    RAISE NOTICE 'enum_name_v:  %', enum_name_v;
+    --RAISE NOTICE 'stk_table_type_create: enum_name_v:  %', enum_name_v;
 
     -- TODO: need to check to see if table exists - otherwise raise exception
 

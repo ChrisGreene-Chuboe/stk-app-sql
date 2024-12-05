@@ -7,10 +7,8 @@ CREATE TABLE private.stk_change_log (
   stk_change_log_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_stk_change_log_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_stk_change_log_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   table_name TEXT,
   record_uu UUID,
   column_name TEXT,
@@ -28,10 +26,8 @@ CREATE TABLE private.stk_change_log_exclude (
   stk_change_log_exclude_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_stk_change_log_exclude_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu uuid NOT NULL,
-  --CONSTRAINT fk_stk_change_log_exclude_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
   table_name TEXT
 );
 COMMENT ON TABLE private.stk_change_log_exclude IS 'table identifyinig all table_names that should not maintain change logs. Note: that normally a table like stk_change_log_exclude is not needed because you can simply hide a table from triggers using the private.stk_trigger_mgt table and the private.stk_trigger_create() function; however, we will eventually update this table to also be able to ignore columns (like passwords and other sensitive data) as well.';
@@ -59,7 +55,8 @@ DECLARE
 BEGIN
 
     -- Get the partition parent table name if exists
-    SELECT inhparent::regclass::text
+    -- split_part needed to remove schema prefix
+    SELECT split_part(inhparent::regclass::text, '.', 2)
     INTO parent_table_name_v
     FROM pg_inherits
     WHERE inhrelid = TG_RELID;
@@ -80,12 +77,21 @@ BEGIN
     END IF;
 
     SELECT parent_table_name_v || '_uu' INTO table_pk_name;
+    --SELECT split_part(parent_table_name_v, '.', 2) || '_uu' INTO table_pk_name;
     SELECT gen_random_uuid() INTO batch_id;
+
+    RAISE NOTICE 't10100 table_pk_name: %',table_pk_name;
+    RAISE NOTICE 't10100 parent_table_name_v: %',parent_table_name_v;
+
 
     IF TG_OP = 'INSERT' THEN
         EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING NEW;
         new_row := NEW;
-        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = parent_table_name_v LOOP
+        FOR column_name IN SELECT x.column_name 
+            FROM information_schema.columns x 
+            WHERE x.table_name = parent_table_name_v 
+                AND x.table_schema = 'private'
+        LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO column_value USING new_row;
             json_output := json_build_object(
                 'table', parent_table_name_v,
@@ -101,7 +107,11 @@ BEGIN
         EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
         old_row := OLD;
         new_row := NEW;
-        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = parent_table_name_v LOOP
+        FOR column_name IN SELECT x.column_name 
+            FROM information_schema.columns x 
+            WHERE x.table_name = parent_table_name_v 
+                AND x.table_schema = 'private'
+        LOOP
             EXECUTE format('SELECT ($1).%I::TEXT <> ($2).%I::TEXT OR (($1).%I IS NULL) <> (($2).%I IS NULL)',
                            column_name, column_name, column_name, column_name)
             INTO STRICT is_different USING old_row, new_row;
@@ -124,7 +134,11 @@ BEGIN
     ELSIF TG_OP = 'DELETE' THEN
         EXECUTE format('SELECT ($1).%I', table_pk_name) INTO record_uu USING OLD;
         old_row := OLD;
-        FOR column_name IN SELECT x.column_name FROM information_schema.columns x WHERE x.table_name = parent_table_name_v LOOP
+        FOR column_name IN SELECT x.column_name 
+            FROM information_schema.columns x 
+            WHERE x.table_name = parent_table_name_v 
+                AND x.table_schema = 'private'
+        LOOP
             EXECUTE format('SELECT ($1).%I::TEXT', column_name) INTO STRICT column_value USING old_row;
             json_output := json_build_object(
                 'table', parent_table_name_v,
