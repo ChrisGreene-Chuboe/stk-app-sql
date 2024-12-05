@@ -1,6 +1,6 @@
 -- the purpose of this file is to hold a temporary example of creating a chuck-stack table with a partition by default
--- TODO: create update/delete trigger (like insert trigger)
--- TODO: make insert/update/delete trigger generic so that it can be associated with all partition tables
+-- consider create update/delete trigger (like insert trigger)
+-- consider make insert/update/delete trigger generic so that it can be associated with all partition tables
 
 -- set session to show stk_superuser as the actor performing all the tasks
 SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
@@ -47,9 +47,9 @@ CREATE TABLE private.stk_delme (
 
 -- delme partition table
 CREATE TABLE private.stk_delme_part (
-  stk_delme_part_uu UUID NOT NULL REFERENCES private.stk_delme(stk_delme_uu),
+  stk_delme_uu UUID NOT NULL REFERENCES private.stk_delme(stk_delme_uu),
   table_name TEXT generated always AS ('stk_delme') stored,
-  record_uu UUID GENERATED ALWAYS AS (stk_delme_part_uu) stored,
+  record_uu UUID GENERATED ALWAYS AS (stk_delme_uu) stored,
   stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(stk_entity_uu),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu UUID NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE private.stk_delme_part (
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  primary key (stk_delme_part_uu, stk_delme_type_uu)
+  primary key (stk_delme_uu, stk_delme_type_uu)
 ) PARTITION BY LIST (stk_delme_type_uu);
 COMMENT ON TABLE private.stk_delme_part IS 'Holds delme records';
 
@@ -79,60 +79,95 @@ COMMENT ON TABLE private.stk_delme_part IS 'Holds delme records';
 CREATE TABLE private.stk_delme_part_default PARTITION OF private.stk_delme_part DEFAULT;
 
 CREATE VIEW api.stk_delme AS 
-SELECT * 
-FROM private.stk_delme c
-JOIN private.stk_delme_part cp on c.stk_delme_uu = cp.stk_delme_part_uu
+SELECT stkp.* 
+FROM private.stk_delme stk
+JOIN private.stk_delme_part stkp on stk.stk_delme_uu = stkp.stk_delme_uu
 ;
 COMMENT ON VIEW api.stk_delme IS 'Holds delme records';
 
--- Because the view uses multiple tables, we need a special way to persist the data when inserting into a view
--- I am not happy with the stk_delme_insert() for two reasons: 1) I do not want to list every column if I do not need to, and 2) I do not want to repeat default logic for columns that might be null during the insert. TODO: Will solve this later using AI ...
-CREATE OR REPLACE FUNCTION api.stk_delme_insert()
+-- generic view insert trigger function that be defined/associated with any partition table that resembles the convention above
+CREATE OR REPLACE FUNCTION api.t00010_generic_partition_insert()
 RETURNS TRIGGER AS $$
+DECLARE
+    table_name_primary_v TEXT;
+    table_name_partition_v TEXT;
+    key_column_primary_v TEXT;
+    insert_columns_v TEXT[] := '{}';
+    insert_values_v TEXT[] := '{}';
+    sql_primary_v TEXT;
+    sql_partition_v TEXT;
+    column_name_v TEXT;
+    column_value_v TEXT;
 BEGIN
-    -- First insert into the primary table
-    INSERT INTO private.stk_delme
-        (stk_delme_uu)
-    VALUES
-        (COALESCE(NEW.stk_delme_uu, gen_random_uuid()))
-    RETURNING stk_delme_uu INTO NEW.stk_delme_uu;
+    -- Extract table names from TG_TABLE_NAME (assumes view name matches partition table base name)
+    table_name_primary_v := 'private.' || TG_TABLE_NAME;
+    table_name_partition_v := table_name_primary_v || '_part';
+    key_column_primary_v := TG_TABLE_NAME || '_uu';
 
-    -- Then insert into the partition table
-    INSERT INTO private.stk_delme_part
-        (stk_delme_part_uu,
-         --stk_entity_uu,
-         created_by_uu,
-         updated_by_uu,
-         is_active,
-         is_template,
-         is_valid,
-         stk_delme_type_uu,
-         stk_delme_parent_uu,
-         search_key,
-         name,
-         description)
-    VALUES
-        (NEW.stk_delme_uu,
-         --NEW.stk_entity_uu,
-         NEW.created_by_uu,
-         NEW.updated_by_uu,
-         COALESCE(NEW.is_active, true),
-         COALESCE(NEW.is_template, false),
-         COALESCE(NEW.is_valid, true),
-         NEW.stk_delme_type_uu,
-         NEW.stk_delme_parent_uu,
-         COALESCE(NEW.search_key, gen_random_uuid()::text),
-         NEW.name,
-         NEW.description);
+    -- First insert into the primary table
+    sql_primary_v := format(
+        'INSERT INTO %s (%s) VALUES ($1) RETURNING %s',
+        table_name_primary_v,
+        key_column_primary_v,
+        key_column_primary_v
+    );
+
+    EXECUTE sql_primary_v
+    USING COALESCE(NEW.record_uu, gen_random_uuid())
+    INTO NEW.record_uu;
+
+    -- Dynamically build insert columns and values for partition table
+    FOR column_name_v IN
+        SELECT
+            a.attname
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'private'
+        AND c.relname = TG_TABLE_NAME || '_part'
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+        AND a.attgenerated = ''  -- Skip generated columns
+    LOOP
+        -- Skip columns that should not be inserted directly
+        IF column_name_v NOT IN ('table_name', 'record_uu') THEN
+
+            -- Get the value of the column from NEW
+            IF column_name_v = TG_TABLE_NAME || '_uu' THEN
+                -- Use the NEW.record_uu value for the primary key reference
+                column_value_v := NEW.record_uu::text;
+            ELSE
+                EXECUTE format('SELECT ($1).%I::text', column_name_v)
+                INTO column_value_v
+                USING NEW;
+            END IF;
+
+            IF column_value_v IS NOT NULL THEN
+                insert_columns_v := array_append(insert_columns_v, column_name_v);
+                insert_values_v := array_append(insert_values_v, format('%L', column_value_v));
+            END IF;
+        END IF;
+    END LOOP;
+
+    -- Build and execute the partition table insert
+    sql_partition_v := format(
+        'INSERT INTO %s (%s) VALUES (%s)',
+        table_name_partition_v,
+        array_to_string(insert_columns_v, ', '),
+        array_to_string(insert_values_v, ', ')
+    );
+
+    EXECUTE sql_partition_v;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+COMMENT ON FUNCTION api.t00010_generic_partition_insert() IS 'Partition view generic insert trigger function';
 
-CREATE TRIGGER stk_delme_insert_trigger
+CREATE TRIGGER t00010_generic_partition_insert_tbl_stk_delme
     INSTEAD OF INSERT ON api.stk_delme
     FOR EACH ROW
-    EXECUTE FUNCTION api.stk_delme_insert();
+    EXECUTE FUNCTION api.t00010_generic_partition_insert();
 
 -- create triggers for newly created tables
 SELECT private.stk_trigger_create();
