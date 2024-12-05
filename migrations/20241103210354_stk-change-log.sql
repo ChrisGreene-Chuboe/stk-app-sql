@@ -5,12 +5,12 @@ SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
 
 CREATE TABLE private.stk_change_log (
   stk_change_log_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT generated always AS ('stk_change_log') stored,
+  record_uu UUID GENERATED ALWAYS AS (stk_change_log_uu) stored,
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu uuid NOT NULL,
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu uuid NOT NULL,
-  table_name TEXT,
-  record_uu UUID,
   column_name TEXT,
   batch_id TEXT,
   stk_change_log_json JSONB
@@ -121,8 +121,8 @@ BEGIN
                 'column', column_name,
                 'new_value', column_value
             );
-            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json)
-                VALUES (batch_id_v, parent_table_name_v, column_name, record_uu_v, json_output);
+            INSERT INTO private.stk_change_log (batch_id, column_name, stk_change_log_json)
+                VALUES (batch_id_v, column_name, json_output);
         END LOOP;
     ELSIF TG_OP = 'UPDATE' THEN
         --EXECUTE format('SELECT ($1).%I', table_name_pk_v) INTO record_uu USING OLD;
@@ -149,8 +149,8 @@ BEGIN
                     'old_value', old_value,
                     'new_value', new_value
                 );
-                INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json) 
-                    VALUES (batch_id_v, parent_table_name_v, column_name, record_uu_v, json_output);
+                INSERT INTO private.stk_change_log (batch_id, column_name, stk_change_log_json) 
+                    VALUES (batch_id_v, column_name, json_output);
             END IF;
         END LOOP;
     ELSIF TG_OP = 'DELETE' THEN
@@ -170,8 +170,8 @@ BEGIN
                 'column', column_name,
                 'old_value', column_value
             );
-            INSERT INTO private.stk_change_log (batch_id, table_name, column_name, record_uu, stk_change_log_json) 
-                VALUES (batch_id_v, parent_table_name_v, column_name, record_uu_v, json_output);
+            INSERT INTO private.stk_change_log (batch_id, column_name, stk_change_log_json) 
+                VALUES (batch_id_v, column_name, json_output);
         END LOOP;
     END IF;
 
