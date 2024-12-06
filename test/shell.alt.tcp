@@ -1,0 +1,76 @@
+{ pkgs ? import <nixpkgs> {} }:
+
+# The purpose of this file is to show an example of installing psql with tcp on a specific port
+# I had created this for another project, and I did not want to lose the reference
+
+let
+
+in pkgs.mkShell {
+  buildInputs = [
+    pkgs.postgresql
+  ];
+
+  shellHook = ''
+    
+    ### Install and configure PSQL ###
+    export PGHOST="localhost"
+    # note next line needed for pg_ctl
+    export PGDATA="$PWD/pgdata"
+    export PGPORT="5433"
+    export PGUSERSU=postgres
+    export ID_SUPERUSER=ademiere
+    export ID_USER=delme
+    # note next line allows for migrations to execute
+    # note the PGUSER env var is used by psql directly
+    export PGUSER=$ID_SUPERUSER
+    export PGDATABASE=idempiere
+    # note next line is used by sqlx-cli
+    #export DATABASE_URL="postgresql://$ID_SUPERUSER/$PGDATABASE?host=$PGHOST"
+
+    if [ ! -d "$PGDATA" ]; then
+      echo "Initializing PostgreSQL database..."
+      initdb --no-locale --encoding=UTF8 --username=$PGUSERSU && echo "port = $PGPORT" >> $PGDATA/postgresql.conf
+      pg_ctl start -o "-k \"$PGDATA\"" -l "$PGDATA/postgresql.log"
+      createdb $PGDATABASE -h $PGHOST -U $PGUSERSU
+    else
+      echo "exiting with error - $PGHOST directory is not empty"
+      exit 1
+    fi
+
+    # note next line tells psql where to look for settings
+    export PSQLRC="$PWD"/.psqlrc
+
+
+    echo ""
+    echo "******************************************************"
+    echo "PostgreSQL is running using Unix socket in $PGHOST"
+    echo "Issue \"psql\" to connect to $PGDATABASE database - note env vars set accordingly"
+    echo "To run migrations, use the 'run-migrations' command"
+    echo "Note: PGUSER = $ID_USER demonstrating user login with no abilities"
+    echo "Note: ID_PG_ROLE sets the desired role for both psql and aicaht - see impersonation"
+    echo "      export ID_PG_ROLE=stk_api_role #default"
+    echo "      export ID_PG_ROLE=stk_private_role"
+    echo "      psql: show role; to see your current role"
+    echo "Note: aix - an alias including the current db schema summary"
+    echo "      aix-conv-detail - an alias including aix + website all psql conventions"
+    echo "      aix-conv-sum - an alias including aix + website summary of psql conventions"
+    echo "      use \$f to execute these calls with function calling"
+    echo "      aix \$f -- show me all stk_actors"
+    echo "Documentation:"
+    echo "      bat chuckstack.github.io/src-ls/postgres-conventions.md"
+    echo "      bat chuckstack.github.io/src-ls/postgres-convention/*"
+    echo "Note: this database and all artifacts will be destroyed on shell exit"
+    echo "******************************************************"
+    echo ""
+
+    cleanup() {
+      echo "Stopping PostgreSQL and cleaning up..."
+      pg_ctl stop
+      rm -rf "$PGDATA"
+      rm -rf delme/
+      rm .psql_history
+    }
+
+    trap cleanup EXIT
+  '';
+}
