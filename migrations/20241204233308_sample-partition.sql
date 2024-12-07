@@ -84,7 +84,7 @@ JOIN private.stk_delme_part stkp on stk.stk_delme_uu = stkp.stk_delme_uu
 ;
 COMMENT ON VIEW api.stk_delme IS 'Holds delme records';
 
---TODO: When inserting into the api.stk_delme view and asking for 'returning stk_delme_uu', the result for stk_delme_uu is null. We want the insert to be able to return the newly created uuid. I believe this means updating the generic insert trigger: t00010_generic_partition_insert() accordingly.
+--TODO: We need a partition generic delete trigger similar to how t00010_generic_partition_insert() manages inserts
 -- generic view insert trigger function that be defined/associated with any partition table that resembles the convention above
 CREATE OR REPLACE FUNCTION api.t00010_generic_partition_insert()
 RETURNS TRIGGER AS $$
@@ -243,6 +243,55 @@ CREATE TRIGGER t00020_generic_partition_update_tbl_stk_delme
     INSTEAD OF UPDATE ON api.stk_delme
     FOR EACH ROW
     EXECUTE FUNCTION api.t00020_generic_partition_update();
+
+
+
+
+CREATE OR REPLACE FUNCTION api.t00030_generic_partition_delete()
+RETURNS TRIGGER AS $$
+DECLARE
+    table_name_primary_v TEXT;
+    table_name_partition_v TEXT;
+    sql_partition_v TEXT;
+    sql_primary_v TEXT;
+BEGIN
+    -- Extract table names from TG_TABLE_NAME (assumes view name matches partition table base name)
+    table_name_primary_v := 'private.' || TG_TABLE_NAME;
+    table_name_partition_v := table_name_primary_v || '_part';
+
+    -- First delete from the partition table
+    sql_partition_v := format(
+        'DELETE FROM %s WHERE %I = %L',
+        table_name_partition_v,
+        TG_TABLE_NAME || '_uu',
+        OLD.record_uu
+    );
+
+    EXECUTE sql_partition_v;
+
+    -- Then delete from the primary table
+    sql_primary_v := format(
+        'DELETE FROM %s WHERE %I = %L',
+        table_name_primary_v,
+        TG_TABLE_NAME || '_uu',
+        OLD.record_uu
+    );
+
+    EXECUTE sql_primary_v;
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+COMMENT ON FUNCTION api.t00030_generic_partition_delete() IS 'Partition view generic delete trigger function';
+
+-- Create the delete trigger for stk_delme
+CREATE TRIGGER t00030_generic_partition_delete_tbl_stk_delme
+    INSTEAD OF DELETE ON api.stk_delme
+    FOR EACH ROW
+    EXECUTE FUNCTION api.t00030_generic_partition_delete();
+
+
+
 
 
 -- create triggers for newly created tables
