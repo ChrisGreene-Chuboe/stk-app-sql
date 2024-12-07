@@ -34,6 +34,10 @@ in pkgs.mkShell {
   ];
 
   shellHook = ''
+
+    # get current directory for cleanup reference
+    export STK_PWD_SHELL=$PWD
+
     export PGHOST="$PWD/pgdata"
     # note next line needed for pg_ctl
     export PGDATA="$PGHOST"
@@ -142,6 +146,7 @@ in pkgs.mkShell {
 
     cleanup() {
       echo "Stopping PostgreSQL and cleaning up..."
+      cd $STK_PWD_SHELL
       pg_ctl stop
       rm -rf "$PGHOST"
       rm -rf "$STK_DOCS"
