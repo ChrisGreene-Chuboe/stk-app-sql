@@ -301,3 +301,9 @@ SELECT private.stk_table_type_create('stk_delme_type');
 --insert into api.stk_delme (name, stk_delme_type_uu) values ('test1',(select stk_delme_type_uu from api.stk_delme_type limit 1)) returning stk_delme_uu;
 --update api.stk_delme set name = 'test1a' where name = 'test1' returning stk_delme_uu;
 --delete from api.stk_delme where name = 'test1a';
+
+
+---- compare this to another table that is not partitioned to evaluate performance:
+--insert into api.stk_request (name, stk_request_type_uu) values ('test1',(select stk_request_type_uu from api.stk_request_type limit 1)) returning stk_request_uu;
+--update api.stk_request set name = 'test1a' where name = 'test1' returning stk_request_uu;
+--delete from api.stk_request where name = 'test1a';
