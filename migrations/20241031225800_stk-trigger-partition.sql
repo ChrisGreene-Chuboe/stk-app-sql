@@ -1,5 +1,7 @@
 
--- needed for below NEW record manipulation
+-- hstore extension needed for below NEW record manipulation
+  -- The hstore approach is particularly useful for dynamic column updates in triggers because it allows you to modify record fields by their names as strings.
+  -- The hstore extension is particularly useful when you need to store semi-structured data with a flat key-value structure. It's more efficient than JSON for simple key-value pairs but less flexible for complex nested structures.
 CREATE EXTENSION IF NOT EXISTS hstore;
 
 -- generic view insert trigger function that be defined/associated with any partition table that resembles the convention above
@@ -36,7 +38,7 @@ BEGIN
     EXECUTE sql_primary_v
     USING record_uu_v;
 
-    -- Update NEW with the generated UUID
+    -- Update NEW with the generated UUID - challenge is to update NEW using dynamic primary key column name
     -- Need to better understand how this works...
     NEW := NEW #= hstore(key_column_primary_v, record_uu_v::text);
 
