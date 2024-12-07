@@ -298,5 +298,6 @@ CREATE TRIGGER t00030_generic_partition_delete_tbl_stk_delme
 SELECT private.stk_trigger_create();
 SELECT private.stk_table_type_create('stk_delme_type');
 
---insert into api.stk_delme (name, stk_delme_type_uu) values ('test',(select stk_delme_type_uu from api.stk_delme_type limit 1)) returning stk_delme_uu;
---update api.stk_delme set name = 'testa' where name = 'test' returning stk_delme_uu;
+--insert into api.stk_delme (name, stk_delme_type_uu) values ('test1',(select stk_delme_type_uu from api.stk_delme_type limit 1)) returning stk_delme_uu;
+--update api.stk_delme set name = 'test1a' where name = 'test1' returning stk_delme_uu;
+--delete from api.stk_delme where name = 'test1a';
