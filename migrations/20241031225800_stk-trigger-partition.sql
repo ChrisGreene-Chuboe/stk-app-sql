@@ -84,7 +84,7 @@
 
 --TODO: We need a partition generic delete trigger similar to how t00010_generic_partition_insert() manages inserts
 -- generic view insert trigger function that be defined/associated with any partition table that resembles the convention above
-CREATE OR REPLACE FUNCTION api.t00010_generic_partition_insert()
+CREATE OR REPLACE FUNCTION private.t00010_generic_partition_insert()
 RETURNS TRIGGER AS $$
 DECLARE
     table_name_primary_v TEXT;
@@ -160,17 +160,17 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-COMMENT ON FUNCTION api.t00010_generic_partition_insert() IS 'Partition view generic insert trigger function';
+COMMENT ON FUNCTION private.t00010_generic_partition_insert() IS 'Partition view generic insert trigger function';
 
 --CREATE TRIGGER t00010_generic_partition_insert_tbl_stk_delme
 --    INSTEAD OF INSERT ON api.stk_delme
 --    FOR EACH ROW
---    EXECUTE FUNCTION api.t00010_generic_partition_insert();
+--    EXECUTE FUNCTION private.t00010_generic_partition_insert();
 
 
 
 
-CREATE OR REPLACE FUNCTION api.t00020_generic_partition_update()
+CREATE OR REPLACE FUNCTION private.t00020_generic_partition_update()
 RETURNS TRIGGER AS $$
 DECLARE
     table_name_partition_v TEXT;
@@ -234,18 +234,18 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-COMMENT ON FUNCTION api.t00020_generic_partition_update() IS 'Partition view generic update trigger function';
+COMMENT ON FUNCTION private.t00020_generic_partition_update() IS 'Partition view generic update trigger function';
 
 ---- Create the update trigger for stk_delme
 --CREATE TRIGGER t00020_generic_partition_update_tbl_stk_delme
 --    INSTEAD OF UPDATE ON api.stk_delme
 --    FOR EACH ROW
---    EXECUTE FUNCTION api.t00020_generic_partition_update();
+--    EXECUTE FUNCTION private.t00020_generic_partition_update();
 
 
 
 
-CREATE OR REPLACE FUNCTION api.t00030_generic_partition_delete()
+CREATE OR REPLACE FUNCTION private.t00030_generic_partition_delete()
 RETURNS TRIGGER AS $$
 DECLARE
     table_name_primary_v TEXT;
@@ -280,13 +280,13 @@ BEGIN
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-COMMENT ON FUNCTION api.t00030_generic_partition_delete() IS 'Partition view generic delete trigger function';
+COMMENT ON FUNCTION private.t00030_generic_partition_delete() IS 'Partition view generic delete trigger function';
 
 ---- Create the delete trigger for stk_delme
 --CREATE TRIGGER t00030_generic_partition_delete_tbl_stk_delme
 --    INSTEAD OF DELETE ON api.stk_delme
 --    FOR EACH ROW
---    EXECUTE FUNCTION api.t00030_generic_partition_delete();
+--    EXECUTE FUNCTION private.t00030_generic_partition_delete();
 
 
 

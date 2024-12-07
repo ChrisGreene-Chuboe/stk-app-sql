@@ -86,17 +86,17 @@ COMMENT ON VIEW api.stk_delme IS 'Holds delme records';
 CREATE TRIGGER t00010_generic_partition_insert_tbl_stk_delme
     INSTEAD OF INSERT ON api.stk_delme
     FOR EACH ROW
-    EXECUTE FUNCTION api.t00010_generic_partition_insert();
+    EXECUTE FUNCTION private.t00010_generic_partition_insert();
 
 CREATE TRIGGER t00020_generic_partition_update_tbl_stk_delme
     INSTEAD OF UPDATE ON api.stk_delme
     FOR EACH ROW
-    EXECUTE FUNCTION api.t00020_generic_partition_update();
+    EXECUTE FUNCTION private.t00020_generic_partition_update();
 
 CREATE TRIGGER t00030_generic_partition_delete_tbl_stk_delme
     INSTEAD OF DELETE ON api.stk_delme
     FOR EACH ROW
-    EXECUTE FUNCTION api.t00030_generic_partition_delete();
+    EXECUTE FUNCTION private.t00030_generic_partition_delete();
 
 
 -- create triggers for newly created tables
