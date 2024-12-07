@@ -113,8 +113,8 @@ BEGIN
     );
 
     EXECUTE sql_primary_v
-    USING COALESCE(NEW.record_uu, gen_random_uuid())
-    INTO NEW.record_uu;
+    USING gen_random_uuid()
+    INTO NEW.stk_delme_uu;
 
     -- Dynamically build insert columns and values for partition table
     FOR column_name_v IN
@@ -134,8 +134,8 @@ BEGIN
 
             -- Get the value of the column from NEW
             IF column_name_v = TG_TABLE_NAME || '_uu' THEN
-                -- Use the NEW.record_uu value for the primary key reference
-                column_value_v := NEW.record_uu::text;
+                -- Use the NEW.stk_delme_uu value for the primary key reference
+                column_value_v := NEW.stk_delme_uu::text;
             ELSE
                 EXECUTE format('SELECT ($1).%I::text', column_name_v)
                 INTO column_value_v
