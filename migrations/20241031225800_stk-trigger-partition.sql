@@ -1,13 +1,6 @@
 
---TODO: please help me resolve this error during insert:
----- Error start:
---ERROR:  42601: syntax error at or near "NEW"
---LINE 1: NEW.stk_changeme_uu := $1
---        ^
---QUERY:  NEW.stk_changeme_uu := $1
---CONTEXT:  PL/pgSQL function private.t00010_generic_partition_insert() line 32 at EXECUTE
---LOCATION:  scanner_yyerror, scan.l:1242
----- Error start:
+-- needed for below NEW record manipulation
+CREATE EXTENSION IF NOT EXISTS hstore;
 
 -- generic view insert trigger function that be defined/associated with any partition table that resembles the convention above
 CREATE OR REPLACE FUNCTION private.t00010_generic_partition_insert()
@@ -32,9 +25,6 @@ BEGIN
     -- Generate new UUID
     record_uu_v := gen_random_uuid();
 
-    -- Instead of trying to modify NEW directly, we'll use the record_uu_v value
-    -- when building the insert statements
-
     -- First insert into the primary table
     sql_primary_v := format(
         'INSERT INTO %s (%s) VALUES ($1) RETURNING %s',
@@ -45,6 +35,10 @@ BEGIN
 
     EXECUTE sql_primary_v
     USING record_uu_v;
+
+    -- Update NEW with the generated UUID
+    -- Need to better understand how this works...
+    NEW := NEW #= hstore(key_column_primary_v, record_uu_v::text);
 
     -- Dynamically build insert columns and values for partition table
     FOR column_name_v IN
@@ -87,9 +81,6 @@ BEGIN
     );
 
     EXECUTE sql_partition_v;
-
-    -- Set the record_uu in NEW using direct assignment
-    NEW.record_uu := record_uu_v;
 
     RETURN NEW;
 END;
