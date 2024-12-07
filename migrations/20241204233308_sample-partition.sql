@@ -1,6 +1,5 @@
 -- the purpose of this file is to hold a temporary example of creating a chuck-stack table with a partition by default
 -- consider create update/delete trigger (like insert trigger)
--- consider make insert/update/delete trigger generic so that it can be associated with all partition tables
 
 -- set session to show stk_superuser as the actor performing all the tasks
 SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
@@ -85,6 +84,7 @@ JOIN private.stk_delme_part stkp on stk.stk_delme_uu = stkp.stk_delme_uu
 ;
 COMMENT ON VIEW api.stk_delme IS 'Holds delme records';
 
+--TODO: When inserting into the api.stk_delme view and asking for 'returning stk_delme_uu', the result for stk_delme_uu is null. We want the insert to be able to return the newly created uuid. I believe this means updating the generic insert trigger: t00010_generic_partition_insert() accordingly.
 -- generic view insert trigger function that be defined/associated with any partition table that resembles the convention above
 CREATE OR REPLACE FUNCTION api.t00010_generic_partition_insert()
 RETURNS TRIGGER AS $$
@@ -169,8 +169,85 @@ CREATE TRIGGER t00010_generic_partition_insert_tbl_stk_delme
     FOR EACH ROW
     EXECUTE FUNCTION api.t00010_generic_partition_insert();
 
+
+
+
+CREATE OR REPLACE FUNCTION api.t00020_generic_partition_update()
+RETURNS TRIGGER AS $$
+DECLARE
+    table_name_partition_v TEXT;
+    update_set_clauses TEXT[] := '{}';
+    sql_partition_v TEXT;
+    column_name_v TEXT;
+    old_value_v TEXT;
+    new_value_v TEXT;
+BEGIN
+    -- Extract table name from TG_TABLE_NAME (assumes view name matches partition table base name)
+    table_name_partition_v := 'private.' || TG_TABLE_NAME || '_part';
+
+    -- Dynamically build update set clauses for partition table
+    FOR column_name_v IN
+        SELECT
+            a.attname
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'private'
+        AND c.relname = TG_TABLE_NAME || '_part'
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+        AND a.attgenerated = ''  -- Skip generated columns
+    LOOP
+        -- Skip columns that should not be updated directly
+        IF column_name_v NOT IN ('table_name', 'record_uu', TG_TABLE_NAME || '_uu') THEN
+            -- Get the old and new values of the column
+            EXECUTE format('SELECT ($1).%I::text', column_name_v)
+            INTO old_value_v
+            USING OLD;
+
+            EXECUTE format('SELECT ($1).%I::text', column_name_v)
+            INTO new_value_v
+            USING NEW;
+
+            -- Add to update clause if the value has changed
+            IF new_value_v IS DISTINCT FROM old_value_v THEN
+                update_set_clauses := array_append(
+                    update_set_clauses,
+                    format('%I = %L', column_name_v, new_value_v)
+                );
+            END IF;
+        END IF;
+    END LOOP;
+
+    -- Only proceed if there are changes to make
+    IF array_length(update_set_clauses, 1) > 0 THEN
+        -- Build and execute the partition table update
+        sql_partition_v := format(
+            'UPDATE %s SET %s WHERE %I = %L',
+            table_name_partition_v,
+            array_to_string(update_set_clauses, ', '),
+            TG_TABLE_NAME || '_uu',
+            OLD.record_uu
+        );
+
+        EXECUTE sql_partition_v;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+COMMENT ON FUNCTION api.t00020_generic_partition_update() IS 'Partition view generic update trigger function';
+
+-- Create the update trigger for stk_delme
+CREATE TRIGGER t00020_generic_partition_update_tbl_stk_delme
+    INSTEAD OF UPDATE ON api.stk_delme
+    FOR EACH ROW
+    EXECUTE FUNCTION api.t00020_generic_partition_update();
+
+
 -- create triggers for newly created tables
 SELECT private.stk_trigger_create();
 SELECT private.stk_table_type_create('stk_delme_type');
 
---insert into api.stk_delme (name, stk_delme_type_uu) values ('test',(select stk_delme_type_uu from api.stk_delme_type limit 1));
+--insert into api.stk_delme (name, stk_delme_type_uu) values ('test',(select stk_delme_type_uu from api.stk_delme_type limit 1)) returning stk_delme_uu;
+--update api.stk_delme set name = 'testa' where name = 'test' returning stk_delme_uu;
