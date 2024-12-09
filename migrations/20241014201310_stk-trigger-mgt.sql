@@ -80,7 +80,7 @@ BEGIN
         LOOP
             -- Derive the trigger name from the table name and function prefix
             --trigger_name_p := table_record_p.table_name || '_tgr_t' || function_root_p.function_name_prefix::text;
-            trigger_name_p := 't' || function_root_p.function_name_prefix::text || '_' || function_root_p.function_name_root::text || '_tbl_' || table_record_p.table_name;
+            trigger_name_p := 't' || function_root_p.function_name_prefix::text || '_' || function_root_p.function_name_root::text;
 
             -- Check if the trigger already exists
             IF NOT EXISTS (
