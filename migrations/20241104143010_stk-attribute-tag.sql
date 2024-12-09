@@ -42,8 +42,9 @@ CREATE TABLE private.stk_attribute_tag_type (
   updated_by_uu UUID NOT NULL, -- no FK by convention
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_default BOOLEAN NOT NULL DEFAULT false,
+  is_singleton BOOLEAN NOT NULL DEFAULT false,
   stk_attribute_tag_type_enum private.stk_attribute_tag_type_enum NOT NULL,
-  stk_attribute_tag_type_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  stk_attribute_tag_type_json JSONB NOT NULL DEFAULT '{"table_name": null, "record_uu": null, "value": {}}'::jsonb, -- just placeholder json for now
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
