@@ -35,6 +35,15 @@ in pkgs.mkShell {
 
   shellHook = ''
 
+    # copy over psql pg_jsonschema extension files into nix directories
+    # NOTE: this is bad nix form - supposed to create a derivation instead; however, this is an easy fix
+    sudo cp ./pg_extension/16/pg_jsonschema.so ${pkgs.postgresql}/lib/
+    sudo cp ./pg_extension/16/pg_jsonschema.control ${pkgs.postgresql}/share/postgresql/extension/
+    sudo cp ./pg_extension/16/pg_jsonschema--0.3.3.sql ${pkgs.postgresql}/share/postgresql/extension/
+    sudo chmod 444 ${pkgs.postgresql}/lib/pg_jsonschema.so
+    sudo chmod 444 ${pkgs.postgresql}/share/postgresql/extension/pg_jsonschema.control
+    sudo chmod 444 ${pkgs.postgresql}/share/postgresql/extension/pg_jsonschema--0.3.3.sql
+
     # get current directory for cleanup reference
     export STK_PWD_SHELL=$PWD
 
@@ -57,6 +66,7 @@ in pkgs.mkShell {
       pg_ctl start -o "-k \"$PGHOST\"" -l "$PGHOST/postgresql.log"
       createdb $PGDATABASE -h $PGHOST -U $PGUSERSU
       # Note: the following commands need to stay in sync with chuck-stack-nix => nixos => stk-todo-app.nix => services.postgresql.initscript
+      psql -U $PGUSERSU -c "CREATE EXTENSION pg_jsonschema" # must be run as superuser/postgres - NOT moved to chuck-stack-nix yet
       psql -U $PGUSERSU -c "CREATE ROLE $STK_SUPERUSER LOGIN CREATEROLE"
       psql -U $PGUSERSU -c "COMMENT ON ROLE $STK_SUPERUSER IS 'superuser role to administer the $PGDATABASE';"
       psql -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $STK_SUPERUSER"
