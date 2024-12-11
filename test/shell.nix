@@ -109,7 +109,7 @@ in pkgs.mkShell {
     sed -i '/ADD CONSTRAINT/d' $V_SCHEMA_DETAILS_PRIVATE
 
     STK_DOCS=chuckstack.github.io
-    git clone https://github.com/chuckstack/$STK_DOCS
+    #git clone https://github.com/chuckstack/$STK_DOCS
 
     export f="-r %functions%"
     alias aix="aichat -f $V_SCHEMA_DETAILS "
