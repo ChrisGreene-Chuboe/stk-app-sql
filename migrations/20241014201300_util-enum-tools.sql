@@ -1,7 +1,8 @@
 
 
+-- TODO: determine why this table does not have a stk_ prefix - either explain for correct
 CREATE TABLE private.enum_comment (
-    enum_comment_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     enum_type text NOT NULL,
     enum_value text NOT NULL,
     comment text,

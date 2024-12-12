@@ -59,6 +59,8 @@ in pkgs.mkShell {
     export PGDATABASE=stk_db
     # note next line is used by sqlx-cli
     export DATABASE_URL="postgresql://$STK_SUPERUSER/$PGDATABASE?host=$PGHOST"
+    # clear variable just in case it existed previously
+    export STK_PG_ROLE="" # hard coded as default
 
     if [ ! -d "$PGHOST" ]; then
       echo "Initializing PostgreSQL database..."

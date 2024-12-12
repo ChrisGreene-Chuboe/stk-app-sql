@@ -22,4 +22,3 @@ ALTER ROLE stk_superuser SET search_path TO public, private, api;
 
 --Note: leaving public schema since used by sqlx migration
 --ALTER SCHEMA public OWNER TO stk_superuser;
-

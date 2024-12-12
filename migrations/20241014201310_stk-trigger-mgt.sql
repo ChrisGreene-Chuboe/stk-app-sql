@@ -1,11 +1,11 @@
 
 
 CREATE TABLE private.stk_trigger_mgt (
-  stk_trigger_mgt_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by_uu uuid, -- allow null and no fk because created so early
+  created_by_uu uuid,
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_by_uu uuid, -- allow null and no fk because created so early
+  updated_by_uu uuid,
   is_include BOOLEAN NOT NULL DEFAULT false,
   is_exclude BOOLEAN NOT NULL DEFAULT false,
   table_name TEXT[],

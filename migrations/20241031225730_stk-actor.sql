@@ -10,16 +10,18 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
 ;
 
 CREATE TABLE private.stk_actor_type (
-  stk_actor_type_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_name TEXT GENERATED ALWAYS AS ('stk_actor_type') STORED,
-  record_uu UUID GENERATED ALWAYS AS (stk_actor_type_uu) STORED,
+  --stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(uu), -- does not exist yet
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by_uu uuid, -- constraint created below...
+  created_by_uu UUID, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_by_uu uuid, -- constraint created below...
+  updated_by_uu UUID, -- no FK by convention
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_default BOOLEAN NOT NULL DEFAULT false,
-  stk_actor_type_enum private.stk_actor_type_enum NOT NULL,
+  type_enum private.stk_actor_type_enum NOT NULL,
+  ----Prompt: ask the user if they need to store json
+  --record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
@@ -30,20 +32,18 @@ CREATE VIEW api.stk_actor_type AS SELECT * FROM private.stk_actor_type;
 COMMENT ON VIEW api.stk_actor_type IS 'Holds the types of stk_actor records.';
 
 CREATE TABLE private.stk_actor (
-  stk_actor_uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  table_name TEXT GENERATED ALWAYS AS ('stk_actor') STORED,
-  record_uu UUID GENERATED ALWAYS AS (stk_actor_uu) STORED,
+  uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT generated always AS ('stk_actor') stored,
+  --stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(uu), -- does not exist yet
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by_uu uuid, -- constraint created below...
+  created_by_uu UUID, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_by_uu uuid, -- constraint created below...
+  updated_by_uu UUID, -- no FK by convention
   is_active BOOLEAN NOT NULL DEFAULT true,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
-  stk_actor_type_uu UUID NOT NULL,
-  CONSTRAINT fk_stk_actor_type FOREIGN KEY (stk_actor_type_uu) REFERENCES private.stk_actor_type(stk_actor_type_uu),
-  stk_actor_parent_uu UUID,
-  CONSTRAINT fk_stk_actor_parent FOREIGN KEY (stk_actor_parent_uu) REFERENCES private.stk_actor(stk_actor_uu),
+  type_uu UUID NOT NULL REFERENCES private.stk_actor_type(uu),
+  parent_uu UUID REFERENCES private.stk_actor(uu),
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT,
   name_first TEXT,
@@ -60,35 +60,31 @@ CREATE UNIQUE INDEX stk_actor_psql_user_uidx ON private.stk_actor (lower(psql_us
 CREATE VIEW api.stk_actor AS SELECT * FROM private.stk_actor;
 COMMENT ON VIEW api.stk_actor IS 'Holds actor records';
 
-INSERT INTO private.stk_actor_type ( stk_actor_type_enum, name) VALUES 
+INSERT INTO private.stk_actor_type (type_enum, name) VALUES 
 ( 'NONE', 'NONE');
 
-INSERT INTO private.stk_actor ( stk_actor_type_uu, name, psql_user) VALUES 
-( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_login', 'stk_login'),
-( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'stk_superuser', 'stk_superuser'),
-( (SELECT stk_actor_type_uu FROM private.stk_actor_type LIMIT 1), 'unknown', 'unknown')
+INSERT INTO private.stk_actor ( type_uu, name, psql_user) VALUES 
+( (SELECT uu FROM private.stk_actor_type LIMIT 1), 'stk_login', 'stk_login'),
+( (SELECT uu FROM private.stk_actor_type LIMIT 1), 'stk_superuser', 'stk_superuser'),
+( (SELECT uu FROM private.stk_actor_type LIMIT 1), 'unknown', 'unknown')
 ;
 
 UPDATE private.stk_actor
-SET created_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser'),
-updated_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser')
+SET created_by_uu = (SELECT uu FROM private.stk_actor WHERE name = 'stk_superuser'),
+updated_by_uu = (SELECT uu FROM private.stk_actor WHERE name = 'stk_superuser')
 ;
 
 ALTER TABLE private.stk_actor
 ALTER COLUMN created_by_uu SET NOT NULL,
 ALTER COLUMN updated_by_uu SET NOT NULL
---ADD CONSTRAINT fk_stk_actor_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
---ADD CONSTRAINT fk_stk_actor_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
 ;
 
 UPDATE private.stk_actor_type
-SET created_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser'),
-updated_by_uu = (SELECT stk_actor_uu FROM private.stk_actor WHERE name = 'stk_superuser')
+SET created_by_uu = (SELECT uu FROM private.stk_actor WHERE name = 'stk_superuser'),
+updated_by_uu = (SELECT uu FROM private.stk_actor WHERE name = 'stk_superuser')
 ;
 
 ALTER TABLE private.stk_actor_type
 ALTER COLUMN created_by_uu SET NOT NULL,
 ALTER COLUMN updated_by_uu SET NOT NULL
---ADD CONSTRAINT fk_stk_actor_type_createdby FOREIGN KEY (created_by_uu) REFERENCES private.stk_actor(stk_actor_uu),
---ADD CONSTRAINT fk_stk_actor_type_updatedby FOREIGN KEY (updated_by_uu) REFERENCES private.stk_actor(stk_actor_uu)
 ;
