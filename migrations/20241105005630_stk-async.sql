@@ -10,9 +10,9 @@ CREATE TYPE private.stk_async_type_enum AS ENUM (
 );
 COMMENT ON TYPE private.stk_async_type_enum IS 'Enum used in code to automate and validate async types.';
 
-INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
-('stk_async_type_enum', 'NONE', 'General purpose with no automation or validation'),
-('stk_async_type_enum', 'NOTIFY', 'Notify actors or services outside of the database')
+INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default) VALUES
+('stk_async_type_enum', 'NONE', 'General purpose with no automation or validation', false),
+('stk_async_type_enum', 'NOTIFY', 'Notify actors or services outside of the database', true)
 ;
 
 CREATE TABLE private.stk_async_type (

@@ -26,9 +26,9 @@ CREATE TYPE private.stk_attribute_tag_type_enum AS ENUM (
 );
 COMMENT ON TYPE private.stk_attribute_tag_type_enum IS 'Enum used in code to automate and validate attribute_tag types.';
 
-INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
-('stk_attribute_tag_type_enum', 'NONE', 'General purpose with no automation or validation'),
-('stk_attribute_tag_type_enum', 'COLUMN', 'Column attributes with no automation or validation')
+INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default) VALUES
+('stk_attribute_tag_type_enum', 'NONE', 'General purpose with no automation or validation', true),
+('stk_attribute_tag_type_enum', 'COLUMN', 'Column attributes with no automation or validation', false)
 ;
 
 CREATE TABLE private.stk_attribute_tag_type (
