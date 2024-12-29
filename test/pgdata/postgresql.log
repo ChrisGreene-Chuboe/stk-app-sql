@@ -1,4 +1,0 @@
-2024-12-29 21:17:38.697 UTC [3942340] LOG:  starting PostgreSQL 16.4 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 13.3.0, 64-bit
-2024-12-29 21:17:38.703 UTC [3942340] LOG:  listening on Unix socket "/home/cb/code/stk-app-sql/test/pgdata/.s.PGSQL.5432"
-2024-12-29 21:17:38.724 UTC [3942343] LOG:  database system was shut down at 2024-12-29 21:17:38 UTC
-2024-12-29 21:17:38.733 UTC [3942340] LOG:  database system is ready to accept connections
