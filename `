@@ -1,5 +1,0 @@
-The following nvim setting is showing me options; however, it is not updating the word.
-
-vim.keymap.set('n', '<leader>z?', function()
-  vim.cmd 'normal! z='
-end, { desc = 'Choose word' })
