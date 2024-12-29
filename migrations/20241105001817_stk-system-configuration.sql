@@ -6,19 +6,17 @@ SET stk.session = '{\"psql_user\": \"stk_superuser\"}';
 ---- type_section start ----
 CREATE TYPE private.stk_system_config_type_enum AS ENUM (
     'SYSTEM',
-    'TENANT',
     'ENTITY',
     'ROLE',
     'USER'
 );
 COMMENT ON TYPE private.stk_system_config_type_enum IS 'used in code to drive system configuration visibility and functionality';
 
-INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES
-('stk_system_config_type_enum', 'SYSTEM', 'System-wide configuration across all Tenants'),
-('stk_system_config_type_enum', 'TENANT', 'Tenant-wide configuration across all Entities'),
-('stk_system_config_type_enum', 'ENTITY', 'Entity-wide configuration across all Roles'),
-('stk_system_config_type_enum', 'ROLE', 'Role-wide configuration across all Users'),
-('stk_system_config_type_enum', 'USER', 'User-specific configuration')
+INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default) VALUES
+('stk_system_config_type_enum', 'SYSTEM', 'System-wide configuration across all Tenants',true),
+('stk_system_config_type_enum', 'ENTITY', 'Entity-wide configuration across all Roles',false),
+('stk_system_config_type_enum', 'ROLE', 'Role-wide configuration across all Users',false),
+('stk_system_config_type_enum', 'USER', 'User-specific configuration',false)
 ;
 
 CREATE TABLE private.stk_system_config_type (

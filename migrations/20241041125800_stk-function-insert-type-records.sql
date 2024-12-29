@@ -33,9 +33,10 @@ BEGIN
                 search_key,
                 name,
                 description,
-                type_enum
+                type_enum,
+                is_default
             ) VALUES (
-                $1, $2, $3, $4::%s
+                $1, $2, $3, $4::%s, $5
             )',
             type_table_name_v,
             enum_type_v
@@ -43,7 +44,8 @@ BEGIN
             enum_value_record_v.enum_value,
             enum_value_record_v.enum_value,
             enum_value_record_v.comment,
-            enum_value_record_v.enum_value;
+            enum_value_record_v.enum_value,
+            enum_value_record_v.is_default;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
