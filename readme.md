@@ -1,8 +1,29 @@
 # stk-app-sql 
 
-The purpose of this repository is to support the [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/stk-todo-app.nix) chuck-stack application. 
+The purpose of this repository is to help deploy, play with, and test the chuck-stack PostgreSQL deployment.
 
-The [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/stk-todo-app.nix) configuration file creates a services that clones and executes this repository everytime the migration service is restarted.
+## Summary
+
+This repository is still alpha. The test/shell.nix is not fully self contained yet (example: does not install/configure aichat).
+
+## Test
+
+We actively run the test/shell.nix to play with the chuck-stack database DDL design. 
+
+```bash
+cd your-cloned-directory/test/
+nix-shell
+```
+
+The `nix-shell` command will find the local shell.nix file, execute it, and drop you into a shell with proper tools and psql configuration.
+
+When you exit the shell, the script's `trap` command will remove all shell artifacts (including removing psql).
+
+## Deployment
+
+One purpose of this repository is to support the [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/stk-todo-app.nix) chuck-stack application. 
+
+The [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/stk-todo-app.nix) configuration file creates a services that clones and executes this repository every time the migration service is restarted.
 
 ## sqlx-cli
 
