@@ -1,3 +1,5 @@
+-- The purpose of this script is to ensure the proper type and enaum values are set in a primary (non-type) table
+
 CREATE OR REPLACE FUNCTION private.t10140_stk_type_default()
 RETURNS TRIGGER AS $$
 DECLARE
