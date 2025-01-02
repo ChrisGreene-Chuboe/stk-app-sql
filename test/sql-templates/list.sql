@@ -1,6 +1,8 @@
 -- execute from test directory
   --psql -Aqt -v t="stk_actor" -f sql-templates/list.sql | grep -v 'SET\|Time:'
   --psql -Aqt -v l=1 -v t="stk_actor" -f sql-templates/list.sql | grep -v 'SET\|Time:' --limits results
+  -- Notes:
+    -- -F allows you to change the separator from the default of '|'
 
 SELECT :{?l} as is_limit
 \gset
