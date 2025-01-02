@@ -1,13 +1,3 @@
---TODO: use 20241031225790_stk-trigger-entity.sql as a reference for style an convention
---TODO: use function-convention.md
---TODO: use trigger-convention.md
-
-
---TODO: look to see if NEW has `type_uu` column whose value is null. If not present or not null, do nothing.
-
---TODO: confirm there exists a table that has the same tablename as the current table with `_type` suffix
-
---TODO: set the `NEW.type_uu` to the appropriate uuid where `_type` table => record `is_default` = true
 CREATE OR REPLACE FUNCTION private.t10140_stk_type_default()
 RETURNS TRIGGER AS $$
 DECLARE
