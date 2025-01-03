@@ -14,8 +14,12 @@ SELECT :{?l} as is_limit
 --\endif
 --;
 
+SELECT JSON_AGG(q) FROM (
+
 SELECT name,search_key FROM api.:"t"
 \if :is_limit
 limit :'l'
 \endif
+
+) q
 ;

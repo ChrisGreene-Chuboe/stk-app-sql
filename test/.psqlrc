@@ -13,9 +13,7 @@
 \set EDITOR /usr/bin/vim
 \set VISUAL /usr/bin/vim
 \set ON_ERROR_ROLLBACK interactive
-\timing
 \set HISTSIZE 5000
-\unset QUIET
 
 \set STK_PG_ROLE `echo $STK_PG_ROLE`
 SET ROLE :STK_PG_ROLE;

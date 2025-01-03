@@ -29,9 +29,9 @@ in pkgs.mkShell {
   buildInputs = [
     pkgs.postgresql
     pkgs.sqlx-cli
-    pkgs.nushell
-    pkgs.aichat
-    pkgs.git
+    #pkgs.nushell
+    #pkgs.aichat
+    #pkgs.git
     runMigrations
     usql-override
   ];
@@ -125,7 +125,7 @@ in pkgs.mkShell {
     sed -i '/ADD CONSTRAINT/d' $V_SCHEMA_DETAILS_PRIVATE
 
     STK_DOCS=chuckstack.github.io
-    git clone https://github.com/chuckstack/$STK_DOCS
+    #git clone https://github.com/chuckstack/$STK_DOCS
 
     export f="-r %functions%"
     alias aix="aichat -f $V_SCHEMA_DETAILS "
