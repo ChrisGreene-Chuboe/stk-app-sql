@@ -4,6 +4,9 @@
   -- Notes:
     -- -F allows you to change the separator from the default of '|'
 
+SELECT :{?w} as is_where
+\gset
+
 SELECT :{?l} as is_limit
 \gset
 
@@ -17,8 +20,11 @@ SELECT :{?l} as is_limit
 SELECT JSON_AGG(q) FROM (
 
 SELECT name,search_key FROM api.:"t"
+\if :is_where
+where :w
+\endif
 \if :is_limit
-limit :'l'
+limit :l
 \endif
 
 ) q
