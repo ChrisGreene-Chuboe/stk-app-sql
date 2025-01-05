@@ -18,7 +18,7 @@ Before you can begin, please source the script from the test directory:
 source  cli/show.nu
 ```
 
-## First Commands
+## Getting Started
 
 Now you can start playing.
 
@@ -28,16 +28,40 @@ Show all tables:
 show
 ```
 
-Show all Actors:
+Show all actors:
 
 ```nu
 show actor
 ```
 
-Show all Actors whose name begins with 's':
+## Result Where Example
+
+Show actors using the nushell table `where` name begins with 's'. This means the database is returning all rows, and Nushell only shows a sub-selection.
 
 ```nu
 show actor | where name =~ 's'
 ```
 
-Note that we are using nu's table feature to limit the results (not the database). This means you could be returning many rows from the database only to show a few in nu.
+Show actors using the SQL `where` name begins with 's' using a database where clause.
+
+```nu
+show actor -w " lower(name) like 's%'"
+show actor --where " lower(name) like 's%'"
+```
+
+## Result First Example
+
+Using Nushell:
+
+Show two actors using the `first` Nushell limiter. This means the database is returning all rows, and Nushell only shows the first couple.
+
+```nu
+show actor | first 2
+```
+
+Show two actors using the SQL `first` limiter.
+
+```nu
+show actor -f 2
+show actor --first 2
+```

@@ -7,25 +7,19 @@
 SELECT :{?w} as is_where
 \gset
 
-SELECT :{?l} as is_limit
+SELECT :{?f} as is_first
 \gset
 
---\echo :is_limit
-
---\if :l
---\echo hey
---\endif
---;
 
 SELECT JSON_AGG(q) FROM (
 
-SELECT name,search_key FROM api.:"t"
-\if :is_where
-where :w
-\endif
-\if :is_limit
-limit :l
-\endif
+  SELECT name,search_key FROM api.:"t"
+  \if :is_where
+  where :w
+  \endif
+  \if :is_first
+  fetch first :f rows only
+  \endif
 
 ) q
 ;
