@@ -15,7 +15,7 @@ nu
 Before you can begin, please source the script from the test directory:
 
 ```nu
-source  sql-templates/show.nu
+source  cli/show.nu
 ```
 
 ## First Commands
