@@ -23,4 +23,8 @@ def "show request" [] {
 
 def show [] {
     print "shows all tables"
+    #NOTE: consider the following when creating a new record and you need to know the uuid for future calls
+    # from shell; $env.FOO = "me-custom"
+    #   practical example: order new # creates a new order record and saves the uuid to an environment variable (overriding the lastest)
+    # from command script: print $env.FOO
 }
