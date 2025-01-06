@@ -13,7 +13,8 @@ SELECT :{?f} as is_first
 
 SELECT JSON_AGG(q) FROM (
 
-  SELECT name,search_key FROM api.:"t"
+  SELECT name,search_key
+  FROM api.:"t"
   \if :is_where
   where :w
   \endif
