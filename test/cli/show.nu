@@ -3,7 +3,7 @@ def show [] {
     psql -Aq -c '\d' --csv | from csv
 }
 
-def show from  [
+def "show from"  [
     tablename:      string        #table name
     --where (-w):   string        # where clause
     --first (-f):   int           # first clause
