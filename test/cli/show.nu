@@ -20,7 +20,7 @@ def "show from"  [
         ""
     }
     
-    psql -Aq $where_clause $first_clause $table_name -f cli/show.sql --csv | from csv
+    psql -Aqt $where_clause $first_clause $table_name -f cli/show.sql | from json
     
 }
 #NOTE: consider the following when creating a new record and you need to know the uuid for future calls
