@@ -31,7 +31,7 @@ CREATE TABLE private.stk_request_type (
   type_enum private.stk_request_type_enum NOT NULL,
   ----Prompt: ask the user if they need to store json
   --record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
 );
@@ -55,7 +55,7 @@ CREATE TABLE private.stk_request (
   parent_uu UUID REFERENCES private.stk_request(uu),
   date_processed TIMESTAMPTZ,
   is_processed BOOLEAN GENERATED ALWAYS AS (date_processed IS NOT NULL) STORED,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
 );

@@ -24,17 +24,24 @@ BEGIN
     END IF;
 
     BEGIN
-        SELECT current_setting('stk.session', true)::json->>'psql_user' INTO psql_user_v;
+        --SELECT current_setting('stk.session', true)::json->>'psql_user' INTO psql_user_v; --stk.session
+        --SELECT current_setting('request.headers', true)::json INTO psql_user_v; --postgrest header
+        --SELECT current_setting('role', true) INTO psql_user_v; --https://docs.postgrest.org/en/v12/references/transactions.html
+        --SELECT current_user INTO psql_user_v; --shows current role
+        SELECT session_user INTO psql_user_v; --shows original user at login
     EXCEPTION
         WHEN OTHERS THEN
             psql_user_v := 'unknown';
     END;
 
+    -- Add RAISE WARNING statements here
+    --RAISE WARNING 'psql_user_v: %', psql_user_v;
+
     SELECT uu
     FROM private.stk_actor
     WHERE psql_user = psql_user_v
     INTO current_user_v;
-    
+
     IF current_user_v IS NULL THEN 
         RAISE EXCEPTION 'no user found in session - current_user_v';
     END IF;

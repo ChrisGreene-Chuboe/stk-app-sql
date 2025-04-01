@@ -25,7 +25,7 @@ CREATE TABLE private.stk_event_type (
   is_default BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_event_type_enum NOT NULL,
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
 );
@@ -54,7 +54,7 @@ CREATE TABLE private.stk_event (
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   date_processed TIMESTAMPTZ,
   is_processed BOOLEAN GENERATED ALWAYS AS (date_processed IS NOT NULL) STORED,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
 );

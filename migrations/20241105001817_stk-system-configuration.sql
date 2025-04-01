@@ -31,10 +31,9 @@ CREATE TABLE private.stk_system_config_type (
   is_default BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_system_config_type_enum NOT NULL,
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  description TEXT,
-  UNIQUE (search_key)
+  description TEXT
 );
 COMMENT ON TABLE private.stk_system_config_type IS 'Holds the types of stk_system_config records. Configuration column holds a json template to be used when creating a new stk_system_config record.';
 
@@ -65,10 +64,9 @@ CREATE TABLE private.stk_system_config (
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_system_config_type(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  description TEXT,
-  UNIQUE (search_key)
+  description TEXT
 );
 COMMENT ON TABLE private.stk_system_config IS 'Holds the system configuration records that dictates how the system behaves. Configuration column holds the actual json configuration values used to describe the system configuration.';
 

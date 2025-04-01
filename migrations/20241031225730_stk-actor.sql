@@ -22,7 +22,7 @@ CREATE TABLE private.stk_actor_type (
   type_enum private.stk_actor_type_enum NOT NULL,
   ----Prompt: ask the user if they need to store json
   --record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
 );
@@ -44,7 +44,7 @@ CREATE TABLE private.stk_actor (
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_actor_type(uu),
   parent_uu UUID REFERENCES private.stk_actor(uu),
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT,
   name_first TEXT,
   name_middle TEXT,
@@ -79,6 +79,7 @@ ALTER COLUMN created_by_uu SET NOT NULL,
 ALTER COLUMN updated_by_uu SET NOT NULL
 ;
 
+-- do the same for _type
 UPDATE private.stk_actor_type
 SET created_by_uu = (SELECT uu FROM private.stk_actor WHERE name = 'stk_superuser'),
 updated_by_uu = (SELECT uu FROM private.stk_actor WHERE name = 'stk_superuser')

@@ -29,6 +29,7 @@ in pkgs.mkShell {
   buildInputs = [
     pkgs.postgresql
     pkgs.sqlx-cli
+    pkgs.postgrest
     #pkgs.nushell
     #pkgs.aichat
     #pkgs.git
@@ -138,6 +139,33 @@ in pkgs.mkShell {
     # note next line sets database user to powerless user
     export PGUSER=$STK_USER
 
+    # create postgrest config file
+    echo ""
+    echo "Start PostgREST config"
+    mkdir -p $STK_PWD_SHELL/postgrest-config/
+    export STK_POSTGREST_CONFIG="$STK_PWD_SHELL/postgrest-config/postgrest.conf"
+    export STK_POSTGREST_CURL="$STK_PWD_SHELL/postgrest-config/curl.sh"
+    echo STK_POSTGREST_CONFIG = $STK_POSTGREST_CONFIG
+    echo "db-uri = \"postgres://postgrest@/$PGDATABASE?host=$PGHOST\"" | tee $STK_POSTGREST_CONFIG
+    echo 'db-schemas = "api"' | tee -a $STK_POSTGREST_CONFIG
+    echo 'db-anon-role = "stk_api_role"' | tee -a $STK_POSTGREST_CONFIG
+    echo 'server-port = 3001' | tee -a $STK_POSTGREST_CONFIG
+cat << EOF > $STK_POSTGREST_CURL
+curl -X POST \
+  'http://localhost:3001/rpc/stk_form_post_fn' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "message": "Hello, this is a test form submission"
+  }'
+EOF
+    echo "End PostgREST config"
+    echo ""
+
+    # clear variables no longer needed after migration
+    #export DATABASE_URL=""
+
     echo ""
     echo "******************************************************"
     echo "PostgreSQL is running using Unix socket in $PGHOST"
@@ -147,18 +175,28 @@ in pkgs.mkShell {
     echo "Note: STK_PG_ROLE sets the desired role for both psql and aicaht - see impersonation"
     echo "      export STK_PG_ROLE=stk_api_role #default"
     echo "      export STK_PG_ROLE=stk_private_role"
-    echo "      psql: show role; to see your current role"
+    echo "      psql => show role; --to see your current role"
     echo "Note: aix - an alias including the current db schema summary"
     echo "      aix-conv-detail - an alias including aix + website all psql conventions"
     echo "      aix-conv-sum - an alias including aix + website summary of psql conventions"
     echo "      use \$f to execute these calls with function calling"
     echo "      aix \$f -- show me all stk_actors"
+    echo "Note: to make/test stk_superuser DDL changes:"
+    echo "      export PGUSER=stk_superuser"
+    echo "      export STK_PG_ROLE=stk_superuser"
+    echo "      psql"
+    echo "Note: PostgREST detals:"
+    echo "      config file => $STK_POSTGREST_CONFIG"
+    echo "      start PostgREST => postgrest $STK_POSTGREST_CONFIG"
+    echo "      example curl => sh $STK_POSTGREST_CURL"
     echo "Documentation:"
     echo "      bat chuckstack.github.io/src-ls/postgres-conventions.md"
     echo "      bat chuckstack.github.io/src-ls/postgres-convention/*"
     echo "Note: this database and all artifacts will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
+
+
 
     cleanup() {
       echo "Stopping PostgreSQL and cleaning up..."
@@ -170,6 +208,7 @@ in pkgs.mkShell {
       rm migrations
       rm -rf "$V_SCHEMA_DETAILS"
       rm .psql_history
+      rm -rf postgrest-config/
     }
 
     trap cleanup EXIT

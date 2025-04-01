@@ -37,7 +37,7 @@ BEGIN
                 is_default
             ) VALUES (
                 $1, $2, $3, $4::%s, $5
-            )',
+            ) ON CONFLICT (search_key) DO NOTHING',
             type_table_name_v,
             enum_type_v
         ) USING
@@ -49,4 +49,4 @@ BEGIN
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
-comment on FUNCTION private.stk_table_type_create(text) IS 'Populates type records from its associated enum values' 
+comment on FUNCTION private.stk_table_type_create(text) IS 'Populates type records from its associated enum values';
