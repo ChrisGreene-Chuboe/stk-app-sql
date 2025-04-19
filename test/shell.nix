@@ -30,6 +30,7 @@ in pkgs.mkShell {
     pkgs.postgresql
     pkgs.sqlx-cli
     pkgs.postgrest
+    pkgs.bat
     #pkgs.nushell
     #pkgs.aichat
     #pkgs.git
@@ -184,11 +185,21 @@ EOF
     echo "      export STK_PG_ROLE=stk_api_role #default"
     echo "      export STK_PG_ROLE=stk_private_role"
     echo "      psql => show role; --to see your current role"
-    echo "Note: aix - an alias including the current db schema summary"
-    echo "      aix-conv-detail - an alias including aix + website all psql conventions"
-    echo "      aix-conv-sum - an alias including aix + website summary of psql conventions"
+    echo "Note: You can simply insert records."
+    echo "      Use psql to execute the following example:"
+    echo "      insert into api.stk_request (name) values ('test');"
+    echo "      select * from api.stk_request;"
+    echo "      Note that all the normal created, updated, created_by, ... columns are populated"
+    echo "Note: The following aichat aliases depend on $STK_DOCS_PATH"
+    echo "      Make sure you have pulled a current version of $STK_DOCS_PATH"
+    echo "      aichat function calling depends on https://github.com/sigoden/llm-functions/ being configured"
+    echo "      aix - an aichat alias including the current db schema summary"
+    echo "      aix-conv-detail - an aichat alias including aix + website all psql conventions"
+    echo "      aix-conv-sum - an aichat alias including aix + website summary of psql conventions"
     echo "      use \$f to execute these calls with function calling"
-    echo "      aix \$f -- show me all stk_actors"
+    echo "      Examples:"
+    echo "      aix \$f -- show me all api.stk_actors #use most basic function where \$f = $f"
+    echo "      aichat --role api-crud -- show me all stk_actors #use role from $STK_DOCS_PATH/src-ls/roles/"
     echo "Note: to make/test stk_superuser DDL changes:"
     echo "      export PGUSER=stk_superuser"
     echo "      export STK_PG_ROLE=stk_superuser"
@@ -198,8 +209,8 @@ EOF
     echo "      start PostgREST => postgrest $STK_POSTGREST_CONFIG"
     echo "      example curl => sh $STK_POSTGREST_CURL"
     echo "Documentation:"
-    echo "      bat chuckstack.github.io/src-ls/postgres-conventions.md"
-    echo "      bat chuckstack.github.io/src-ls/postgres-convention/*"
+    echo "      bat $STK_DOCS_PATH/src-ls/postgres-conventions.md"
+    echo "      bat $STK_DOCS_PATH/src-ls/postgres-convention/*"
     echo "Note: this database and all artifacts will be destroyed on shell exit"
     echo "******************************************************"
     echo ""
