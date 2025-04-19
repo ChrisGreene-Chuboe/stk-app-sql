@@ -52,8 +52,8 @@ CREATE TABLE private.stk_event (
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_event_type(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  date_processed TIMESTAMPTZ,
-  is_processed BOOLEAN GENERATED ALWAYS AS (date_processed IS NOT NULL) STORED,
+  processed TIMESTAMPTZ,
+  is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT

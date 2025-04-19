@@ -49,8 +49,8 @@ CREATE TABLE private.stk_async (
   updated_by_uu UUID NOT NULL, -- no FK by convention
   is_active BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_async_type(uu),
-  date_processed TIMESTAMPTZ,
-  is_processed BOOLEAN GENERATED ALWAYS AS (date_processed IS NOT NULL) STORED,
+  processed TIMESTAMPTZ,
+  is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,

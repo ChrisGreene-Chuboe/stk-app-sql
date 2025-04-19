@@ -81,8 +81,8 @@ CREATE TABLE private.stk_attribute_tag_part (
   ----Prompt: ask the user if they need to create parent child relationships inside the table
   --parent_uu UUID REFERENCES private.stk_attribute_tag(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  date_processed TIMESTAMPTZ,
-  is_processed BOOLEAN GENERATED ALWAYS AS (date_processed IS NOT NULL) STORED,
+  processed TIMESTAMPTZ,
+  is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
