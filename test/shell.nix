@@ -125,16 +125,24 @@ in pkgs.mkShell {
     sed -i '/^CREATE TRIGGER/d' $V_SCHEMA_DETAILS_PRIVATE
     sed -i '/ADD CONSTRAINT/d' $V_SCHEMA_DETAILS_PRIVATE
 
+    # Get chuck-stack to gain access to roles, conventions and best practices
+    # Maintained in /opt for this script so that we can
+      # create rags of the docs
+      # preserve file paths in the rag definitions
+      # prevent from needing to constantly delete and clone this repo
     STK_DOCS=chuckstack.github.io
-    #git clone https://github.com/chuckstack/$STK_DOCS
+    STK_DOCS_PATH=/opt/$STK_DOCS
+    if [ ! -d "$STK_DOCS_PATH" ]; then
+      sudo git clone https://github.com/chuckstack/$STK_DOCS /opt/$STK_DOCS
+    fi
 
     export f="-r %functions%"
     alias aix="aichat -f $V_SCHEMA_DETAILS "
-    alias aix-conv-detail="aichat -f $V_SCHEMA_DETAILS -f $STK_DOCS/src-ls/postgres-convention/"
-    alias aix-conv-sum="aichat -f $V_SCHEMA_DETAILS -f $STK_DOCS/src-ls/postgres-conventions.md"
+    alias aix-conv-detail="aichat -f $V_SCHEMA_DETAILS -f $STK_DOCS_PATH/src-ls/postgres-convention/"
+    alias aix-conv-sum="aichat -f $V_SCHEMA_DETAILS -f $STK_DOCS_PATH/src-ls/postgres-conventions.md"
 
     # note next line sets aichat environment var
-    export AICHAT_ROLES_DIR="chuckstack.github.io/src-ls/roles/"
+    export AICHAT_ROLES_DIR="$STK_DOCS_PATH/src-ls/roles/"
     
     # note next line sets database user to powerless user
     export PGUSER=$STK_USER
@@ -203,7 +211,6 @@ EOF
       cd $STK_PWD_SHELL
       pg_ctl stop
       rm -rf "$PGHOST"
-      rm -rf "$STK_DOCS"
       rm -rf delme/
       rm migrations
       rm -rf "$V_SCHEMA_DETAILS"
