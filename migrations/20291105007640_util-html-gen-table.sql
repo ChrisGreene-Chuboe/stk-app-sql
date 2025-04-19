@@ -132,7 +132,7 @@ create or replace function api.index() returns "text/html" as $$
           </form>
           <div id="request-list-area">
             $html$
-              || api.html_table('api','stk_request',array['name','description','is_active']) ||
+              || api.html_table('api','stk_request',array['name','description','is_revoked']) ||
             $html$
           <div>
         </article>

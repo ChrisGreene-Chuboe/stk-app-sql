@@ -25,7 +25,8 @@ CREATE TABLE private.stk_statistic_type (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_default BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_statistic_type_enum NOT NULL,
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -51,7 +52,8 @@ CREATE TABLE private.stk_statistic (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   type_uu UUID NOT NULL REFERENCES private.stk_statistic_type(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),

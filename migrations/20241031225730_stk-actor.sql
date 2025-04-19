@@ -17,7 +17,8 @@ CREATE TABLE private.stk_actor_type (
   created_by_uu UUID, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_default BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_actor_type_enum NOT NULL,
   ----Prompt: ask the user if they need to store json
@@ -39,7 +40,8 @@ CREATE TABLE private.stk_actor (
   created_by_uu UUID, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_actor_type(uu),

@@ -22,7 +22,8 @@ CREATE TABLE private.stk_async_type (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_default BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_async_type_enum NOT NULL,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
@@ -47,7 +48,8 @@ CREATE TABLE private.stk_async (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   type_uu UUID NOT NULL REFERENCES private.stk_async_type(uu),
   processed TIMESTAMPTZ,
   is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,

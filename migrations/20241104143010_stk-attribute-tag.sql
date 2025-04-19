@@ -39,7 +39,8 @@ CREATE TABLE private.stk_attribute_tag_type (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_default BOOLEAN NOT NULL DEFAULT false,
   is_singleton BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_attribute_tag_type_enum NOT NULL,
@@ -74,7 +75,8 @@ CREATE TABLE private.stk_attribute_tag_part (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_attribute_tag_type(uu),
