@@ -39,12 +39,13 @@ CREATE TABLE private.stk_attribute_tag_type (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_default BOOLEAN NOT NULL DEFAULT false,
   is_singleton BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_attribute_tag_type_enum NOT NULL,
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT
 );
@@ -74,15 +75,16 @@ CREATE TABLE private.stk_attribute_tag_part (
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_by_uu UUID NOT NULL, -- no FK by convention
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  revoked TIMESTAMPTZ,
+  is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_attribute_tag_type(uu),
   ----Prompt: ask the user if they need to create parent child relationships inside the table
   --parent_uu UUID REFERENCES private.stk_attribute_tag(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  date_processed TIMESTAMPTZ,
-  is_processed BOOLEAN GENERATED ALWAYS AS (date_processed IS NOT NULL) STORED,
+  processed TIMESTAMPTZ,
+  is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
