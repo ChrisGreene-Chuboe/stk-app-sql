@@ -3,7 +3,7 @@
 \set QUIET 1
 \set HISTFILE .psql_history
 \set HISTCONTROL ignoredups
-\set HISTSIZE 50000
+\set HISTSIZE 5000
 \set ON_ERROR_ROLLBACK
 
 \set STK_PG_ROLE `echo $STK_PG_ROLE`
