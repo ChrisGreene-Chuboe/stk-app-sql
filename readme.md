@@ -1,10 +1,29 @@
 # stk-app-sql 
 
-The purpose of this repository is to help deploy, play with, and test the chuck-stack PostgreSQL deployment.
+The purpose of this repository is to create the application/framework aspect of the chuck-stack.
 
 ## Summary
 
-This repository is still alpha. The test/shell.nix is not fully self contained yet (example: does not install/configure aichat).
+There are two core components:
+
+- PostgreSQL - used to persist an organizations shared and historical data
+- Nushell - used to give users a cli environment to CRUD data and connect the chuck-stack with the outside world
+
+## Current State
+
+### PostgreSQL
+
+The PostgreSQL aspect of this repository is usable and functioning. Here is what you can do today:
+
+- Migration scripts can be found in ./migrations/
+- We can insert a record into 'stk_event' with the following: `insert into api.stk_event (name) values ('test')`
+- Note that all columns default accordingly (triggers and context variables are used to set the remaining columns)
+
+### Nushell
+
+We are starting to develop Nushell modules in the ./modules/ directory.
+
+Please ignore all Nushell files in ./test/cli/
 
 ## Test
 
@@ -27,6 +46,8 @@ The [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/n
 
 ## sqlx-cli
 
+We use sqlx-cli to manage database migrations.
+
 This repository relies on the [postgresql.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/postgresql.nix) to install [sqlx-cli](https://github.com/launchbadge/sqlx/tree/main/sqlx-cli). You can also install sqlx-cli locally using cargo.
 
 Here is an example of creating a new migration. This will result in a new file created in the migration directory with a date stamp prefix.
@@ -37,6 +58,49 @@ sqlx migrate add test01
 
 For more details about using sqlx-cli, visit the [sqlx-cli repo readme](https://github.com/launchbadge/sqlx/tree/main/sqlx-cli).
 
-## Testing
+## Nushell Module CRUD
 
-The [shell.nix](./test/shell.nix) nix-shell helps you quickly test migrations as you make changes. Read the file's comments for details.
+Nushell modules have been implemented to perform simple CRUD tasks on the stk_event table. The modules are located in the `./modules/` directory.
+
+### Using the Event Module
+
+You can use the Nushell modules to interact with the stk_event table. For example:
+
+```nu
+# Import the module
+use modules *
+
+# Add an event with a specific topic
+"this is a quick event test" | .append event "test"
+```
+
+Let's break this statement down:
+
+- "this is a quick event test" is the text to be added to the 'stk_event.record_json' --> text json object
+- `.append` is the nushell command that performs the insert via `psql`
+- "test" is the name of the event
+  - note that when managing events, the 'name' is usually referred to as a 'topic'
+  - in the database, we use 'name' so that the 'stk_event' table remains consistent with all other tables.
+
+### Additional Event Commands
+
+The module also provides these commands:
+
+```nu
+# List recent events (default: last 10)
+event list
+
+# List specific number of events
+event list --limit 5
+
+# Get event by UUID
+event get "uuid-goes-here"
+```
+
+### Setup
+
+To use these modules:
+
+1. Start the development environment with `nix-shell` in the `test/` directory
+2. Import the modules with `use modules *` in your Nushell session
+
