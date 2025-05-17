@@ -104,3 +104,6 @@ To use these modules:
 1. Start the development environment with `nix-shell` in the `test/` directory
 2. Import the modules with `use modules *` in your Nushell session
 
+## TODO Common psql Command
+
+The next thing to do is create a common nushell module to execute psql. The current model/example (using .psqlrc-nu) is in ./modules/stk_event/mod.nu => `event list`.
