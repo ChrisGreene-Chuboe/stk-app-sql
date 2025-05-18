@@ -4,7 +4,8 @@ This directory contains Nushell modules for interacting with the chuck-stack dat
 
 ## Modules
 
-- **stk_event**: Commands for working with the `stk_event` table
+- **stk_event**: commands for working with the `stk_event` table
+- **psql**: commands to interact with postgresql
 
 ## Usage
 
@@ -24,7 +25,7 @@ use modules/stk_event *
 
 Each module follows a standard structure:
 - `mod.nu`: The main module file containing commands
-- `README.md`: Documentation for the module
+- `readme.md`: Documentation for the module
 
 The root `mod.nu` file exports all sub-modules for easy access.
 
@@ -33,5 +34,5 @@ The root `mod.nu` file exports all sub-modules for easy access.
 When adding new modules:
 1. Create a new directory for your module
 2. Add a `mod.nu` file with your commands
-3. Add a `README.md` file with documentation
+3. Add a `readme.md` file with documentation
 4. Update the root `mod.nu` file to export your module

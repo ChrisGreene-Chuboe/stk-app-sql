@@ -6,6 +6,6 @@ export def "psql exec" [
     query: string  # The SQL query to execute
 ] {
     with-env {PSQLRC: ".psqlrc-nu"} {
-        echo $query | psql | from csv
+        echo $query | psql | from csv --no-infer
     }
 }

@@ -77,7 +77,7 @@ use modules *
 Let's break this statement down:
 
 - "this is a quick event test" is the text to be added to the 'stk_event.record_json' --> text json object
-- `.append` is the nushell command that performs the insert via `psql`
+- `.append event` is the nushell command that performs the insert via `psql`
 - "test" is the name of the event
   - note that when managing events, the 'name' is usually referred to as a 'topic'
   - in the database, we use 'name' so that the 'stk_event' table remains consistent with all other tables.
@@ -97,17 +97,33 @@ event list --limit 5
 event get "uuid-goes-here"
 ```
 
-### Setup
+### Testing
 
 To use these modules:
 
 1. Start the development environment with `nix-shell` in the `test/` directory
-2. Import the modules with `use modules *` in your Nushell session
+1. Start `nu`
+1. Import the modules with `use modules *` in your Nushell session
 
 ## TODO
 
-### TODO Common psql Command
+### TODO Dates and json in Nushell
 
-The next thing to do is create a common nushell module to execute psql sql statements. The current model/example (using .psqlrc-nu) is in ./modules/stk_event/mod.nu => `event list`.
+Notice in the below nushell table, nushell is not recognizing the created column as a date or record_json as datatype json.
 
-We need to create a command in ./modules/ with this new psql execution command. You can choose the name of the command to match best practices.
+This is coming from ./modules/psql/mod.nu
+
+~/code/stk-app-sql-claude/stk-app-sql/test> event list
+╭───┬──────────────────────────────────────┬──────┬────────────────────────────────────────┬───────────────────────────────╮
+│ # │                  uu                  │ name │              record_json               │            created            │
+├───┼──────────────────────────────────────┼──────┼────────────────────────────────────────┼───────────────────────────────┤
+│ 0 │ 1c93041f-ba4c-4ffd-8ba0-e82d04b9ea80 │ test │ {"text": "this is a quick event test"} │ 2025-05-17 22:08:58.753559+00 │
+╰───┴──────────────────────────────────────┴──────┴────────────────────────────────────────┴───────────────────────────────╯
+
+Here is a way to get the system to recognize both the json and created date:
+
+```nu
+event list | into datetime created | update record_json { from json }
+```
+
+We need to update ./modules/psql/mod.nu to get a collection of date columns and json columns and perform what is needed to tell nushell the correct datatype.
