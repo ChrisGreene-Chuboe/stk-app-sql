@@ -111,7 +111,8 @@ To use these modules:
 
 Notice in the below nushell table, nushell is not recognizing the created column as a date or record_json as datatype json.
 
-This is coming from ./modules/psql/mod.nu
+`event list` is coming from ./modules/stk_event/mod.nu
+`psql` call is coming from ./modules/psql/mod.nu
 
 ~/code/stk-app-sql-claude/stk-app-sql/test> event list
 ╭───┬──────────────────────────────────────┬──────┬────────────────────────────────────────┬───────────────────────────────╮
@@ -120,10 +121,10 @@ This is coming from ./modules/psql/mod.nu
 │ 0 │ 1c93041f-ba4c-4ffd-8ba0-e82d04b9ea80 │ test │ {"text": "this is a quick event test"} │ 2025-05-17 22:08:58.753559+00 │
 ╰───┴──────────────────────────────────────┴──────┴────────────────────────────────────────┴───────────────────────────────╯
 
-Here is a way to get the system to recognize both the json and created date:
+For reference, here is a way to get the system to recognize both the json and created date:
 
 ```nu
-event list | into datetime created | update record_json { from json }
+event list | into datetime created updated | update record_json { from json }
 ```
 
-We need to update ./modules/psql/mod.nu to get a collection of date columns and json columns and perform what is needed to tell nushell the correct datatype.
+We need to update ./modules/psql/mod.nu to get a collection of date columns and update them to show as datetime nushell datatypes.
