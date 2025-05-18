@@ -20,13 +20,13 @@ export def ".append event" [
 
 # List recent events
 export def "event list" [] {
-    psql exec "SELECT uu, name, record_json, created, updated FROM api.stk_event ORDER BY created DESC LIMIT 10"
+    psql exec "SELECT uu, name, record_json, created, updated, 'false' as is_revoked FROM api.stk_event ORDER BY created DESC LIMIT 10"
 }
 
 # Get a specific event by UUID
 export def "event get" [
     uu: string  # The UUID of the event to retrieve
 ] {
-    psql exec $"SELECT uu, name, record_json, created, updated FROM api.stk_event WHERE uu = '($uu)'"
+    psql exec $"SELECT uu, name, record_json, created, updated, 'false' as is_revoked FROM api.stk_event WHERE uu = '($uu)'"
 }
 

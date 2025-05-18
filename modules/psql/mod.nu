@@ -24,6 +24,14 @@ export def "psql exec" [
                 $result = $result | update $col { from json }
             }
         }
+        let bool_cols = $result 
+            | columns 
+            | where {|x| ($x | str starts-with 'is_')}
+        if not ($bool_cols | is-empty) {
+            for col in $bool_cols {
+                $result = $result | into bool $col
+            }
+        }
         $result
     }
 }
