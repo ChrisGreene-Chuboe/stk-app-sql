@@ -35,3 +35,11 @@ export def "psql exec" [
         $result
     }
 }
+# update the above bool_cols check to include the following
+#def "into bool ext" [] {
+#  match $in {
+#    "t" => true,
+#    "f" => false,
+#    _ => ($in | into bool)
+#  }
+#}
