@@ -13,6 +13,24 @@
   # destroy all artifacts upon leaving the shell
 
 let
+  # Create pg_jsonschema extension package
+  pg_jsonschema_ext = pkgs.stdenv.mkDerivation {
+    name = "pg_jsonschema-extension";
+    src = ./pg_extension/17;
+    installPhase = ''
+      mkdir -p $out/lib $out/share/postgresql/extension
+      cp pg_jsonschema.so $out/lib/
+      cp pg_jsonschema.control $out/share/postgresql/extension/
+      cp pg_jsonschema--0.3.3.sql $out/share/postgresql/extension/
+    '';
+  };
+
+  # Combine PostgreSQL with extension using buildEnv (no rebuild)
+  postgresql-with-jsonschema = pkgs.buildEnv {
+    name = "postgresql-with-jsonschema";
+    paths = [ pkgs.postgresql pg_jsonschema_ext ];
+  };
+
   # Function to run migrations
   runMigrations = pkgs.writeShellScriptBin "run-migrations" ''
     echo "Running migrations..."
@@ -23,12 +41,12 @@ let
   # Function to override usql to psql
   usql-override = pkgs.writeShellScriptBin "usql" ''
       #!${pkgs.bash}/bin/bash
-      exec ${pkgs.postgresql}/bin/psql "$@"
+      exec ${postgresql-with-jsonschema}/bin/psql "$@"
   '';
 
 in pkgs.mkShell {
   buildInputs = [
-    pkgs.postgresql
+    postgresql-with-jsonschema
     pkgs.sqlx-cli
     pkgs.postgrest
     pkgs.bat
@@ -41,15 +59,8 @@ in pkgs.mkShell {
 
   shellHook = ''
 
-    # copy over psql pg_jsonschema extension files into nix directories
-    # NOTE: this is bad nix form - supposed to create a derivation instead; however, this is an easy fix
-    # uncomment if needed
-    #sudo cp ./pg_extension/16/pg_jsonschema.so ${pkgs.postgresql}/lib/
-    #sudo cp ./pg_extension/16/pg_jsonschema.control ${pkgs.postgresql}/share/postgresql/extension/
-    #sudo cp ./pg_extension/16/pg_jsonschema--0.3.3.sql ${pkgs.postgresql}/share/postgresql/extension/
-    #sudo chmod 444 ${pkgs.postgresql}/lib/pg_jsonschema.so
-    #sudo chmod 444 ${pkgs.postgresql}/share/postgresql/extension/pg_jsonschema.control
-    #sudo chmod 444 ${pkgs.postgresql}/share/postgresql/extension/pg_jsonschema--0.3.3.sql
+    # pg_jsonschema extension is now included in the postgresql-with-jsonschema derivation
+    # No manual copying needed - extension files are built into the package
 
     # get current directory for cleanup reference
     export STK_PWD_SHELL=$PWD
@@ -74,14 +85,14 @@ in pkgs.mkShell {
 
     if [ ! -d "$PGHOST" ]; then
       echo "Initializing PostgreSQL database..."
-      initdb --no-locale --encoding=UTF8 --username=$PGUSERSU && echo "listen_addresses = '''" >> $PGHOST/postgresql.conf
-      pg_ctl start -o "-k \"$PGHOST\"" -l "$PGHOST/postgresql.log"
-      createdb $PGDATABASE -h $PGHOST -U $PGUSERSU
+      ${postgresql-with-jsonschema}/bin/initdb --no-locale --encoding=UTF8 --username=$PGUSERSU && echo "listen_addresses = '''" >> $PGHOST/postgresql.conf
+      ${postgresql-with-jsonschema}/bin/pg_ctl start -o "-k \"$PGHOST\"" -l "$PGHOST/postgresql.log"
+      ${postgresql-with-jsonschema}/bin/createdb $PGDATABASE -h $PGHOST -U $PGUSERSU
       # Note: the following commands need to stay in sync with chuck-stack-nix => nixos => stk-todo-app.nix => services.postgresql.initscript
-      psql -U $PGUSERSU -c "CREATE EXTENSION pg_jsonschema" # must be run as superuser/postgres - NOT moved to chuck-stack-nix yet
-      psql -U $PGUSERSU -c "CREATE ROLE $STK_SUPERUSER LOGIN CREATEROLE"
-      psql -U $PGUSERSU -c "COMMENT ON ROLE $STK_SUPERUSER IS 'superuser role to administer the $PGDATABASE';"
-      psql -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $STK_SUPERUSER"
+      ${postgresql-with-jsonschema}/bin/psql -U $PGUSERSU -c "CREATE EXTENSION pg_jsonschema" # must be run as superuser/postgres - NOT moved to chuck-stack-nix yet
+      ${postgresql-with-jsonschema}/bin/psql -U $PGUSERSU -c "CREATE ROLE $STK_SUPERUSER LOGIN CREATEROLE"
+      ${postgresql-with-jsonschema}/bin/psql -U $PGUSERSU -c "COMMENT ON ROLE $STK_SUPERUSER IS 'superuser role to administer the $PGDATABASE';"
+      ${postgresql-with-jsonschema}/bin/psql -U $PGUSERSU -c "ALTER DATABASE $PGDATABASE OWNER TO $STK_SUPERUSER"
     else
       echo "exiting with error - $PGHOST directory is not empty"
       exit 1
@@ -111,7 +122,7 @@ in pkgs.mkShell {
     V_SCHEMA_DETAILS_PRIVATE="$V_SCHEMA_DETAILS/schema-private.sql"
     V_SCHEMA_DETAILS_ENUM="$V_SCHEMA_DETAILS/schema-enum.txt"
 
-    pg_dump --schema-only -n api > $V_SCHEMA_DETAILS_API
+    ${postgresql-with-jsonschema}/bin/pg_dump --schema-only -n api > $V_SCHEMA_DETAILS_API
     sed -i '/^--/d' $V_SCHEMA_DETAILS_API
     sed -i '/^GRANT/d' $V_SCHEMA_DETAILS_API
     sed -i '/^ALTER/d' $V_SCHEMA_DETAILS_API
@@ -119,13 +130,13 @@ in pkgs.mkShell {
     echo "---- the following represent all enum values ----" > $V_SCHEMA_DETAILS_PRIVATE
     echo "" >> $V_SCHEMA_DETAILS_PRIVATE
     echo "--select * from api.enum_value" >> $V_SCHEMA_DETAILS_PRIVATE
-    psql -c "select * from api.enum_value" >> $V_SCHEMA_DETAILS_PRIVATE
+    ${postgresql-with-jsonschema}/bin/psql -c "select * from api.enum_value" >> $V_SCHEMA_DETAILS_PRIVATE
     
     echo "---- the following represent all private table defaults ----" > $V_SCHEMA_DETAILS_PRIVATE
     echo "---- we are includes these values so that you can see the default values for the tables behind the api views ----" >> $V_SCHEMA_DETAILS_PRIVATE
     echo "---- when inserting records, to do set colums with default values unless the default is not desired ----" >> $V_SCHEMA_DETAILS_PRIVATE
     echo "" >> $V_SCHEMA_DETAILS_PRIVATE
-    pg_dump  --schema-only -n private --table='stk*' >> $V_SCHEMA_DETAILS_PRIVATE
+    ${postgresql-with-jsonschema}/bin/pg_dump  --schema-only -n private --table='stk*' >> $V_SCHEMA_DETAILS_PRIVATE
     sed -i '/^--/d' $V_SCHEMA_DETAILS_PRIVATE
     sed -i '/^GRANT/d' $V_SCHEMA_DETAILS_PRIVATE
     sed -i '/^ALTER/d' $V_SCHEMA_DETAILS_PRIVATE
@@ -228,7 +239,7 @@ EOF
     cleanup() {
       echo "Stopping PostgreSQL and cleaning up..."
       cd $STK_PWD_SHELL
-      pg_ctl stop
+      ${postgresql-with-jsonschema}/bin/pg_ctl stop
       echo "Removing temporary test directory: $STK_TEST_DIR"
       rm -rf "$STK_TEST_DIR"
     }
