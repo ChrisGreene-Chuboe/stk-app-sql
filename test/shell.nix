@@ -16,6 +16,7 @@ let
   # Function to run migrations
   runMigrations = pkgs.writeShellScriptBin "run-migrations" ''
     echo "Running migrations..."
+    cd "$STK_TEST_DIR"
     sqlx migrate run
   '';
 
@@ -53,7 +54,10 @@ in pkgs.mkShell {
     # get current directory for cleanup reference
     export STK_PWD_SHELL=$PWD
 
-    export PGHOST="$PWD/pgdata"
+    # create unique temporary directory for this test session
+    export STK_TEST_DIR="/tmp/stk-test-$$"
+    mkdir -p "$STK_TEST_DIR"
+    export PGHOST="$STK_TEST_DIR/pgdata"
     # note next line needed for pg_ctl
     export PGDATA="$PGHOST"
     export PGUSERSU=postgres
@@ -83,8 +87,8 @@ in pkgs.mkShell {
       exit 1
     fi
 
-    # create link to migrations directory
-    ln -s ../migrations/ migrations
+    # create link to migrations directory in test directory
+    ln -s "$STK_PWD_SHELL/../migrations/" "$STK_TEST_DIR/migrations"
 
     run-migrations
 
@@ -95,10 +99,12 @@ in pkgs.mkShell {
     export STK_PG_SESSION="'{\"psql_user\": \"$STK_USER\"}'" # hard coded as default
     # note next line tells psql where to look for settings
     export PSQLRC="$PWD"/.psqlrc
+    # set psql history file to temp directory
+    export HISTFILE="$STK_TEST_DIR/.psql_history"
 
-    mkdir -p delme/
+    mkdir -p "$STK_TEST_DIR/delme/"
 
-    V_SCHEMA_DETAILS="schema-details/"
+    V_SCHEMA_DETAILS="$STK_TEST_DIR/schema-details/"
     mkdir -p "$V_SCHEMA_DETAILS"
 
     V_SCHEMA_DETAILS_API="$V_SCHEMA_DETAILS/schema-api.sql"
@@ -151,9 +157,9 @@ in pkgs.mkShell {
     # create postgrest config file
     echo ""
     echo "Start PostgREST config"
-    mkdir -p $STK_PWD_SHELL/postgrest-config/
-    export STK_POSTGREST_CONFIG="$STK_PWD_SHELL/postgrest-config/postgrest.conf"
-    export STK_POSTGREST_CURL="$STK_PWD_SHELL/postgrest-config/curl.sh"
+    mkdir -p "$STK_TEST_DIR/postgrest-config/"
+    export STK_POSTGREST_CONFIG="$STK_TEST_DIR/postgrest-config/postgrest.conf"
+    export STK_POSTGREST_CURL="$STK_TEST_DIR/postgrest-config/curl.sh"
     echo STK_POSTGREST_CONFIG = $STK_POSTGREST_CONFIG
     echo "db-uri = \"postgres://postgrest@/$PGDATABASE?host=$PGHOST\"" | tee $STK_POSTGREST_CONFIG
     echo 'db-schemas = "api"' | tee -a $STK_POSTGREST_CONFIG
@@ -177,6 +183,8 @@ EOF
 
     echo ""
     echo "******************************************************"
+    echo "Test environment created in: $STK_TEST_DIR"
+    echo "To navigate to test directory: cd \$STK_TEST_DIR"
     echo "PostgreSQL is running using Unix socket in $PGHOST"
     echo "Issue \"psql\" to connect to $PGDATABASE database - note env vars set accordingly"
     echo "To run migrations, use the 'run-migrations' command"
@@ -221,12 +229,8 @@ EOF
       echo "Stopping PostgreSQL and cleaning up..."
       cd $STK_PWD_SHELL
       pg_ctl stop
-      rm -rf "$PGHOST"
-      rm -rf delme/
-      rm migrations
-      rm -rf "$V_SCHEMA_DETAILS"
-      rm .psql_history
-      rm -rf postgrest-config/
+      echo "Removing temporary test directory: $STK_TEST_DIR"
+      rm -rf "$STK_TEST_DIR"
     }
 
     trap cleanup EXIT
