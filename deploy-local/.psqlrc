@@ -1,0 +1,21 @@
+\set datetag `date +'%F_%H-%M-%S'`
+\set QUIET 1
+\set PROMPT1 '%[%033[1m%]%M %n@%/%R%[%033[0m%]%# '
+\set PROMPT2 '[more] %R > '
+\pset null '[NULL]'
+\x auto
+\set VERBOSITY verbose
+\set HISTFILE `echo $HISTFILE`
+\set HISTCONTROL ignoredups
+\set COMP_KEYWORD_CASE upper
+\set PSQL_EDITOR /usr/bin/vim
+\set EDITOR /usr/bin/vim
+\set VISUAL /usr/bin/vim
+\set ON_ERROR_ROLLBACK interactive
+\set HISTSIZE 5000
+
+\set STK_PG_ROLE `echo $STK_PG_ROLE`
+SET ROLE :STK_PG_ROLE;
+
+\set STK_PG_SESSION `echo $STK_PG_SESSION`
+SET stk.session = :STK_PG_SESSION;

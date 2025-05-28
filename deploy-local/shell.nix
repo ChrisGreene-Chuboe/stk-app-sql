@@ -82,6 +82,8 @@ in pkgs.mkShell {
       
       # Copy template files to instance directory
       cp shell.nix "$STK_LOCAL_DIR/"
+      cp .psqlrc "$STK_LOCAL_DIR/"
+      cp .psqlrc-nu "$STK_LOCAL_DIR/"
       cp -r pg_extension/ "$STK_LOCAL_DIR/"
       cp -r ../migrations/ "$STK_LOCAL_DIR/"
       

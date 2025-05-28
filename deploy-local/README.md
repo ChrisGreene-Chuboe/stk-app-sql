@@ -116,6 +116,7 @@ nix-shell
 
 ### Self-Contained Deployment
 - All dependencies copied to instance directory
+- PostgreSQL configuration (.psqlrc, .psqlrc-nu) included
 - No external file dependencies after creation
 - Can be backed up/restored as single directory
 
