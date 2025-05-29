@@ -51,6 +51,7 @@ CREATE TABLE private.stk_event (
   updated_by_uu UUID NOT NULL, -- no FK by convention
   revoked TIMESTAMPTZ,
   is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
+  table_name_uu_json JSONB NOT NULL DEFAULT '{"table_name": "","uu": ""}'::jsonb,
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_event_type(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,

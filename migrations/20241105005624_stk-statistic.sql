@@ -54,6 +54,7 @@ CREATE TABLE private.stk_statistic (
   updated_by_uu UUID NOT NULL, -- no FK by convention
   revoked TIMESTAMPTZ,
   is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
+  table_name_uu_json JSONB NOT NULL DEFAULT '{"table_name": "","uu": ""}'::jsonb,
   type_uu UUID NOT NULL REFERENCES private.stk_statistic_type(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),

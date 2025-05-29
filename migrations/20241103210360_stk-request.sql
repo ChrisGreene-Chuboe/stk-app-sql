@@ -51,6 +51,7 @@ CREATE TABLE private.stk_request (
   updated_by_uu UUID NOT NULL, -- no FK by convention
   revoked TIMESTAMPTZ,
   is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
+  table_name_uu_json JSONB NOT NULL DEFAULT '{"table_name": "","uu": ""}'::jsonb,
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_request_type(uu),
