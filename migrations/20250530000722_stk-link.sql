@@ -54,7 +54,6 @@ CREATE TABLE private.stk_link (
   type_uu UUID NOT NULL REFERENCES private.stk_link_type(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
   description TEXT
 );
 COMMENT ON TABLE private.stk_link IS 'Holds link records between different table records';
