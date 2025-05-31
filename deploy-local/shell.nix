@@ -86,6 +86,7 @@ in pkgs.mkShell {
       cp .psqlrc-nu "$STK_LOCAL_DIR/"
       cp -r pg_extension/ "$STK_LOCAL_DIR/"
       cp -r ../migrations/ "$STK_LOCAL_DIR/"
+      cp -r ../modules/ "$STK_LOCAL_DIR/"
       
       echo ""
       echo "******************************************************"
