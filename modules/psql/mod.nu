@@ -1,6 +1,15 @@
 # PSQL Common Module
 # This module provides common commands for executing PostgreSQL queries
 
+# Helper function to convert PostgreSQL boolean values (t/f) to nushell booleans
+def "into bool ext" [] {
+    match $in {
+        "t" => true,
+        "f" => false,
+        _ => ($in | into bool)
+    }
+}
+
 # Execute a SQL query using psql with .psqlrc-nu configuration
 export def "psql exec" [
     query: string  # The SQL query to execute
@@ -29,17 +38,9 @@ export def "psql exec" [
             | where {|x| ($x | str starts-with 'is_')}
         if not ($bool_cols | is-empty) {
             for col in $bool_cols {
-                $result = $result | into bool $col
+                $result = $result | update $col { into bool ext }
             }
         }
         $result
     }
 }
-# update the above bool_cols check to include the following
-#def "into bool ext" [] {
-#  match $in {
-#    "t" => true,
-#    "f" => false,
-#    _ => ($in | into bool)
-#  }
-#}
