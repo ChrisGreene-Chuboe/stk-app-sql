@@ -22,10 +22,7 @@ export def ".append event" [
 ] {
     # Create the SQL command
     let table = "api.stk_event"
-    let columns = "(name,record_json)"
-    let values = $"\('($name)', jsonb_build_object\('text', '($in)'))"
-    let returning = "uu"
-    let sql = $"INSERT INTO ($table) ($columns) VALUES ($values) RETURNING ($returning)"
+    let sql = $"INSERT INTO ($table) \(name,record_json) VALUES \('($name)', jsonb_build_object\('text', '($in)')) RETURNING uu"
 
     psql exec $sql
 }
@@ -88,5 +85,32 @@ export def "event revoke" [
     uu: string  # The UUID of the event to revoke
 ] {
     psql exec $"UPDATE api.stk_event SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
+}
+
+# Create a request attached to a specific event
+#
+# This creates a request record that is specifically linked to an event,
+# enabling you to create follow-up actions, todos, or investigations
+# related to logged events. The request is automatically attached to 
+# the specified event UUID using the table_name_uu_json convention.
+#
+# Examples:
+#   "investigate this error" | event request $error_event_uuid
+#   "follow up on authentication failure" | event request $auth_event_uuid
+#   event list | where name == "critical" | get uu.0 | "urgent action needed" | event request $in
+#   "review and update documentation" | event request $event_uu
+#
+# Returns: The UUID of the newly created request record attached to the event
+# Error: Command fails if event UUID doesn't exist
+export def "event request" [
+    uu: string              # The UUID of the event to attach the request to
+    --attach(-f): string    # Request text (alternative to pipeline input)
+] {
+    let request_text = if ($attach | is-empty) { $in } else { $attach }
+    let table = "api.stk_request"
+    let name = "event-request"
+    let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json) VALUES \('($name)', '($request_text)', api.get_table_name_uu_json\('($uu)')) RETURNING uu"
+    
+    psql exec $sql
 }
 
