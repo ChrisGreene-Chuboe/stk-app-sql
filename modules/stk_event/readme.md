@@ -18,45 +18,44 @@ The primary function of this module is to append text to the `stk_event` table w
 
 ```nu
 # Using the custom .append command:
-"this is a quick event test" | .append "test" 
-
-# Using the traditional command approach:
-"this is a quick event test" | stk_event append "test"
+"this is a quick event test" | .append event "test"
 ```
 
-Both commands perform the same action:
-1. Create a JSON object with the text: `{"text": "this is a quick event test"}`
-2. Insert a record into the `api.stk_event` table with:
+This command performs the following actions:
+1. Creates a JSON object with the text: `{"text": "this is a quick event test"}`
+2. Inserts a record into the `api.stk_event` table with:
    - `name` = "test"
    - `record_json` = the JSON object
+3. Returns the UUID of the created record
 
 ### List Events
 
-List recent events from the database:
+List the 10 most recent events from the database:
 
 ```nu
-# List the 10 most recent events
-stk_event list
-
-# List a specific number of events
-stk_event list --limit 5
+event list
 ```
+
+Returns columns: `uu`, `name`, `record_json`, `created`, `updated`, `is_revoked`
 
 ### Get Event
 
 Retrieve a specific event by its UUID:
 
 ```nu
-stk_event get "uuid-goes-here"
+event get "uuid-goes-here"
 ```
+
+Returns the same columns as `event list` but for a specific event.
 
 ## Requirements
 
 This module requires:
 - Nushell
 - Access to a PostgreSQL database with the chuck-stack schema
-- Environment variables set up by `test/shell.nix`
+- The `psql` command available in PATH
+- Proper database connection configuration
 
 ## Implementation Details
 
-The module uses the `psql` command-line tool to interact with the database. The `--env` flag is used to create the `.append` command with custom syntax.
+The module uses the `psql exec` command to interact with the database. All commands work with the `api.stk_event` table and utilize PostgreSQL's `jsonb_build_object` function for JSON handling.
