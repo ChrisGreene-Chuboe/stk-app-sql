@@ -1,6 +1,14 @@
 # STK Request Module
 # This module provides commands for working with stk_request table
 
+# Module Constants
+const STK_SCHEMA = "api"
+const STK_PRIVATE_SCHEMA = "private"
+const STK_TABLE_NAME = "stk_request"
+const STK_DEFAULT_LIMIT = 10
+const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
+const STK_REQUEST_COLUMNS = "name, description, table_name_uu_json, is_processed"
+
 # Create a new request with optional attachment to another record
 #
 # This is the primary way to create requests in the chuck-stack system.
@@ -21,7 +29,7 @@ export def ".append request" [
     --attach(-f): string      # UUID of record to attach this request to (optional)
 ] {
     let description = $in
-    let table = "api.stk_request"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
     if ($attach | is-empty) {
         # Standalone request - no attachment
@@ -29,7 +37,7 @@ export def ".append request" [
         psql exec $sql
     } else {
         # Request with attachment - auto-populate table_name_uu_json
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', api.get_table_name_uu_json\('($attach)')) RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach)')) RETURNING uu"
         psql exec $sql
     }
 }
@@ -51,7 +59,9 @@ export def ".append request" [
 # Returns: uu, name, description, table_name_uu_json, is_processed, created, updated, is_revoked
 # Note: Only shows the 10 most recent requests - use direct SQL for larger queries
 export def "request list" [] {
-    psql exec "SELECT uu, name, description, table_name_uu_json, is_processed, created, updated, is_revoked FROM api.stk_request ORDER BY created DESC LIMIT 10"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
+    let columns = $"($STK_BASE_COLUMNS), ($STK_REQUEST_COLUMNS)"
+    psql exec $"SELECT ($columns) FROM ($table) ORDER BY created DESC LIMIT ($STK_DEFAULT_LIMIT)"
 }
 
 # Retrieve a specific request by its UUID
@@ -72,7 +82,9 @@ export def "request list" [] {
 export def "request get" [
     uu: string  # The UUID of the request to retrieve
 ] {
-    psql exec $"SELECT uu, name, description, table_name_uu_json, is_processed, created, updated, is_revoked FROM api.stk_request WHERE uu = '($uu)'"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
+    let columns = $"($STK_BASE_COLUMNS), ($STK_REQUEST_COLUMNS)"
+    psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
 }
 
 # Mark a request as processed by setting its processed timestamp
@@ -92,7 +104,8 @@ export def "request get" [
 export def "request process" [
     uu: string  # The UUID of the request to mark as processed
 ] {
-    psql exec $"UPDATE api.stk_request SET processed = now\() WHERE uu = '($uu)' RETURNING uu, name, processed, is_processed"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
+    psql exec $"UPDATE ($table) SET processed = now\() WHERE uu = '($uu)' RETURNING uu, name, processed, is_processed"
 }
 
 # Revoke a request by setting its revoked timestamp
@@ -112,5 +125,6 @@ export def "request process" [
 export def "request revoke" [
     uu: string  # The UUID of the request to revoke
 ] {
-    psql exec $"UPDATE api.stk_request SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
+    psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
 }

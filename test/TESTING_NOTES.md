@@ -39,6 +39,7 @@ SELECT api.get_table_name_uu_json('00000000-0000-0000-0000-000000000000'::uuid);
 ### Test Scripts
 - `test-simple.nu` - Basic standalone request creation test
 - `test-request.nu` - Comprehensive request module functionality test
+- `test-event.nu` - Complete event module testing with request integration
 
 ### Manual Testing
 ```nushell
@@ -60,6 +61,12 @@ use modules *
 # Run simple test
 ./test-simple.nu
 
-# Run comprehensive test
+# Run comprehensive request test
 ./test-request.nu
+
+# Run event module test
+./test-event.nu
+
+# Run all tests
+for test in test-*.nu { nix-shell --run $"./($test)" }
 ```

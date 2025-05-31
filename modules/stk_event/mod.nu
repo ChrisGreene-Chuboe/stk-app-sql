@@ -1,6 +1,15 @@
 # STK Event Module
 # This module provides commands for working with stk_event table
 
+# Module Constants
+const STK_SCHEMA = "api"
+const STK_PRIVATE_SCHEMA = "private"
+const STK_TABLE_NAME = "stk_event"
+const STK_REQUEST_TABLE_NAME = "stk_request"  # For event request command
+const STK_DEFAULT_LIMIT = 10
+const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
+const STK_EVENT_COLUMNS = "name, record_json"
+
 # Append text to the stk_event table with a specified name/topic
 #
 # This is the primary way to log events in the chuck-stack system.
@@ -21,7 +30,7 @@ export def ".append event" [
     name: string       # The name/topic of the event (used for categorization and filtering)
 ] {
     # Create the SQL command
-    let table = "api.stk_event"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     let sql = $"INSERT INTO ($table) \(name,record_json) VALUES \('($name)', jsonb_build_object\('text', '($in)')) RETURNING uu"
 
     psql exec $sql
@@ -43,7 +52,9 @@ export def ".append event" [
 # Returns: uu, name, record_json, created, updated, is_revoked
 # Note: Only shows the 10 most recent events - use direct SQL for larger queries
 export def "event list" [] {
-    psql exec "SELECT uu, name, record_json, created, updated, is_revoked FROM api.stk_event ORDER BY created DESC LIMIT 10"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
+    let columns = $"($STK_BASE_COLUMNS), ($STK_EVENT_COLUMNS)"
+    psql exec $"SELECT ($columns) FROM ($table) ORDER BY created DESC LIMIT ($STK_DEFAULT_LIMIT)"
 }
 
 # Retrieve a specific event by its UUID
@@ -64,7 +75,9 @@ export def "event list" [] {
 export def "event get" [
     uu: string  # The UUID of the event to retrieve
 ] {
-    psql exec $"SELECT uu, name, record_json, created, updated, is_revoked FROM api.stk_event WHERE uu = '($uu)'"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
+    let columns = $"($STK_BASE_COLUMNS), ($STK_EVENT_COLUMNS)"
+    psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
 }
 
 # Revoke an event by setting its revoked timestamp
@@ -84,7 +97,8 @@ export def "event get" [
 export def "event revoke" [
     uu: string  # The UUID of the event to revoke
 ] {
-    psql exec $"UPDATE api.stk_event SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
+    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
+    psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
 }
 
 # Create a request attached to a specific event
@@ -107,9 +121,9 @@ export def "event request" [
     --attach(-f): string    # Request text (alternative to pipeline input)
 ] {
     let request_text = if ($attach | is-empty) { $in } else { $attach }
-    let table = "api.stk_request"
+    let request_table = $"($STK_SCHEMA).($STK_REQUEST_TABLE_NAME)"
     let name = "event-request"
-    let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json) VALUES \('($name)', '($request_text)', api.get_table_name_uu_json\('($uu)')) RETURNING uu"
+    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($request_text)', ($STK_SCHEMA).get_table_name_uu_json\('($uu)')) RETURNING uu"
     
     psql exec $sql
 }
