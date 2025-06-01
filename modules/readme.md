@@ -24,6 +24,9 @@ use modules *
 # Log an event and get its UUID
 "User login successful" | .append event "authentication"
 
+# list events
+event list
+
 # List recent events and work with results
 let events = (event list)
 $events.0.uu  # Get first event's UUID
