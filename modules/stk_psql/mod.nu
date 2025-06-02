@@ -261,7 +261,7 @@ export def "psql new-record-enhanced" [
 #   psql list-types "api" "stk_request_type"
 #   psql list-types $STK_SCHEMA $STK_TYPE_TABLE_NAME
 #
-# Returns: uu, type_enum, name, description, created for all active types
+# Returns: uu, type_enum, name, description, is_default, created for all active types
 # Note: Shows types ordered by type_enum for consistent display
 export def "psql list-types" [
     schema: string          # Database schema (e.g., "api")
@@ -269,7 +269,7 @@ export def "psql list-types" [
 ] {
     let table = $"($schema).($type_table_name)"
     let sql = $"
-        SELECT uu, type_enum, name, description, created
+        SELECT uu, type_enum, name, description, is_default, created
         FROM ($table)
         WHERE is_revoked = false
         ORDER BY type_enum

@@ -138,9 +138,10 @@ export def "item detail" [
 # Examples:
 #   item types
 #   item types | where type_enum == "SERVICE"
-#   item types | select type_enum name | table
+#   item types | where is_default == true
+#   item types | select type_enum name is_default | table
 #
-# Returns: uu, type_enum, name, description, created for all item types
+# Returns: uu, type_enum, name, description, is_default, created for all item types
 # Note: Uses the generic psql list-types command for consistency across chuck-stack
 export def "item types" [] {
     psql list-types $STK_SCHEMA $STK_TYPE_TABLE_NAME
