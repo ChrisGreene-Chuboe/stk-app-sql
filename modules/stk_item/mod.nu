@@ -10,6 +10,8 @@ const STK_DEFAULT_LIMIT = 10
 const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
 const STK_ITEM_COLUMNS = "name, description, is_template, is_valid"
 
+# Note: Type resolution is now handled by the generic psql resolve-type command
+
 # Create a new item with specified name and type
 #
 # This is the primary way to create items in the chuck-stack system.
@@ -31,28 +33,20 @@ export def "item new" [
     --description(-d): string      # Optional description of the item
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
 ] {
-    # Get type UUID if type is specified
-    let type_uu = if ($type | is-empty) {
-        null
-    } else {
-        let type_result = (psql exec $"SELECT uu FROM ($STK_SCHEMA).($STK_TYPE_TABLE_NAME) WHERE type_enum = '($type)' LIMIT 1")
-        if ($type_result | is-empty) {
-            error make {msg: $"Item type '($type)' not found. Valid types: PRODUCT-STOCKED, PRODUCT-NONSTOCKED, ACCOUNT, SERVICE"}
-        } else {
-            $type_result | get uu.0
-        }
+    # Build parameters record internally - eliminates cascading if/else logic
+    let params = {
+        name: $name
+        type_uu: (if ($type | is-empty) { 
+            null 
+        } else { 
+            psql resolve-type $STK_SCHEMA $STK_TYPE_TABLE_NAME $type
+        })
+        description: ($description | default null)
+        entity_uu: ($entity_uu | default null)
     }
-
-    # Create the item using the generic new-record command
-    if ($type_uu | is-not-empty) and ($description | is-not-empty) {
-        psql new-record $STK_SCHEMA $STK_TABLE_NAME $name --type-uu $type_uu --description $description --entity-uu $entity_uu
-    } else if ($type_uu | is-not-empty) {
-        psql new-record $STK_SCHEMA $STK_TABLE_NAME $name --type-uu $type_uu --entity-uu $entity_uu
-    } else if ($description | is-not-empty) {
-        psql new-record $STK_SCHEMA $STK_TABLE_NAME $name --description $description --entity-uu $entity_uu
-    } else {
-        psql new-record $STK_SCHEMA $STK_TABLE_NAME $name --entity-uu $entity_uu
-    }
+    
+    # Single call with all parameters - no more cascading logic
+    psql new-record-enhanced $STK_SCHEMA $STK_TABLE_NAME $params
 }
 
 # List the 10 most recent items from the chuck-stack system

@@ -183,6 +183,73 @@ export def "psql new-record" [
     psql exec $sql
 }
 
+# Enhanced new record creation using parameter record approach
+#
+# This is an enhanced version of new-record that eliminates cascading if/else logic
+# by accepting all parameters in a record structure. It dynamically builds SQL
+# based on which fields are present (non-null) in the parameters record.
+#
+# Examples:
+#   let params = {name: "Test Item", description: "A test item"}
+#   psql new-record-enhanced "api" "stk_item" $params
+#   
+#   let params = {name: "Service", type_uu: "uuid-here", description: "Professional service"}
+#   psql new-record-enhanced $STK_SCHEMA $STK_TABLE_NAME $params
+#
+# Parameters record can contain:
+#   - name: string (required)
+#   - type_uu: string (optional)
+#   - description: string (optional) 
+#   - entity_uu: string (optional)
+#
+# Returns: uu, name, and other fields for the newly created record
+# Error: Command fails if required references don't exist or constraints are violated
+export def "psql new-record-enhanced" [
+    schema: string      # Database schema (e.g., "api")
+    table_name: string  # Table name (e.g., "stk_item")
+    params: record      # Parameters record with name (required) and optional fields
+] {
+    let table = $"($schema).($table_name)"
+    
+    # Validate required name parameter
+    if ($params.name? | is-empty) {
+        error make {msg: "Parameter 'name' is required in params record"}
+    }
+    
+    # Build entity clause - use provided or let trigger handle default
+    let entity_clause = if ($params.entity_uu? | is-empty) {
+        $"\(SELECT uu FROM ($schema).stk_entity LIMIT 1)"
+    } else {
+        $"'($params.entity_uu)'"
+    }
+    
+    # Build columns and values lists dynamically
+    let base_columns = ["name", "stk_entity_uu"]
+    let base_values = [$"'($params.name)'", $entity_clause]
+    
+    # Add optional columns and values if they exist
+    let final_columns = $base_columns 
+        | append (if ($params.type_uu? | is-not-empty) { ["type_uu"] } else { [] })
+        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
+    
+    let final_values = $base_values
+        | append (if ($params.type_uu? | is-not-empty) { [$"'($params.type_uu)'"] } else { [] })
+        | append (if ($params.description? | is-not-empty) { [$"'($params.description)'"] } else { [] })
+    
+    # Build RETURNING clause based on what we're inserting
+    let returning_columns = ["uu", "name"]
+        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
+    
+    # Construct final SQL
+    let columns_str = $final_columns | str join ", "
+    let values_str = $final_values | str join ", "
+    let returning_str = $returning_columns | str join ", "
+    
+    let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING ($returning_str)"
+    
+    psql exec $sql
+}
+
 # Generic list types for a specific table concept
 #
 # Shows all available types for any STK table that has an associated type table.
@@ -208,6 +275,32 @@ export def "psql list-types" [
         ORDER BY type_enum
     "
     psql exec $sql
+}
+
+# Generic type resolution - converts type enum to UUID
+#
+# Resolves a type enum string to its corresponding UUID for any STK type table.
+# This provides a standard way to look up type UUIDs across all chuck-stack concepts.
+# Use this when you need to convert user-friendly type names to database UUIDs.
+#
+# Examples:
+#   psql resolve-type "api" "stk_item_type" "PRODUCT-STOCKED"
+#   psql resolve-type "api" "stk_request_type" "INVESTIGATION" 
+#   psql resolve-type $STK_SCHEMA $STK_TYPE_TABLE_NAME $type_string
+#
+# Returns: UUID string for the specified type
+# Error: Command fails if type_enum doesn't exist in the type table
+export def "psql resolve-type" [
+    schema: string          # Database schema (e.g., "api")
+    type_table_name: string # Type table name (e.g., "stk_item_type")
+    type_enum: string       # Type enum value to resolve (e.g., "PRODUCT-STOCKED")
+] {
+    let type_result = (psql exec $"SELECT uu FROM ($schema).($type_table_name) WHERE type_enum = '($type_enum)' LIMIT 1")
+    if ($type_result | is-empty) {
+        error make {msg: $"Type '($type_enum)' not found in ($schema).($type_table_name)"}
+    } else {
+        $type_result | get uu.0
+    }
 }
 
 # Generic get detailed record information including type
