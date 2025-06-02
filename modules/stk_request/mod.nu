@@ -100,8 +100,7 @@ export def "request get" [
 export def "request process" [
     uu: string  # The UUID of the request to mark as processed
 ] {
-    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    psql exec $"UPDATE ($table) SET processed = now\() WHERE uu = '($uu)' RETURNING uu, name, processed, is_processed"
+    psql process-record $STK_SCHEMA $STK_TABLE_NAME $uu
 }
 
 # Revoke a request by setting its revoked timestamp

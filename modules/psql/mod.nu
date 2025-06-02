@@ -113,3 +113,24 @@ export def "psql revoke-record" [
     let table = $"($schema).($table_name)"
     psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
 }
+
+# Generic process record by UUID in a table
+#
+# Executes an UPDATE query to set the processed timestamp to now() for the specified UUID.
+# This marks the record as completed/processed in tables that support processing status.
+# Used by module-specific process commands to reduce code duplication.
+#
+# Examples:
+#   psql process-record "api" "stk_request" $uuid
+#   psql process-record $STK_SCHEMA $STK_TABLE_NAME $uu
+#
+# Returns: uu, name, processed timestamp, and is_processed status for the processed record
+# Error: Command fails if UUID doesn't exist, record is already processed, or table lacks processed column
+export def "psql process-record" [
+    schema: string          # Database schema (e.g., "api")
+    table_name: string      # Table name (e.g., "stk_request")
+    uu: string              # UUID of the record to mark as processed
+] {
+    let table = $"($schema).($table_name)"
+    psql exec $"UPDATE ($table) SET processed = now\() WHERE uu = '($uu)' RETURNING uu, name, processed, is_processed"
+}
