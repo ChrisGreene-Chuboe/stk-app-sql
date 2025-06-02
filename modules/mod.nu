@@ -14,3 +14,6 @@ export use stk_request *
 
 # Todo list management built on hierarchical requests
 export use stk_todo_list *
+
+# Item management for products, services, accounts, and charges
+export use stk_item *

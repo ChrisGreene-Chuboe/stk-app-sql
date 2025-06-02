@@ -47,11 +47,91 @@ assert ($result.uu | is-not-empty) "UUID field should not be empty"
 ```
 
 #### Testing Pattern Requirements
-1. **Import std/assert**: Always include `use std/assert` at the top of test scripts
-2. **Capture results**: Store command outputs in variables for verification
-3. **Assert outcomes**: Verify specific expected results, not just execution success
-4. **Clear messages**: Provide descriptive assertion failure messages
-5. **Reference test-simple.nu**: Follow the established patterns for consistency
+1. **Import modules and assert**: Always include both module imports and assert functionality
+   ```nushell
+   use ../modules *
+   use std/assert
+   ```
+2. **Make test executable**: Always make test files executable after creation
+   ```bash
+   chmod +x test-new-feature.nu
+   ```
+3. **Capture results**: Store command outputs in variables for verification
+4. **Assert outcomes**: Verify specific expected results, not just execution success
+5. **Clear messages**: Provide descriptive assertion failure messages
+6. **Reference test-simple.nu**: Follow the established patterns for consistency
+
+#### Common Testing Pitfalls and Solutions
+
+**❌ Assertion Syntax Errors**
+```nushell
+# WRONG: Missing parentheses around comparison
+assert ($result | length) > 0 "Should have results"  # Error: expected bool, found int
+
+# CORRECT: Wrap comparison in parentheses
+assert (($result | length) > 0) "Should have results"
+```
+
+**❌ Module Import Issues**
+```nushell
+# WRONG: Missing module import
+let result = (item new "test")  # Error: Command `item` not found
+
+# CORRECT: Import modules first
+use ../modules *
+let result = (item new "test")
+```
+
+**❌ Data Access Errors**  
+```nushell
+# WRONG: Accessing string field directly on list result
+assert ($result.name | str contains "test")  # Error: can't convert list<bool> to bool
+
+# CORRECT: Access first element of list result
+assert ($result.name.0 | str contains "test")
+```
+
+**❌ Permission Issues**
+```bash
+# WRONG: File not executable
+./test-new-feature.nu  # Error: Permission denied
+
+# CORRECT: Make file executable first
+chmod +x test-new-feature.nu
+./test-new-feature.nu
+```
+
+**✅ Complete Test Creation Checklist**
+1. Create test file with `#!/usr/bin/env nu` shebang
+2. Import modules: `use ../modules *` and `use std/assert`
+3. Make file executable: `chmod +x test-filename.nu`
+4. Use proper assertion syntax with parentheses around comparisons
+5. Access list result fields with `.0` for first element
+6. Run test with `nix-shell --run "./test-filename.nu"`
+
+**✅ Complete Test Template**
+```nushell
+#!/usr/bin/env nu
+
+echo "=== Testing module functionality ==="
+
+# REQUIRED: Import modules and assert
+use ../modules *
+use std/assert
+
+echo "=== Testing command ==="
+let result = (command_to_test "parameter")
+
+echo "=== Verifying results ==="
+# CORRECT: Wrap comparisons in parentheses
+assert (($result | length) > 0) "Should return results"
+# CORRECT: Access list elements with .0
+assert ($result.field.0 | str contains "expected") "Field should match"
+# CORRECT: Boolean fields can be accessed directly if single result
+assert ($result.is_active.0) "Should be active"
+
+echo "✓ Test completed successfully"
+```
 
 ### Running Tests
 
