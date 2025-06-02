@@ -1,5 +1,9 @@
-# PSQL Common Module
+# STK PSQL Module
 # This module provides common commands for executing PostgreSQL queries
+
+# Module Constants
+const STK_SCHEMA = "api"
+const STK_PRIVATE_SCHEMA = "private"
 
 # Helper function to convert PostgreSQL boolean values (t/f) to nushell booleans
 def "into bool ext" [] {

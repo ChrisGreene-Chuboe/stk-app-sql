@@ -4,7 +4,7 @@
 # Each module provides nushell commands for specific chuck-stack functionality.
 
 # PostgreSQL command execution with structured output
-export use psql *
+export use stk_psql *
 
 # Event logging and retrieval for audit trails and system monitoring  
 export use stk_event *

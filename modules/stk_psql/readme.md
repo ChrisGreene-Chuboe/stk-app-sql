@@ -1,4 +1,4 @@
-# PSQL Common Module
+# STK PSQL Module
 
 This module provides common commands for executing PostgreSQL queries within Nushell.
 
