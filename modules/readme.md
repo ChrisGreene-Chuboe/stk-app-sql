@@ -113,6 +113,7 @@ When creating new modules:
 
 ## Learn More
 
+- [CLI Design Philosophy](cli-design.md) - Design methodologies and patterns used in chuck-stack commands
 - [Chuck-Stack PostgreSQL Conventions](https://chuck-stack.org/postgres-conventions.html)
 - [Event Module Documentation](stk_event/readme.md)
 - [Nushell Pipeline Fundamentals](https://www.nushell.sh/book/pipelines.html)
