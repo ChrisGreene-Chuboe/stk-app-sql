@@ -12,32 +12,40 @@ const STK_REQUEST_COLUMNS = "name, description, table_name_uu_json, is_processed
 # Create a new request with optional attachment to another record
 #
 # This is the primary way to create requests in the chuck-stack system.
-# The command takes piped text input and stores it as the request description.
-# Requests can be standalone (no attachment) or attached to any record in
-# the database using the --attach flag with a UUID.
+# You can either pipe in a UUID to attach to, or provide it via --attach.
+# The UUID identifies the parent record this request should be linked to.
+# Use --description to provide request details.
 #
 # Examples:
-#   "Review quarterly reports" | .append request "quarterly-review"
-#   "Fix critical bug" | .append request "bug-fix" --attach $bug_uuid
-#   "Update user profile" | .append request "profile-update" --attach $user_uuid
-#   get content | to text | .append request "document-review"
+#   .append request "quarterly-review" --description "Review quarterly reports"
+#   "12345678-1234-5678-9012-123456789abc" | .append request "bug-fix" --description "Fix critical bug"
+#   .append request "profile-update" --description "Update user profile" --attach $user_uuid
+#   request list | get uu.0 | .append request "follow-up" --description "Follow up on this request"
 #
 # Returns: The UUID of the newly created request record
-# Note: When --attach is used, table_name_uu_json is auto-populated by finding the table containing the UUID
+# Note: When a UUID is provided (via pipe or --attach), table_name_uu_json is auto-populated
 export def ".append request" [
-    name: string              # The name/topic of the request (used for categorization and filtering)
-    --attach(-f): string      # UUID of record to attach this request to (optional)
+    name: string                    # The name/topic of the request (used for categorization and filtering)
+    --description(-d): string = ""  # Description of the request (optional)
+    --attach(-a): string           # UUID of record to attach this request to (alternative to piped input)
 ] {
-    let description = $in
+    let piped_uuid = $in
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
-    if ($attach | is-empty) {
+    # Determine which UUID to use - piped input takes precedence over --attach
+    let attach_uuid = if ($piped_uuid | is-empty) {
+        $attach
+    } else {
+        $piped_uuid
+    }
+    
+    if ($attach_uuid | is-empty) {
         # Standalone request - no attachment
         let sql = $"INSERT INTO ($table) \(name, description) VALUES \('($name)', '($description)') RETURNING uu"
         psql exec $sql
     } else {
         # Request with attachment - auto-populate table_name_uu_json
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach)')) RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach_uuid)')) RETURNING uu"
         psql exec $sql
     }
 }

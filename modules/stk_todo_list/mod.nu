@@ -7,7 +7,7 @@ const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_request"
 const STK_DEFAULT_LIMIT = 10
 const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
-const STK_TODO_COLUMNS = "name, description, parent_uu"
+const STK_TODO_COLUMNS = "name, description, table_name_uu_json"
 
 # Private helper to detect if a string looks like a UUID
 def is_uuid_like [
@@ -49,19 +49,19 @@ export def "todo add" [
             }
             $parent
         } else {
-            # Parent is a name - look up the UUID
-            let parent_lookup = psql exec $"SELECT uu FROM ($table) WHERE name = '($parent)' AND is_revoked = false AND parent_uu IS NULL LIMIT 1"
+            # Parent is a name - look up the UUID for top-level todos
+            let parent_lookup = psql exec $"SELECT uu, name, table_name_uu_json FROM ($table) WHERE name = '($parent)' AND is_revoked = false"
+            | where ($it.table_name_uu_json?.api?.stk_request? | is-empty)
             if ($parent_lookup | is-empty) {
                 error make { msg: $"Parent todo list '($parent)' not found" }
             }
             $parent_lookup | get uu.0
         }
-        let sql = $"INSERT INTO ($table) \(name, description, parent_uu) VALUES \('($name)', '($name)', '($parent_uuid)') RETURNING uu"
-        psql exec $sql
+        # Use .append request to create child todo
+        .append request $name --description $name --attach $parent_uuid
     } else {
-        # Create top-level todo list
-        let sql = $"INSERT INTO ($table) \(name, description) VALUES \('($name)', '($name)') RETURNING uu"
-        psql exec $sql
+        # Create top-level todo list using .append request
+        .append request $name --description $name
     }
 }
 
@@ -76,10 +76,10 @@ export def "todo add" [
 #   todo list  # Show all active todo lists and items
 #   todo list --all  # Include completed items
 #   todo list --parent "Weekend Projects"  # Show only items in specific list
-#   todo list | where parent_uu != null  # Show only todo items (not lists)
-#   todo list | where parent_uu == null  # Show only todo lists (not items)
+#   todo list | where ($it.table_name_uu_json?.api?.stk_request? | is-not-empty)  # Show only todo items (not lists)
+#   todo list | where ($it.table_name_uu_json?.api?.stk_request? | is-empty)  # Show only todo lists (not items)
 #
-# Returns: uu, name, description, parent_uu, created, updated, is_revoked
+# Returns: uu, name, description, table_name_uu_json, created, updated, is_revoked
 # Note: Results are ordered by creation time within each hierarchy level
 export def "todo list" [
     --all(-a)                    # Include completed (revoked) todos
@@ -91,15 +91,17 @@ export def "todo list" [
 
     if (not ($parent | is-empty)) {
         # Show items under specific parent
-        let parent_lookup = psql exec $"SELECT uu FROM ($table) WHERE name = '($parent)' AND is_revoked = false AND parent_uu IS NULL LIMIT 1"
+        let parent_lookup = psql exec $"SELECT uu, name, table_name_uu_json FROM ($table) WHERE name = '($parent)' AND is_revoked = false"
+        | where ($it.table_name_uu_json?.api?.stk_request? | is-empty)
         if ($parent_lookup | is-empty) {
             error make { msg: $"Parent todo list '($parent)' not found" }
         }
         let parent_uuid = $parent_lookup | get uu.0
-        psql exec $"SELECT ($columns) FROM ($table) WHERE parent_uu = '($parent_uuid)' ($revoked_filter) ORDER BY created ASC"
+        psql exec $"SELECT ($columns) FROM ($table) WHERE table_name_uu_json->'api'->>'stk_request' = '($parent_uuid)' ($revoked_filter) ORDER BY created ASC"
     } else {
-        # Show all todos with hierarchy indication
-        psql exec $"SELECT ($columns) FROM ($table) WHERE name IS NOT NULL ($revoked_filter) ORDER BY COALESCE\(parent_uu::text, uu::text), created ASC"
+        # Show all todos with hierarchy indication - need to use nushell filtering since JSON logic is complex for SQL
+        let all_todos = psql exec $"SELECT ($columns) FROM ($table) WHERE name IS NOT NULL ($revoked_filter) ORDER BY created ASC"
+        $all_todos
     }
 }
 

@@ -25,7 +25,7 @@ echo "=== Testing todo list display ==="
 todo list
 
 echo "=== Testing todo item creation with parent UUID ==="
-let weekend_projects = (todo list | where name == "Weekend Projects" and parent_uu == null)
+let weekend_projects = (todo list | where name == "Weekend Projects" and ($it.table_name_uu_json?.api?.stk_request? | is-empty))
 if ($weekend_projects | length) > 0 {
     let weekend_project_uu = ($weekend_projects | get uu.0)
     todo add "Organize shed" --parent $weekend_project_uu

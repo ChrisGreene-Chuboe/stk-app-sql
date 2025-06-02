@@ -31,7 +31,7 @@ export def "psql exec" [
         }
         let json_cols = $result 
             | columns 
-            | where {|x| ($x == 'record_json')}
+            | where {|x| ($x | str ends-with '_json')}
         if not ($json_cols | is-empty) {
             for col in $json_cols {
                 $result = $result | update $col { from json }
