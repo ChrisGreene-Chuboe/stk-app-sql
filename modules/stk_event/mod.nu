@@ -52,9 +52,7 @@ export def ".append event" [
 # Returns: uu, name, record_json, created, updated, is_revoked
 # Note: Only shows the 10 most recent events - use direct SQL for larger queries
 export def "event list" [] {
-    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    let columns = $"($STK_BASE_COLUMNS), ($STK_EVENT_COLUMNS)"
-    psql exec $"SELECT ($columns) FROM ($table) ORDER BY created DESC LIMIT ($STK_DEFAULT_LIMIT)"
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $STK_DEFAULT_LIMIT
 }
 
 # Retrieve a specific event by its UUID
@@ -75,9 +73,7 @@ export def "event list" [] {
 export def "event get" [
     uu: string  # The UUID of the event to retrieve
 ] {
-    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    let columns = $"($STK_BASE_COLUMNS), ($STK_EVENT_COLUMNS)"
-    psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $uu
 }
 
 # Revoke an event by setting its revoked timestamp
@@ -97,8 +93,7 @@ export def "event get" [
 export def "event revoke" [
     uu: string  # The UUID of the event to revoke
 ] {
-    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $uu
 }
 
 # Create a request attached to a specific event

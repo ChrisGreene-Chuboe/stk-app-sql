@@ -59,9 +59,7 @@ export def ".append request" [
 # Returns: uu, name, description, table_name_uu_json, is_processed, created, updated, is_revoked
 # Note: Only shows the 10 most recent requests - use direct SQL for larger queries
 export def "request list" [] {
-    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    let columns = $"($STK_BASE_COLUMNS), ($STK_REQUEST_COLUMNS)"
-    psql exec $"SELECT ($columns) FROM ($table) ORDER BY created DESC LIMIT ($STK_DEFAULT_LIMIT)"
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_REQUEST_COLUMNS $STK_DEFAULT_LIMIT
 }
 
 # Retrieve a specific request by its UUID
@@ -82,9 +80,7 @@ export def "request list" [] {
 export def "request get" [
     uu: string  # The UUID of the request to retrieve
 ] {
-    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    let columns = $"($STK_BASE_COLUMNS), ($STK_REQUEST_COLUMNS)"
-    psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_REQUEST_COLUMNS $uu
 }
 
 # Mark a request as processed by setting its processed timestamp
@@ -125,6 +121,5 @@ export def "request process" [
 export def "request revoke" [
     uu: string  # The UUID of the request to revoke
 ] {
-    let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $uu
 }

@@ -44,3 +44,72 @@ export def "psql exec" [
         $result
     }
 }
+
+# Generic list records from a table with default ordering and limit
+#
+# Executes a SELECT query with standard columns and ordering for any STK table.
+# Returns records ordered by created DESC with configurable limit.
+# Used by module-specific list commands to reduce code duplication.
+#
+# Examples:
+#   psql list-records "api" "stk_event" "uu, created, updated, is_revoked" "name, record_json" 10
+#   psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $STK_DEFAULT_LIMIT
+#
+# Returns: All specified columns from the table, newest records first
+# Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
+export def "psql list-records" [
+    schema: string          # Database schema (e.g., "api")
+    table_name: string      # Table name (e.g., "stk_event") 
+    base_columns: string    # Base columns (e.g., "uu, created, updated, is_revoked")
+    specific_columns: string # Module-specific columns (e.g., "name, record_json")
+    limit: int = 10         # Maximum number of records to return
+] {
+    let table = $"($schema).($table_name)"
+    let columns = $"($base_columns), ($specific_columns)"
+    psql exec $"SELECT ($columns) FROM ($table) ORDER BY created DESC LIMIT ($limit)"
+}
+
+# Generic get single record by UUID from a table
+#
+# Executes a SELECT query to fetch a specific record by its UUID.
+# Returns complete record details for the specified UUID.
+# Used by module-specific get commands to reduce code duplication.
+#
+# Examples:
+#   psql get-record "api" "stk_event" "uu, created, updated, is_revoked" "name, record_json" $uuid
+#   psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $uu
+#
+# Returns: Single record with all specified columns, or empty if UUID not found
+# Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
+export def "psql get-record" [
+    schema: string          # Database schema (e.g., "api")
+    table_name: string      # Table name (e.g., "stk_event")
+    base_columns: string    # Base columns (e.g., "uu, created, updated, is_revoked")
+    specific_columns: string # Module-specific columns (e.g., "name, record_json")
+    uu: string              # UUID of the record to retrieve
+] {
+    let table = $"($schema).($table_name)"
+    let columns = $"($base_columns), ($specific_columns)"
+    psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
+}
+
+# Generic revoke record by UUID in a table
+#
+# Executes an UPDATE query to set the revoked timestamp to now() for the specified UUID.
+# This performs a soft delete by marking the record as revoked while preserving data.
+# Used by module-specific revoke commands to reduce code duplication.
+#
+# Examples:
+#   psql revoke-record "api" "stk_event" $uuid
+#   psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $uu
+#
+# Returns: uu, name, revoked timestamp, and is_revoked status for the revoked record
+# Error: Command fails if UUID doesn't exist or record is already revoked
+export def "psql revoke-record" [
+    schema: string          # Database schema (e.g., "api")
+    table_name: string      # Table name (e.g., "stk_event")
+    uu: string              # UUID of the record to revoke
+] {
+    let table = $"($schema).($table_name)"
+    psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
+}
