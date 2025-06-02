@@ -19,21 +19,6 @@ The `api` schema provides the public interface following chuck-stack conventions
    export STK_PG_ROLE=stk_superuser
    ```
 
-## Quick Function Tests
-
-```sql
--- Create test data
-INSERT INTO api.stk_event (name) VALUES ('test-event');
-INSERT INTO api.stk_request (name, description) VALUES ('test-request', 'test description');
-
--- Test UUID lookup
-SELECT api.get_table_name_uu_json(uu) FROM api.stk_event LIMIT 1;
-SELECT api.get_table_name_uu_json(uu) FROM api.stk_request LIMIT 1;
-
--- Test non-existent UUID
-SELECT api.get_table_name_uu_json('00000000-0000-0000-0000-000000000000'::uuid);
-```
-
 ## Nushell Module Testing
 
 ### Test Scripts
@@ -68,21 +53,6 @@ assert ($result.uu | is-not-empty) "UUID field should not be empty"
 4. **Clear messages**: Provide descriptive assertion failure messages
 5. **Reference test-simple.nu**: Follow the established patterns for consistency
 
-### Manual Testing
-```nushell
-# Import modules
-use modules *
-
-# Test basic request creation
-"test request" | .append request "test-name"
-
-# Test attached request
-"attached request" | .append request "test-name" --attach $some_uuid
-
-# Test event request
-"investigate this" | event request $event_uuid
-```
-
 ### Running Tests
 
 **IMPORTANT**: All nushell tests must be run within the nix-shell environment to access the PostgreSQL database and required dependencies.
@@ -112,3 +82,76 @@ nix-shell
 - Configures environment variables (PGUSER, PGHOST, etc.)
 - Provides access to nushell modules and psql commands
 - Automatically cleans up on exit
+
+## Help Example Testing Philosophy
+
+### Intent and Benefits
+
+The chuck-stack testing strategy includes validating examples from command `--help` documentation to ensure:
+
+1. **Documentation Accuracy**: Examples in `--help` actually work as shown
+2. **Living Documentation**: Help text stays current with code changes
+3. **User Confidence**: Users can trust that documented examples will work
+4. **Regression Prevention**: Changes that break documented examples are caught
+5. **Single Source of Truth**: Examples serve dual purpose as docs and tests
+
+### Documentation-Test Integration Strategy
+
+The complementary strategy between README and `--help` extends to testing:
+- **README**: Conceptual understanding and discovery (not directly tested)
+- **`--help`**: Implementation examples that become test cases
+- **Tests**: Validate that help examples work in practice
+
+### Help Example Standards for Testing
+
+When writing examples in command help comments:
+
+1. **Use Realistic Data**: Examples should use data patterns that can be tested
+   ```nushell
+   # Good: "User login successful" | .append event "authentication"
+   # Avoid: "some text" | .append event "some-name"
+   ```
+
+2. **Include Variable Patterns**: Use consistent variable naming for substitution
+   ```nushell
+   # Good: event get $event_uuid
+   # Good: "investigate error" | event request $error_event_uuid  
+   ```
+
+3. **Show Progressive Complexity**: Start simple, build to advanced usage
+   ```nushell
+   # Basic: event list
+   # Filtered: event list | where name == "authentication"
+   # Piped: event list | get uu.0 | event get $in
+   ```
+
+4. **Demonstrate Integration**: Show how commands work together
+   ```nushell
+   # Create and attach: "investigate this" | event request $event_uuid
+   ```
+
+### Testing Implementation Approach
+
+Tests should validate help examples through:
+
+1. **Manual Test Cases First**: Start by manually implementing key examples in test scripts
+2. **Variable Substitution**: Replace example variables with real test data
+3. **Result Validation**: Assert expected outcomes, not just execution success
+4. **Progressive Automation**: Eventually extract and validate examples automatically
+
+### Example Testing Pattern
+
+```nushell
+# In test script
+echo "=== Testing help examples ==="
+
+# Test example: "User login successful" | .append event "authentication"
+let result = ("User login successful" | .append event "authentication")
+assert ($result | columns | any {|col| $col == "uu"}) "Event creation should return UUID"
+
+# Test example: event list | where name == "authentication"
+let filtered = (event list | where name == "authentication")
+assert ($filtered | length) > 0 "Should find authentication events"
+```
+
+This approach ensures documentation and code stay synchronized while building user confidence in the examples provided.
