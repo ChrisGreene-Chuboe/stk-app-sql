@@ -37,10 +37,36 @@ SELECT api.get_table_name_uu_json('00000000-0000-0000-0000-000000000000'::uuid);
 ## Nushell Module Testing
 
 ### Test Scripts
-- `test-simple.nu` - Basic standalone request creation test
+- `test-simple.nu` - **Reference implementation** for assertion-based testing patterns
 - `test-request.nu` - Comprehensive request module functionality test
 - `test-event.nu` - Complete event module testing with request integration
 - `test-todo-list.nu` - Complete todo list module testing with hierarchical todos
+
+### Testing Best Practices
+
+**IMPORTANT**: Before adding new tests or modifying existing tests, review `test-simple.nu` as the reference implementation for proper assertion-based testing.
+
+#### Use Assertions for Verification
+Tests should use nushell's `assert` command to verify expected outcomes rather than relying on "command doesn't fail" testing:
+
+```nushell
+# Import assert functionality
+use std/assert
+
+# Capture command results
+let result = ("Test data" | .append request "test-name")
+
+# Assert on specific outcomes
+assert ($result | columns | any {|col| $col == "uu"}) "Result should contain a 'uu' field"
+assert ($result.uu | is-not-empty) "UUID field should not be empty"
+```
+
+#### Testing Pattern Requirements
+1. **Import std/assert**: Always include `use std/assert` at the top of test scripts
+2. **Capture results**: Store command outputs in variables for verification
+3. **Assert outcomes**: Verify specific expected results, not just execution success
+4. **Clear messages**: Provide descriptive assertion failure messages
+5. **Reference test-simple.nu**: Follow the established patterns for consistency
 
 ### Manual Testing
 ```nushell
