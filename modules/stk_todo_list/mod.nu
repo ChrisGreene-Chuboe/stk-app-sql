@@ -51,7 +51,7 @@ export def "todo add" [
         } else {
             # Parent is a name - look up the UUID for top-level todos
             let parent_lookup = psql exec $"SELECT uu, name, table_name_uu_json FROM ($table) WHERE name = '($parent)' AND is_revoked = false"
-            | where ($it.table_name_uu_json?.api?.stk_request? | is-empty)
+            | where ($it.table_name_uu_json.uu | is-empty)
             if ($parent_lookup | is-empty) {
                 error make { msg: $"Parent todo list '($parent)' not found" }
             }
@@ -76,8 +76,8 @@ export def "todo add" [
 #   todo list  # Show all active todo lists and items
 #   todo list --all  # Include completed items
 #   todo list --parent "Weekend Projects"  # Show only items in specific list
-#   todo list | where ($it.table_name_uu_json?.api?.stk_request? | is-not-empty)  # Show only todo items (not lists)
-#   todo list | where ($it.table_name_uu_json?.api?.stk_request? | is-empty)  # Show only todo lists (not items)
+#   todo list | where ($it.table_name_uu_json.uu | is-not-empty)  # Show only todo items (not lists)
+#   todo list | where ($it.table_name_uu_json.uu | is-empty)  # Show only todo lists (not items)
 #
 # Returns: uu, name, description, table_name_uu_json, created, updated, is_revoked
 # Note: Results are ordered by creation time within each hierarchy level
@@ -87,20 +87,21 @@ export def "todo list" [
 ] {
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     let columns = $"($STK_BASE_COLUMNS), ($STK_TODO_COLUMNS)"
-    let revoked_filter = if $all { "" } else { "AND is_revoked = false" }
+    let revoked_filter = if $all { "" } else { " AND is_revoked = false" }
 
     if (not ($parent | is-empty)) {
         # Show items under specific parent
-        let parent_lookup = psql exec $"SELECT uu, name, table_name_uu_json FROM ($table) WHERE name = '($parent)' AND is_revoked = false"
-        | where ($it.table_name_uu_json?.api?.stk_request? | is-empty)
+        let parent_lookup = psql exec $"SELECT uu, name, table_name_uu_json FROM ($table) WHERE name = '($parent)' ($revoked_filter)"
+        | where ($it.table_name_uu_json.uu | is-empty)
         if ($parent_lookup | is-empty) {
             error make { msg: $"Parent todo list '($parent)' not found" }
         }
         let parent_uuid = $parent_lookup | get uu.0
-        psql exec $"SELECT ($columns) FROM ($table) WHERE table_name_uu_json->'api'->>'stk_request' = '($parent_uuid)' ($revoked_filter) ORDER BY created ASC"
+        psql exec $"SELECT ($columns) FROM ($table) WHERE table_name_uu_json->>'uu' = '($parent_uuid)' ($revoked_filter) ORDER BY created ASC"
     } else {
         # Show all todos with hierarchy indication - need to use nushell filtering since JSON logic is complex for SQL
-        let all_todos = psql exec $"SELECT ($columns) FROM ($table) WHERE name IS NOT NULL ($revoked_filter) ORDER BY created ASC"
+        let all_todos = psql exec $"SELECT ($columns) FROM ($table) WHERE name IS NOT NULL ($revoked_filter) 
+        ORDER BY CASE WHEN table_name_uu_json->>'uu' = '' THEN uu::text ELSE table_name_uu_json->>'uu' END, created ASC"
         $all_todos
     }
 }
