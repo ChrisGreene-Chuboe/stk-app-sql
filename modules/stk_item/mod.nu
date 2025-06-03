@@ -7,8 +7,8 @@ const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_item"
 const STK_TYPE_TABLE_NAME = "stk_item_type"
 const STK_DEFAULT_LIMIT = 10
-const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
 const STK_ITEM_COLUMNS = "name, description, is_template, is_valid"
+const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
 
 # Note: Type resolution is now handled by the generic psql resolve-type command
 
@@ -18,6 +18,8 @@ const STK_ITEM_COLUMNS = "name, description, is_template, is_valid"
 # Items represent products, services, accounts, or charges that can be
 # referenced in orders, invoices, inventory, and other business processes.
 # The system automatically assigns default values via triggers if type is not specified.
+#
+# Accepts piped input: none
 #
 # Examples:
 #   item new "Laptop Computer"
@@ -56,6 +58,8 @@ export def "item new" [
 # your starting point for item management and selection.
 # Use the returned UUIDs with other item commands for detailed work.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   item list
 #   item list | where name =~ "laptop"
@@ -63,10 +67,10 @@ export def "item new" [
 #   item list | where is_revoked == false
 #   item list | select name description | table
 #
-# Returns: uu, name, description, is_template, is_valid, created, updated, is_revoked
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
 # Note: Only shows the 10 most recent items - use direct SQL for larger queries
 export def "item list" [] {
-    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_ITEM_COLUMNS $STK_DEFAULT_LIMIT
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
 }
 
 # Retrieve a specific item by its UUID
@@ -76,18 +80,20 @@ export def "item list" [] {
 # data. Use this when you have a UUID from item list or from
 # other system outputs.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   item get "12345678-1234-5678-9012-123456789abc"
 #   item list | get uu.0 | item get $in
 #   $item_uuid | item get $in | get description
 #   item get $uu | if $in.is_revoked { print "Item was revoked" }
 #
-# Returns: uu, name, description, is_template, is_valid, created, updated, is_revoked
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
 # Error: Returns empty result if UUID doesn't exist
 export def "item get" [
     uu: string  # The UUID of the item to retrieve
 ] {
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_ITEM_COLUMNS $uu
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $uu
 }
 
 # Revoke an item by setting its revoked timestamp
@@ -96,6 +102,8 @@ export def "item get" [
 # Once revoked, items are considered inactive and won't appear in 
 # normal selections. Use this instead of hard deleting to maintain
 # audit trails and data integrity in the chuck-stack system.
+#
+# Accepts piped input: none
 #
 # Examples:
 #   item revoke "12345678-1234-5678-9012-123456789abc"
@@ -116,6 +124,8 @@ export def "item revoke" [
 # information. Use this when you need to see the complete context
 # of an item including its classification.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   item detail "12345678-1234-5678-9012-123456789abc"
 #   item list | get uu.0 | item detail $in
@@ -134,6 +144,8 @@ export def "item detail" [
 # Shows all available item types that can be used when creating items.
 # Use this to see valid type options and their descriptions before
 # creating new items with specific types.
+#
+# Accepts piped input: none
 #
 # Examples:
 #   item types

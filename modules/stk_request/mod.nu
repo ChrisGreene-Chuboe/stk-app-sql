@@ -6,8 +6,8 @@ const STK_SCHEMA = "api"
 const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_request"
 const STK_DEFAULT_LIMIT = 10
-const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
 const STK_REQUEST_COLUMNS = "name, description, table_name_uu_json, is_processed"
+const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
 
 # Create a new request with optional attachment to another record
 #
@@ -15,6 +15,9 @@ const STK_REQUEST_COLUMNS = "name, description, table_name_uu_json, is_processed
 # You can either pipe in a UUID to attach to, or provide it via --attach.
 # The UUID identifies the parent record this request should be linked to.
 # Use --description to provide request details.
+#
+# Accepts piped input:
+#   string - UUID of record to attach this request to (optional)
 #
 # Examples:
 #   .append request "quarterly-review" --description "Review quarterly reports"
@@ -57,6 +60,8 @@ export def ".append request" [
 # history. This is typically your starting point for request investigation.
 # Use the returned UUIDs with other request commands for detailed work.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   request list
 #   request list | where name == "urgent"
@@ -64,10 +69,10 @@ export def ".append request" [
 #   request list | where is_processed == false
 #   request list | select name description created | table
 #
-# Returns: uu, name, description, table_name_uu_json, is_processed, created, updated, is_revoked
+# Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu
 # Note: Only shows the 10 most recent requests - use direct SQL for larger queries
 export def "request list" [] {
-    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_REQUEST_COLUMNS $STK_DEFAULT_LIMIT
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
 }
 
 # Retrieve a specific request by its UUID
@@ -77,18 +82,20 @@ export def "request list" [] {
 # extract specific data. Use this when you have a UUID from
 # request list or from other system outputs.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   request get "12345678-1234-5678-9012-123456789abc"
 #   request list | get uu.0 | request get $in
 #   $request_uuid | request get $in | get table_name_uu_json
 #   request get $uu | if $in.is_processed { print "Request completed" }
 #
-# Returns: uu, name, description, table_name_uu_json, is_processed, created, updated, is_revoked
+# Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu
 # Error: Returns empty result if UUID doesn't exist
 export def "request get" [
     uu: string  # The UUID of the request to retrieve
 ] {
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_REQUEST_COLUMNS $uu
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $uu
 }
 
 # Mark a request as processed by setting its processed timestamp
@@ -97,6 +104,8 @@ export def "request get" [
 # Once processed, requests are considered final and represent
 # completed work. Use this to track request completion and
 # maintain accurate request status in the chuck-stack system.
+#
+# Accepts piped input: none
 #
 # Examples:
 #   request process "12345678-1234-5678-9012-123456789abc"
@@ -117,6 +126,8 @@ export def "request process" [
 # Once revoked, requests are considered cancelled and won't appear in 
 # normal selections. Use this instead of hard deleting to maintain
 # audit trails and data integrity in the chuck-stack system.
+#
+# Accepts piped input: none
 #
 # Examples:
 #   request revoke "12345678-1234-5678-9012-123456789abc"

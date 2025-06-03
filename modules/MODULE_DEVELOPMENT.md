@@ -62,6 +62,11 @@ Every command must include rich help comments with:
 # Explain how this command fits into chuck-stack workflows.
 # Include any important behavioral notes or limitations.
 #
+# Accepts piped input:
+#   string - Description text (stored in description field)
+#   OR
+#   none
+#
 # Examples:
 #   Simple usage example
 #   Complex pipeline example  
@@ -76,6 +81,22 @@ export def "command name" [
     # implementation
 }
 ```
+
+#### Piped Input Documentation Standards
+**REQUIRED**: Every command must include an "Accepts piped input" section:
+
+- **For commands that accept piped input**: Specify the data type and purpose
+  ```nushell
+  # Accepts piped input:
+  #   string - Event description text (stored in description field)
+  ```
+
+- **For commands that don't accept piped input**: Explicitly state "none"
+  ```nushell
+  # Accepts piped input: none
+  ```
+
+This section must appear after the main description and before the Examples section.
 
 #### Documentation Guidelines
 - **Practical examples**: Show real-world usage, not just syntax
@@ -143,6 +164,18 @@ const STK_MODULE_COLUMNS = "name, description, record_json"
 const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
 
 # Primary creation command
+#
+# Brief description of what this command does and its purpose
+# in the chuck-stack system context.
+#
+# Accepts piped input:
+#   string - Module description text (stored in description field)
+#
+# Examples:
+#   "content text" | .append module "module-name"
+#   "detailed content" | .append module "name" --metadata '{"key": "value"}'
+#
+# Returns: The UUID of the newly created module record
 export def ".append module" [
     name: string                    # The name/topic of the record
     --metadata(-m): string          # Optional JSON metadata
@@ -155,18 +188,51 @@ export def ".append module" [
 }
 
 # List recent records
+#
+# Displays the most recent module records to help with discovery
+# and investigation. Use returned UUIDs with other commands.
+#
+# Accepts piped input: none
+#
+# Examples:
+#   module list
+#   module list | where name =~ "pattern"
+#
+# Returns: name, description, record_json, created, updated, is_revoked, uu
 export def "module list" [] {
     psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_MODULE_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
 }
 
-# Get specific record
+# Get specific record by UUID
+#
+# Retrieves complete details for a single module record when you need
+# to inspect its contents or extract specific data.
+#
+# Accepts piped input: none
+#
+# Examples:
+#   module get "uuid-here"
+#   module list | get uu.0 | module get $in
+#
+# Returns: name, description, record_json, created, updated, is_revoked, uu
 export def "module get" [
     uu: string  # UUID of the record to retrieve
 ] {
     psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_MODULE_COLUMNS $STK_BASE_COLUMNS $uu
 }
 
-# Soft delete record
+# Soft delete record (revoke)
+#
+# Performs a soft delete by setting the revoked timestamp. Use this
+# instead of hard deleting to maintain audit trails.
+#
+# Accepts piped input: none
+#
+# Examples:
+#   module revoke "uuid-here"
+#   module list | where name == "old" | get uu.0 | module revoke $in
+#
+# Returns: Revocation status and timestamp information
 export def "module revoke" [
     uu: string  # UUID of the record to revoke
 ] {

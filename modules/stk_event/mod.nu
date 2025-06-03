@@ -17,6 +17,9 @@ const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
 # description field. Optional metadata can be provided via the --metadata
 # parameter and will be stored in the record_json field as structured data.
 #
+# Accepts piped input:
+#   string - Event description text (stored in description field)
+#
 # Examples:
 #   "User login successful" | .append event "authentication"
 #   $"Error processing order ($order_id)" | .append event "order-error"
@@ -45,6 +48,8 @@ export def ".append event" [
 # This is typically your starting point for event investigation.
 # Use the returned UUIDs with other event commands for detailed work.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   event list
 #   event list | where name == "authentication" 
@@ -64,6 +69,8 @@ export def "event list" [] {
 # data from the record_json field. Use this when you have a
 # UUID from event list or from other system outputs.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   event get "12345678-1234-5678-9012-123456789abc"
 #   event list | get uu.0 | event get $in
@@ -71,7 +78,7 @@ export def "event list" [] {
 #   event get $uu | get record_json
 #   event get $uu | if $in.is_revoked { print "Event was revoked" }
 #
-# Returns: uu, name, record_json, created, updated, is_revoked
+# Returns: name, description, record_json, created, updated, is_revoked, uu
 # Error: Returns empty result if UUID doesn't exist
 export def "event get" [
     uu: string  # The UUID of the event to retrieve
@@ -85,6 +92,8 @@ export def "event get" [
 # Once revoked, events are considered immutable and won't appear in 
 # normal selections. Use this instead of hard deleting to maintain
 # audit trails and data integrity in the chuck-stack system.
+#
+# Accepts piped input: none
 #
 # Examples:
 #   event revoke "12345678-1234-5678-9012-123456789abc"
@@ -105,6 +114,9 @@ export def "event revoke" [
 # enabling you to create follow-up actions, todos, or investigations
 # related to logged events. The request is automatically attached to 
 # the specified event UUID using the table_name_uu_json convention.
+#
+# Accepts piped input: 
+#   string - Request description text (stored in description field)
 #
 # Examples:
 #   "investigate this error" | event request $error_event_uuid

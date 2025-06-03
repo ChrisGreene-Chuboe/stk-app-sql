@@ -1,9 +1,9 @@
 #!/usr/bin/env nu
 
-# STK Item Module Test Script
-echo "=== Testing stk_item module functionality ==="
+# Test script for stk_item module
+echo "=== Testing stk_item Module ==="
 
-# Import the modules  
+# REQUIRED: Import modules and assert
 use ../modules *
 use std/assert
 
@@ -124,4 +124,4 @@ let example_detail = (item detail $latest_uu)
 assert ($example_detail | columns | any {|col| $col == "type_enum"}) "Example detail should include type information"
 echo "✓ Help example detail verified"
 
-echo "=== All stk_item tests completed successfully! ==="
+echo "=== All tests completed successfully ==="

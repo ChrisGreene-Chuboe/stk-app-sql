@@ -6,8 +6,8 @@ const STK_SCHEMA = "api"
 const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_request"
 const STK_DEFAULT_LIMIT = 10
-const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
 const STK_TODO_COLUMNS = "name, description, table_name_uu_json"
+const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
 
 # Private helper to detect if a string looks like a UUID
 def is_uuid_like [
@@ -22,6 +22,9 @@ def is_uuid_like [
 # The command takes piped text input and stores it as the todo name.
 # Use --parent to specify either the todo list name or UUID directly.
 # If no parent is specified, creates a new todo list (top-level item).
+#
+# Accepts piped input:
+#   string - Todo name/description (optional if provided as parameter)
 #
 # Examples:
 #   todo add "Weekend Projects"  # Creates a new todo list
@@ -72,6 +75,8 @@ export def "todo add" [
 # completed (revoked) items. Use --parent to show only items under a
 # specific todo list.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   todo list  # Show all active todo lists and items
 #   todo list --all  # Include completed items
@@ -79,14 +84,14 @@ export def "todo add" [
 #   todo list | where ($it.table_name_uu_json.uu | is-not-empty)  # Show only todo items (not lists)
 #   todo list | where ($it.table_name_uu_json.uu | is-empty)  # Show only todo lists (not items)
 #
-# Returns: uu, name, description, table_name_uu_json, created, updated, is_revoked
+# Returns: name, description, table_name_uu_json, created, updated, is_revoked, uu
 # Note: Results are ordered by creation time within each hierarchy level
 export def "todo list" [
     --all(-a)                    # Include completed (revoked) todos
     --parent(-p): string         # Show only items under this parent list name
 ] {
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    let columns = $"($STK_BASE_COLUMNS), ($STK_TODO_COLUMNS)"
+    let columns = $"($STK_TODO_COLUMNS), ($STK_BASE_COLUMNS)"
     let revoked_filter = if $all { "" } else { " AND is_revoked = false" }
 
     if (not ($parent | is-empty)) {
@@ -113,11 +118,12 @@ export def "todo list" [
 # normal todo list views. Use this to mark tasks as finished while
 # maintaining the audit trail in the chuck-stack system.
 #
+# Accepts piped input: none
+#
 # Examples:
 #   todo revoke "Clean garage"  # Mark todo item as done by name
 #   todo revoke "12345678-1234-5678-9012-123456789abc"  # Mark done by UUID
 #   todo list | where name == "completed task" | get uu.0 | todo revoke $in
-#   "task completed successfully" | todo revoke "Fix fence"
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if todo doesn't exist or is already revoked
@@ -148,6 +154,8 @@ export def "todo revoke" [
 # This undoes the revocation by clearing the revoked timestamp,
 # making the todo active again. Use this when you need to reopen
 # a task that was marked as completed but still needs work.
+#
+# Accepts piped input: none
 #
 # Examples:
 #   todo restore "Clean garage"  # Reopen todo item by name
