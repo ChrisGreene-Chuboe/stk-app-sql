@@ -109,6 +109,20 @@ chmod +x test-new-feature.nu
 5. Access list result fields with `.0` for first element
 6. Run test with `nix-shell --run "./test-filename.nu"`
 
+## Standardized Test Output
+
+**IMPORTANT**: All tests must end with the exact same success message for consistent verification:
+
+```
+=== All tests completed successfully ===
+```
+
+This standard output enables reliable test verification using grep:
+```bash
+# Verify test success
+nix-shell --run "./test-module.nu" 2>&1 | grep "=== All tests completed successfully ==="
+```
+
 **✅ Complete Test Template**
 ```nushell
 #!/usr/bin/env nu
@@ -130,7 +144,7 @@ assert ($result.field.0 | str contains "expected") "Field should match"
 # CORRECT: Boolean fields can be accessed directly if single result
 assert ($result.is_active.0) "Should be active"
 
-echo "✓ Test completed successfully"
+echo "=== All tests completed successfully ==="
 ```
 
 ### Running Tests
@@ -144,8 +158,21 @@ nix-shell --run "./test-request.nu"
 nix-shell --run "./test-event.nu"
 nix-shell --run "./test-todo-list.nu"
 
+# Verify test success using standardized output
+nix-shell --run "./test-event.nu" 2>&1 | grep "=== All tests completed successfully ==="
+
 # Run all tests in sequence
 for test in test-*.nu { nix-shell --run $"./($test)" }
+
+# Run all tests and verify success
+for test in test-*.nu { 
+    echo "Testing $test..."
+    if (nix-shell --run $"./($test)" 2>&1 | grep "=== All tests completed successfully ===" | is-empty) {
+        echo "❌ FAILED: $test"
+    } else {
+        echo "✅ PASSED: $test"
+    }
+}
 
 # Interactive testing (start shell first, then run commands)
 nix-shell

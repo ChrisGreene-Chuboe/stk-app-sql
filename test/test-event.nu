@@ -78,4 +78,44 @@ let investigation_requests = (request list | where name == "event-request")
 assert (($investigation_requests | length) > 0) "Should find event-request records"
 echo "✓ Help example verified: creating request attached to event"
 
+echo "=== Testing metadata functionality ==="
+
+# Test event creation with metadata
+let metadata_result = ("Critical system failure detected" | .append event "system-error" --metadata '{"urgency": "high", "component": "database", "user_id": 123}')
+assert ($metadata_result | columns | any {|col| $col == "uu"}) "Metadata event creation should return UUID"
+assert ($metadata_result.uu | is-not-empty) "Metadata event UUID should not be empty"
+echo "✓ Event with metadata created, UUID:" ($metadata_result.uu)
+
+echo "=== Verifying description field contains text content ==="
+let metadata_event = (event get ($metadata_result.uu.0))
+assert (($metadata_event | length) == 1) "Should retrieve exactly one metadata event"
+assert ($metadata_event.description.0 == "Critical system failure detected") "Description should contain the piped text content"
+echo "✓ Description field verified: contains text content directly"
+
+echo "=== Verifying record_json contains metadata ==="
+let event_json = ($metadata_event.record_json.0)
+assert ($event_json | columns | any {|col| $col == "urgency"}) "Metadata should contain urgency field"
+assert ($event_json | columns | any {|col| $col == "component"}) "Metadata should contain component field"
+assert ($event_json | columns | any {|col| $col == "user_id"}) "Metadata should contain user_id field"
+assert ($event_json.urgency == "high") "Urgency should be 'high'"
+assert ($event_json.component == "database") "Component should be 'database'"
+assert ($event_json.user_id == 123) "User ID should be 123"
+echo "✓ Metadata verified: record_json contains structured data"
+
+echo "=== Testing event without metadata (default behavior) ==="
+let no_meta_result = ("Simple event without metadata" | .append event "basic-test")
+let no_meta_event = (event get ($no_meta_result.uu.0))
+assert ($no_meta_event.description.0 == "Simple event without metadata") "Description should contain text content"
+assert ($no_meta_event.record_json.0 == {}) "record_json should be empty object when no metadata provided"
+echo "✓ Default behavior verified: empty metadata results in empty JSON object"
+
+echo "=== Testing help example with metadata ==="
+let auth_meta_result = ("User John logged in from mobile app" | .append event "authentication" --metadata '{"user_id": 456, "ip": "192.168.1.100", "device": "mobile"}')
+let auth_meta_event = (event get ($auth_meta_result.uu.0))
+assert ($auth_meta_event.description.0 == "User John logged in from mobile app") "Auth description should match input"
+assert ($auth_meta_event.record_json.0.user_id == 456) "Auth metadata should contain user_id"
+assert ($auth_meta_event.record_json.0.ip == "192.168.1.100") "Auth metadata should contain IP address"
+assert ($auth_meta_event.record_json.0.device == "mobile") "Auth metadata should contain device info"
+echo "✓ Help example with metadata verified"
+
 echo "=== All tests completed successfully ==="

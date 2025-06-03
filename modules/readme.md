@@ -96,20 +96,16 @@ These modules implement chuck-stack's core patterns:
 
 ## Module Development
 
-### Module Structure
-Each module follows a standard structure:
-- `mod.nu`: The main module file containing commands
-- `readme.md`: Documentation for the module
+For comprehensive guidance on creating new chuck-stack nushell modules, see **[MODULE_DEVELOPMENT.md](MODULE_DEVELOPMENT.md)**.
 
-The root `mod.nu` file exports all sub-modules for easy access.
+This guide includes:
+- Complete creation checklist with standards and patterns
+- Constants conventions and column ordering philosophy
+- Command naming patterns and help documentation requirements
+- README structure and testing standards
+- Implementation templates and quality checklist
 
-### Adding New Modules
-When creating new modules:
-1. Create a new directory for your module
-2. Add a `mod.nu` file with your commands
-3. Add a `readme.md` file with documentation  
-4. Update the root `mod.nu` file to export your module
-5. Follow the [stk_event module](stk_event/) as your documentation template
+The [stk_event module](stk_event/) serves as the canonical reference implementation.
 
 ## Learn More
 

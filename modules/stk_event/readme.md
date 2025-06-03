@@ -8,7 +8,9 @@ The chuck-stack event system provides a centralized way to log, track, and audit
 
 **Soft Deletion Model**: Events use chuck-stack's revocation pattern rather than hard deletes. This preserves data integrity and maintains complete historical records while marking events as inactive.
 
-**JSON Flexibility**: Events store structured data in JSONB format, allowing rich context while maintaining query performance. This supports both simple text logging and complex structured data.
+**Text and Metadata Separation**: Events store primary content in the `description` field for unlimited text, while `record_json` holds structured metadata. This design leverages each field's strengths - direct text storage for content and JSONB for searchable metadata.
+
+**User-Friendly Column Ordering**: Event listings prioritize human-readable content first (name, description, metadata), followed by timestamps and status, with technical identifiers (UUID) last. This "content-first" approach improves usability while keeping all data accessible.
 
 ## Integration with Chuck-Stack
 
@@ -44,10 +46,13 @@ event revoke --help
 # Import the module
 use modules *
 
-# Log an event
+# Log simple event
 "User completed onboarding" | .append event "user-milestone"
 
-# Check recent activity
+# Log event with metadata
+"Login failed" | .append event "authentication" --metadata '{"user_id": 123, "ip": "192.168.1.1"}'
+
+# Check recent activity (shows: name, description, record_json, created, updated, is_revoked, uu)
 event list
 
 # Get detailed help for any command

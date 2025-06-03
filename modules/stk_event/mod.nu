@@ -7,31 +7,33 @@ const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_event"
 const STK_REQUEST_TABLE_NAME = "stk_request"  # For event request command
 const STK_DEFAULT_LIMIT = 10
-const STK_BASE_COLUMNS = "uu, created, updated, is_revoked"
-const STK_EVENT_COLUMNS = "name, record_json"
+const STK_EVENT_COLUMNS = "name, description, record_json"
+const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
 
 # Append text to the stk_event table with a specified name/topic
 #
 # This is the primary way to log events in the chuck-stack system.
-# The command takes piped text input and stores it as JSON in the
-# event's record_json field. Use this for logging user actions,
-# system events, audit trails, and any textual data that needs
-# to be tracked with timestamps.
+# The command takes piped text input and stores it directly in the
+# description field. Optional metadata can be provided via the --metadata
+# parameter and will be stored in the record_json field as structured data.
 #
 # Examples:
 #   "User login successful" | .append event "authentication"
 #   $"Error processing order ($order_id)" | .append event "order-error"
 #   get content | to text | .append event "file-backup"
-#   http get https://api.example.com | to json | .append event "api-call"
+#   "Critical system failure" | .append event "system-error" --metadata '{"urgency": "high", "component": "database"}'
+#   "User John logged in" | .append event "authentication" --metadata '{"user_id": 123, "ip": "192.168.1.1"}'
 #
 # Returns: The UUID of the newly created event record
-# Note: The text is automatically wrapped in {"text": "your-content"}
+# Note: Text content goes to description field, metadata goes to record_json field
 export def ".append event" [
-    name: string       # The name/topic of the event (used for categorization and filtering)
+    name: string                    # The name/topic of the event (used for categorization and filtering)
+    --metadata(-m): string          # Optional JSON metadata to store in record_json field
 ] {
     # Create the SQL command
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    let sql = $"INSERT INTO ($table) \(name,record_json) VALUES \('($name)', jsonb_build_object\('text', '($in)')) RETURNING uu"
+    let metadata_json = if ($metadata | is-empty) { "'{}'" } else { $"'($metadata)'" }
+    let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($in)', ($metadata_json)::jsonb) RETURNING uu"
 
     psql exec $sql
 }
@@ -49,10 +51,10 @@ export def ".append event" [
 #   event list | where is_revoked == false
 #   event list | select name created | table
 #
-# Returns: uu, name, record_json, created, updated, is_revoked
+# Returns: name, description, record_json, created, updated, is_revoked, uu
 # Note: Only shows the 10 most recent events - use direct SQL for larger queries
 export def "event list" [] {
-    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $STK_DEFAULT_LIMIT
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
 }
 
 # Retrieve a specific event by its UUID
@@ -65,7 +67,8 @@ export def "event list" [] {
 # Examples:
 #   event get "12345678-1234-5678-9012-123456789abc"
 #   event list | get uu.0 | event get $in
-#   $event_uuid | event get $in | get record_json
+#   $event_uuid | event get $in | get description
+#   event get $uu | get record_json
 #   event get $uu | if $in.is_revoked { print "Event was revoked" }
 #
 # Returns: uu, name, record_json, created, updated, is_revoked
@@ -73,7 +76,7 @@ export def "event list" [] {
 export def "event get" [
     uu: string  # The UUID of the event to retrieve
 ] {
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $uu
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $uu
 }
 
 # Revoke an event by setting its revoked timestamp
