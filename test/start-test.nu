@@ -227,7 +227,7 @@ def show_usage_info [] {
     print "  migrate run ./migrations --dry-run # Test without applying"
     print "  migrate add ./migrations <description> # Create new migration"
     print ""
-    print $"Note: PGUSER = ($env.STK_USER) (demonstrating user login with no abilities)"
+    print $"Note: PGUSER = ($env.STK_USER) \(demonstrating user login with no abilities)"
     print "Note: STK_PG_ROLE sets the desired role for both psql and aichat"
     print "      export STK_PG_ROLE=stk_api_role #default"
     print "      export STK_PG_ROLE=stk_private_role"
