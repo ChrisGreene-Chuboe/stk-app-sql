@@ -11,12 +11,63 @@ The `api` schema provides the public interface following chuck-stack conventions
 
 ## Test Environment Setup
 
-1. Start test environment: `cd test && nix-shell`
-2. Default user is `stk_login` with `stk_api_role` 
-3. For DDL testing, switch to superuser:
+### Nushell-First Architecture
+
+The chuck-stack test environment now uses a **nushell-first architecture** where all database setup, migrations, and operations are handled through nushell scripts rather than bash.
+
+### Starting the Environment
+
+1. **Start test environment**: `cd test && nix-shell`
+   - Automatically runs `start-test.nu` for complete environment setup
+   - Uses `chuck-stack-nushell-psql-migration` for database operations
+   - Sets up PostgreSQL, runs migrations, generates schema details
+   - Configures PostgREST and aichat integration
+
+2. **Default user** is `stk_login` with `stk_api_role` 
+
+3. **For DDL testing**, switch to superuser:
    ```bash
    export PGUSER=stk_superuser
    export STK_PG_ROLE=stk_superuser
+   ```
+
+### Migration Management (Nushell-Based)
+
+The environment now uses **chuck-stack-nushell-psql-migration** instead of sqlx-cli:
+
+```bash
+# Migration status and management (run from $STK_TEST_DIR)
+migrate status ./migrations          # Show migration status
+migrate history ./migrations         # Show migration history  
+migrate run ./migrations --dry-run   # Test without applying
+migrate add ./migrations <description> # Create new migration
+migrate validate ./migrations        # Validate migration files
+
+# Legacy commands are no longer available:
+# sqlx migrate run    ❌ (replaced with: migrate run ./migrations)
+# sqlx migrate add    ❌ (replaced with: migrate add ./migrations <description>)
+```
+
+### Environment Scripts
+
+- **start-test.nu**: Comprehensive environment setup (database, migrations, schema generation)
+- **stop-test.nu**: Clean environment teardown
+- **Shell integration**: `nix-shell` automatically calls these scripts
+
+### Best Practices for Nushell/PostgreSQL Integration
+
+1. **Use standard PostgreSQL environment variables**: 
+   - `PGHOST`, `PGUSER`, `PGDATABASE` (no more `DATABASE_URL`)
+   
+2. **Migration file compatibility**: 
+   - Existing SQL files work unchanged
+   - Standard PostgreSQL SQL syntax (no tool-specific extensions)
+   
+3. **Nushell SQL patterns**:
+   ```nushell
+   # Escape opening parentheses in SQL strings
+   let sql = $"INSERT INTO table \(column) VALUES \('value')"  # ✅ Correct
+   let sql = $"INSERT INTO table (column) VALUES ('value')"    # ❌ Parse error
    ```
 
 ## Nushell Module Testing
