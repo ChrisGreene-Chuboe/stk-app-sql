@@ -88,12 +88,15 @@ def setup_postgresql [] {
         }
         
         # Create database and users
+        # Disable .psqlrc during initial setup since roles don't exist yet
         try {
-            ^createdb $env.PGDATABASE -h $env.PGHOST -U postgres
-            ^psql -U postgres -h $env.PGHOST -c "CREATE EXTENSION pg_jsonschema"
-            ^psql -U postgres -h $env.PGHOST -c $"CREATE ROLE ($env.STK_SUPERUSER) LOGIN CREATEROLE"
-            ^psql -U postgres -h $env.PGHOST -c $"COMMENT ON ROLE ($env.STK_SUPERUSER) IS 'superuser role to administer the ($env.PGDATABASE)';"
-            ^psql -U postgres -h $env.PGHOST -c $"ALTER DATABASE ($env.PGDATABASE) OWNER TO ($env.STK_SUPERUSER)"
+            with-env {PSQLRC: "/dev/null"} {
+                ^createdb $env.PGDATABASE -h $env.PGHOST -U postgres
+                ^psql -U postgres -h $env.PGHOST -c "CREATE EXTENSION pg_jsonschema"
+                ^psql -U postgres -h $env.PGHOST -c $"CREATE ROLE ($env.STK_SUPERUSER) LOGIN CREATEROLE"
+                ^psql -U postgres -h $env.PGHOST -c $"COMMENT ON ROLE ($env.STK_SUPERUSER) IS 'superuser role to administer the ($env.PGDATABASE)';"
+                ^psql -U postgres -h $env.PGHOST -c $"ALTER DATABASE ($env.PGDATABASE) OWNER TO ($env.STK_SUPERUSER)"
+            }
         } catch {
             print $"(ansi red)Failed to setup database and users(ansi reset)"
             exit 1
@@ -127,8 +130,12 @@ def run_migrations [] {
     }
     
     # Run migrations using dynamic nu command to avoid parse-time issues
+    # Set PSQLRC=/dev/null to prevent .psqlrc from being loaded during migration
+    # This avoids the "role stk_api_role does not exist" error since roles are created by migrations
     try {
-        ^nu -c "use ./tools/migration/mod.nu *; migrate run ./migrations"
+        with-env {PSQLRC: "/dev/null"} {
+            ^nu -c "use ./tools/migration/mod.nu *; migrate run ./migrations"
+        }
     } catch {
         print $"(ansi red)Migration failed(ansi reset)"
         exit 1
@@ -247,6 +254,10 @@ def show_usage_info [] {
     print "Note: STK_PG_ROLE sets the desired role for both psql and aichat"
     print "      export STK_PG_ROLE=stk_api_role #default"
     print "      export STK_PG_ROLE=stk_private_role"
+    print "      psql => show role; --to see your current role"
+    print "Note: To connect as a superuser"
+    print "      export STK_PG_ROLE=stk_superuser"
+    print "      export PGUSER=stk_superuser"
     print "      psql => show role; --to see your current role"
     print ""
     print "PostgREST details:"
