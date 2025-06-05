@@ -47,6 +47,22 @@ def setup_directories [] {
             print $"  Created: ($dir)"
         }
     }
+    
+    # Copy configuration files and modules to test directory
+    print "Copying configuration files..."
+    cp -f $"($env.STK_PWD_SHELL)/.psqlrc" $env.STK_TEST_DIR
+    cp -f $"($env.STK_PWD_SHELL)/.psqlrc-nu" $env.STK_TEST_DIR
+    print $"  Copied: .psqlrc and .psqlrc-nu"
+    
+    # Copy modules directory to make it accessible via ./modules
+    print "Copying modules directory..."
+    cp -rf $"($env.STK_PWD_SHELL)/../modules" $env.STK_TEST_DIR
+    print $"  Copied: modules directory to ($env.STK_TEST_DIR)/modules"
+    
+    # Copy test files to test directory
+    print "Copying test files..."
+    glob $"($env.STK_PWD_SHELL)/test-*.nu" | each { |file| cp -f $file $env.STK_TEST_DIR }
+    print $"  Copied: test files to ($env.STK_TEST_DIR)"
 }
 
 # Setup PostgreSQL cluster and database

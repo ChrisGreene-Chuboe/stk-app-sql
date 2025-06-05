@@ -4,7 +4,7 @@
 echo "=== Testing stk_request Module ==="
 
 # REQUIRED: Import modules and assert
-use ../modules *
+use ./modules *
 use std/assert
 
 echo "=== Testing standalone request creation ==="

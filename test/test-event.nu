@@ -4,7 +4,7 @@
 echo "=== Testing stk_event Module ==="
 
 # Import the modules and assert functionality
-use ../modules *
+use ./modules *
 use std/assert
 
 echo "=== Testing event creation ==="

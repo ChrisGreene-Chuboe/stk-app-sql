@@ -241,6 +241,71 @@ nix-shell
 - Provides access to nushell modules and psql commands
 - Automatically cleans up on exit
 
+## Updating GitHub Repository Hashes in Nix
+
+### Overview
+
+When the chuck-stack-nushell-psql-migration repository is updated, the test environment's shell.nix file needs to be updated with the new commit hash and corresponding SHA256 hash.
+
+### Location
+
+The GitHub repository reference is in `/stk-app-sql/test/shell.nix` at lines 17-21:
+
+```nix
+migrationUtilSrc = pkgs.fetchgit {
+  url = "https://github.com/chuckstack/chuck-stack-nushell-psql-migration";
+  rev = "ab93bb3c6072e9b91e487727e9a560beb887783f";  # commit hash
+  sha256 = "sha256-RtUsbiL2+9+3dOotBhhbyn0cdl6Njp2MsAYtVBI90Lw=";
+};
+```
+
+### Step-by-Step Update Process
+
+**1. Get the latest commit hash:**
+```bash
+git log --format="%H" -1  # from the updated migration submodule
+```
+
+**2. Update the commit hash in shell.nix:**
+- Replace the `rev = "..."` line with the new full commit hash
+- Use a placeholder SHA256 initially: `sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";`
+
+**3. Get the correct SHA256 hash:**
+```bash
+cd /path/to/stk-app-sql/test
+timeout 30 nix-shell --command "echo 'testing'" 2>&1 | grep -A5 -B5 "hash mismatch\|expected\|got\|AAAA"
+```
+
+**4. Extract the correct hash from the error:**
+Look for output like:
+```
+error: hash mismatch in fixed-output derivation:
+         specified: sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+            got:    sha256-RtUsbiL2+9+3dOotBhhbyn0cdl6Njp2MsAYtVBI90Lw=
+```
+
+**5. Update shell.nix with the correct SHA256:**
+- Replace the placeholder SHA256 with the "got:" value from the error
+
+**6. Test the updated configuration:**
+```bash
+timeout 60 nix-shell --command "echo 'Integration test successful'"
+```
+
+### Troubleshooting
+
+- **Command not found errors**: Ensure you're in the correct directory with shell.nix
+- **Timeout issues**: Increase timeout value or test without timeout
+- **Hash validation failures**: Double-check that both commit hash and SHA256 are correctly copied
+- **Build failures**: Verify the commit hash exists in the GitHub repository
+
+### Alternative Method (if nix-prefetch-git is available)
+
+If `nix-prefetch-git` is installed, you can get the hash directly:
+```bash
+nix-prefetch-git https://github.com/chuckstack/chuck-stack-nushell-psql-migration --rev COMMIT_HASH_HERE
+```
+
 ## Help Example Testing Philosophy
 
 ### Intent and Benefits

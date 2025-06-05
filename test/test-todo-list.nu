@@ -4,7 +4,7 @@
 echo "=== Testing stk_todo_list Module ==="
 
 # REQUIRED: Import modules and assert
-use ../modules *
+use ./modules *
 use std/assert
 
 echo "=== Testing todo list creation ==="

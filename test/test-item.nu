@@ -4,7 +4,7 @@
 echo "=== Testing stk_item Module ==="
 
 # REQUIRED: Import modules and assert
-use ../modules *
+use ./modules *
 use std/assert
 
 echo "=== Testing item types command ==="

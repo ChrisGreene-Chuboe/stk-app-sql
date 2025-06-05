@@ -16,8 +16,8 @@ let
   # Fetch chuck-stack-nushell-psql-migration source
   migrationUtilSrc = pkgs.fetchgit {
     url = "https://github.com/chuckstack/chuck-stack-nushell-psql-migration";
-    rev = "662c70f35e9b7ad6b58c4a5729b7edadbc703215";  # specific commit hash with syntax fixes
-    sha256 = "sha256-Bzr0zAIjPWtKowIlyKXckuZYYmOdXw/viQB6JiLF0Ng=";
+    rev = "ab93bb3c6072e9b91e487727e9a560beb887783f";  # latest commit with cleaned up documentation
+    sha256 = "sha256-RtUsbiL2+9+3dOotBhhbyn0cdl6Njp2MsAYtVBI90Lw=";
   };
 
   # Create pg_jsonschema extension package
@@ -86,7 +86,7 @@ in pkgs.mkShell {
     export PGDATABASE=stk_db
     export STK_PG_ROLE="stk_api_role"
     export STK_PG_SESSION="'{\"psql_user\": \"$STK_USER\"}'"
-    export PSQLRC="$PWD"/.psqlrc
+    export PSQLRC="$STK_TEST_DIR"/.psqlrc
     export HISTFILE="$STK_TEST_DIR/.psql_history"
     export USQL_DSN=""
     export f="-r %functions%"
