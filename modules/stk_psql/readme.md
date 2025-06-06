@@ -12,13 +12,16 @@ Execute a SQL query using psql with the `.psqlrc-nu` configuration file.
 psql exec "SELECT * FROM api.stk_event LIMIT 5"
 ```
 
-### `psql exec-raw`
+### Generic Helper Commands
 
-Execute a SQL query and return the raw results without special formatting.
-
-```nu
-psql exec-raw "SELECT uu FROM api.stk_event LIMIT 1"
-```
+The module also provides generic commands for common database operations:
+- `psql list-records` - SELECT with ordering and limits
+- `psql get-record` - Single record by UUID
+- `psql revoke-record` - Soft delete pattern
+- `psql new-record` - Standard INSERT pattern
+- `psql list-types` - Show available types for any concept
+- `psql resolve-type` - Convert type enum to UUID
+- `psql detail-record` - Get record with type information
 
 ## Usage Examples
 
@@ -29,57 +32,21 @@ use modules *
 # Execute a query with nice formatting 
 psql exec "SELECT uu, name, created FROM api.stk_event ORDER BY created DESC LIMIT 3"
 
-# Execute a raw query for scripting
-let event_id = (psql exec-raw "SELECT uu FROM api.stk_event LIMIT 1" | str trim)
+# Get a single value for scripting
+let event_id = (psql exec "SELECT uu FROM api.stk_event LIMIT 1" | get uu.0)
+
+# Use generic commands
+psql list-records "api" "stk_event" "name, created, uu" 10
+psql get-record "api" "stk_event" "name, created" "uu, description" $some_uuid
 ```
 
-## Implementation Details
+## Best Practices and Guidelines
 
-The module uses the `.psqlrc-nu` configuration file to provide consistent output formatting. This is the same approach used in the `stk_event` module's `event list` command.
+For comprehensive nushell-PostgreSQL integration patterns, including:
+- String interpolation and parentheses escaping
+- Chuck-stack specific JSON column handling
+- Data type conversion details
+- Module architecture patterns
+- psql advanced features
 
-## PostgreSQL Development Guidelines & Gotchas
-
-### JSON Column Handling - Critical Issue
-
-**IMPORTANT**: JSON fields in chuck-stack return empty strings `''` instead of `NULL` for missing values.
-
-**❌ Wrong - will not work:**
-```nushell
-# This fails because missing JSON fields return "" not null
-| where ($it.table_name_uu_json?.api?.stk_request? | is-empty)  # Won't find parents
-```
-```sql
-WHERE table_name_uu_json->>'uu' IS NULL          -- Won't find parents
-```
-
-**✅ Correct - handles empty strings:**
-```nushell
-# Use direct field access with is-empty which handles both null and empty strings
-| where ($it.table_name_uu_json.uu | is-empty)
-```
-```sql
-WHERE table_name_uu_json->>'uu' = ''             -- Check for empty string
-```
-
-This affects all JSON columns ending with `_json` and impacts parent/child relationship detection throughout chuck-stack modules.
-
-### Data Type Conversion
-
-The `psql exec` command automatically converts PostgreSQL data types to nushell types:
-- **Datetime columns**: `created`, `updated`, and columns starting with `date_` 
-- **JSON columns**: All columns ending with `_json` are parsed from JSON strings to nushell structures
-- **Boolean columns**: Columns starting with `is_` are converted from PostgreSQL's `t`/`f` to nushell's `true`/`false`
-
-### SQL in Nushell String Interpolation
-
-**IMPORTANT**: In nushell string interpolation, opening parentheses `(` have special meaning and must be escaped in SQL:
-
-**❌ Wrong - causes parse errors:**
-```nushell
-let sql = $"INSERT INTO table (column) VALUES ('value')"
-```
-
-**✅ Correct - escape opening parentheses:**
-```nushell
-let sql = $"INSERT INTO table \(column) VALUES \('value')"
-```
+See: **https://www.chuck-stack.org/ls/postgres-convention/nushell.html**
