@@ -14,6 +14,13 @@
   # stop postgresql when leaving the shell (data persists)
 
 let
+  # Fetch chuck-stack-nushell-psql-migration source
+  migrationUtilSrc = pkgs.fetchgit {
+    url = "https://github.com/chuckstack/chuck-stack-nushell-psql-migration";
+    rev = "aeb2a5fe185e09ba46d1422a01d8caf4715bc16e";  # updated roadmap with hash comparison
+    sha256 = "sha256-aiUikB6o/GdBoiREWe7BSpLX2tlyKfQN26Z5QhJRBK8=";
+  };
+
   # Create pg_jsonschema extension package
   pg_jsonschema_ext = pkgs.stdenv.mkDerivation {
     name = "pg_jsonschema-extension";
@@ -32,11 +39,24 @@ let
     paths = [ pkgs.postgresql pg_jsonschema_ext ];
   };
 
-  # Function to run migrations
+  # Function to run migrations using nushell migration utility
   runMigrations = pkgs.writeShellScriptBin "run-migrations" ''
-    echo "Running migrations..."
-    cd "$STK_TEST_DIR"
-    sqlx migrate run
+    echo "Running migrations using chuck-stack-nushell-psql-migration..."
+    cd "$STK_LOCAL_DIR"
+    # Setup migration utility in local directory if not already present
+    if [ ! -d "tools/migration" ]; then
+      mkdir -p tools/migration
+      cp -r ${migrationUtilSrc}/src/* tools/migration/
+    fi
+    # Set up complete environment for migration utility - these variables are required by the migration tool
+    export PGHOST="$STK_LOCAL_DIR/pgdata"
+    export PGDATA="$STK_LOCAL_DIR/pgdata"
+    export PGUSER="stk_superuser"
+    export PGDATABASE="stk_db"
+    export PGUSERSU="postgres"
+    export STK_SUPERUSER="stk_superuser"
+    export STK_USER="stk_login"
+    ${pkgs.nushell}/bin/nu -c "use tools/migration *; migrate run ./migrations"
   '';
 
   # Function to override usql to psql
@@ -48,10 +68,9 @@ let
 in pkgs.mkShell {
   buildInputs = [
     postgresql-with-jsonschema
-    pkgs.sqlx-cli
+    pkgs.nushell
     pkgs.postgrest
     pkgs.bat
-    #pkgs.nushell
     #pkgs.aichat
     #pkgs.git
     runMigrations
@@ -111,8 +130,6 @@ in pkgs.mkShell {
     # note the PGUSER env var is used by psql directly
     export PGUSER=$STK_SUPERUSER
     export PGDATABASE=stk_db
-    # note next line is used by sqlx-cli
-    export DATABASE_URL="postgresql://$STK_SUPERUSER/$PGDATABASE?host=$PGHOST"
     # clear variable just in case it existed previously
     export STK_PG_ROLE="" # hard coded as default
 
@@ -233,6 +250,14 @@ EOF
     echo "PostgreSQL is running using Unix socket in $PGHOST"
     echo "Issue \"psql\" to connect to $PGDATABASE database - note env vars set accordingly"
     echo "To run migrations, use the 'run-migrations' command"
+    echo ""
+    echo "Migration commands (using chuck-stack-nushell-psql-migration):"
+    echo "  run-migrations                    # Run pending migrations"
+    echo "  # For manual migration management, use nushell commands:"
+    echo "  # nu -c 'use tools/migration *; migrate status ./migrations'       # Show migration status"
+    echo "  # nu -c 'use tools/migration *; migrate history ./migrations'      # Show migration history"
+    echo "  # nu -c 'use tools/migration *; migrate run ./migrations --dry-run' # Test without applying"
+    echo "  # nu -c 'use tools/migration *; migrate add ./migrations <description>' # Create new migration"
     echo "Note: PGUSER = $STK_USER demonstrating user login with no abilities"
     echo "Note: STK_PG_ROLE sets the desired role for both psql and aicaht - see impersonation"
     echo "      export STK_PG_ROLE=stk_api_role #default"
