@@ -150,6 +150,54 @@ Modules should integrate cleanly with the chuck-stack ecosystem:
 - Support pipeline data processing
 - Return structured data (tables/records)
 - Use consistent error handling
+- Follow modern nushell syntax standards (see below)
+
+## Modern Nushell Syntax Standards
+
+All chuck-stack modules must follow these modern nushell syntax patterns for consistency and readability:
+
+### Conditional Checks
+Use positive assertions instead of double negatives:
+
+```nushell
+# ✅ Preferred - clear positive check
+if ($date_cols | is-not-empty) {
+    $result = $result | into datetime ...$date_cols
+}
+
+# ❌ Avoid - double negative is harder to read
+if not ($date_cols | is-empty) {
+    for col in $date_cols { $result = $result | into datetime $col }
+}
+```
+
+### Batch Operations with Spread Operator
+Use spread operator for batch transformations:
+
+```nushell
+# ✅ Preferred - concise and functional
+if ($date_cols | is-not-empty) {
+    $result = $result | into datetime ...$date_cols
+}
+
+# ❌ Avoid - verbose manual iteration
+if ($date_cols | is-not-empty) {
+    for col in $date_cols {
+        $result = $result | into datetime $col
+    }
+}
+```
+
+### Pattern Applications
+Apply these patterns consistently for:
+
+- **Empty checks**: `is-not-empty` vs `not (... | is-empty)`
+- **Date conversions**: `into datetime ...$date_cols` vs manual loops
+- **Boolean conversions**: `update ...$bool_cols { ... }` where applicable
+- **JSON parsing**: Use spread operator for multiple column operations
+
+### Reference Implementation
+See [stk_psql/mod.nu](stk_psql/mod.nu) for complete examples of these patterns in the `psql exec` command and record creation functions.
 
 ## Implementation Templates
 

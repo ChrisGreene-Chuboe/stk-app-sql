@@ -42,7 +42,7 @@ export def "todo add" [
     let name = if ($todo_name | is-empty) { $in } else { $todo_name }
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
 
-    if (not ($parent | is-empty)) {
+    if ($parent | is-not-empty) {
         # Determine if parent is UUID or name and get the UUID
         let parent_uuid = if (is_uuid_like $parent) {
             # Parent is a UUID - validate it exists
@@ -94,7 +94,7 @@ export def "todo list" [
     let columns = $"($STK_TODO_COLUMNS), ($STK_BASE_COLUMNS)"
     let revoked_filter = if $all { "" } else { " AND is_revoked = false" }
 
-    if (not ($parent | is-empty)) {
+    if ($parent | is-not-empty) {
         # Show items under specific parent
         let parent_lookup = psql exec $"SELECT uu, name, table_name_uu_json FROM ($table) WHERE name = '($parent)' ($revoked_filter)"
         | where ($it.table_name_uu_json.uu | is-empty)

@@ -24,15 +24,13 @@ export def "psql exec" [
         let date_cols = $result 
             | columns 
             | where {|x| ($x == 'created') or ($x == 'updated') or ($x | str starts-with 'date_')}
-        if not ($date_cols | is-empty) {
-            for col in $date_cols {
-                $result = $result | into datetime $col
-            }
+        if ($date_cols | is-not-empty) {
+            $result = $result | into datetime ...$date_cols
         }
         let json_cols = $result 
             | columns 
             | where {|x| ($x | str ends-with '_json')}
-        if not ($json_cols | is-empty) {
+        if ($json_cols | is-not-empty) {
             for col in $json_cols {
                 $result = $result | update $col { from json }
             }
@@ -40,7 +38,7 @@ export def "psql exec" [
         let bool_cols = $result 
             | columns 
             | where {|x| ($x | str starts-with 'is_')}
-        if not ($bool_cols | is-empty) {
+        if ($bool_cols | is-not-empty) {
             for col in $bool_cols {
                 $result = $result | update $col { into bool ext }
             }
