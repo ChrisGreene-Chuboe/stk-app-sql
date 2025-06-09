@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
-# Test script for stk_todo_list module
-echo "=== Testing stk_todo_list Module ==="
+# Test script for stk_todo module
+echo "=== Testing stk_todo Module ==="
 
 # REQUIRED: Import modules and assert
 use ./modules *
