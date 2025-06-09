@@ -70,16 +70,21 @@ in pkgs.mkShell {
   ];
 
   shellHook = ''
-    # Determine instance name
-    if [ -n "$STK_INSTANCE_NAME" ]; then
+    # Determine instance name and directory
+    if [[ "$PWD" =~ ^/opt/stk-local- ]]; then
+      # We're already in an instance directory, use it
+      export STK_DEPLOY_DIR="$PWD"
+      INSTANCE_NAME=$(basename "$PWD" | sed 's/^stk-local-//')
+    elif [ -n "$STK_INSTANCE_NAME" ]; then
       INSTANCE_NAME="$STK_INSTANCE_NAME"
+      export STK_DEPLOY_DIR="/opt/stk-local-$INSTANCE_NAME"
     else
       INSTANCE_NAME="default-$(date +%Y%m%d-%H%M%S)"
+      export STK_DEPLOY_DIR="/opt/stk-local-$INSTANCE_NAME"
     fi
 
     # Setup environment variables for chuck-stack deployment environment
     export STK_PWD_SHELL=$PWD
-    export STK_DEPLOY_DIR="/opt/stk-local-$INSTANCE_NAME"
     export PGHOST="$STK_DEPLOY_DIR/pgdata"
     export PGDATA="$PGHOST"
     export PGUSERSU=postgres
@@ -90,7 +95,7 @@ in pkgs.mkShell {
     export STK_PG_ROLE="stk_api_role"
     export STK_PG_SESSION="'{\"psql_user\": \"$STK_USER\"}'"
     export PSQLRC="$STK_DEPLOY_DIR"/.psqlrc
-    export HISTFILE="$STK_DEPLOY_DIR/.psql_history"
+    export HISTFILE="$STK_DEPLOY_DIR/.bash_history"
     export USQL_DSN=""
     export f="-r %functions%"
     
