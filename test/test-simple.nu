@@ -1,9 +1,9 @@
 #!/usr/bin/env nu
 
 # Simple test script
-echo "=== Testing basic functionality ==="
+echo "=== Testing Basic Functionality ==="
 
-# Import the modules  
+# REQUIRED: Import modules and assert
 use ./modules *
 use std/assert
 
@@ -16,3 +16,5 @@ assert ($result | columns | any {|col| $col == "uu"}) "Result should contain a '
 # Check that the uu field is not empty 
 assert ($result.uu | is-not-empty) "UUID field should not be empty"
 echo "✓ Event creation verified with UUID:" ($result.uu)
+
+echo "=== All tests completed successfully ==="
