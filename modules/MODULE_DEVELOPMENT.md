@@ -135,7 +135,7 @@ Modules should integrate cleanly with the chuck-stack ecosystem:
 
 #### Database Integration
 - Always use `api` schema for function calls
-- Follow chuck-stack postgres conventions
+- **Follow chuck-stack postgres conventions** - See `chuckstack.github.io/src-ls/postgres-convention/nushell.md` for comprehensive nushell + PostgreSQL best practices
 - Use soft deletes (revoke) instead of hard deletes
 - Leverage existing infrastructure (entities, types, etc.)
 
@@ -150,6 +150,7 @@ Modules should integrate cleanly with the chuck-stack ecosystem:
 - Support pipeline data processing
 - Return structured data (tables/records)
 - Use consistent error handling
+- **Follow comprehensive nushell best practices** - See `chuckstack.github.io/src-ls/postgres-convention/nushell.md` for SQL escaping, null coalescing, common patterns, and more
 - Follow modern nushell syntax standards (see below)
 
 ## Modern Nushell Syntax Standards
@@ -202,6 +203,9 @@ See [stk_psql/mod.nu](stk_psql/mod.nu) for complete examples of these patterns i
 ## Implementation Templates
 
 ### Basic Module Template
+
+**IMPORTANT**: SQL strings require parentheses escaping - see `chuckstack.github.io/src-ls/postgres-convention/nushell.md` for details.
+
 ```nushell
 # Module Constants
 const STK_SCHEMA = "api"
@@ -347,7 +351,8 @@ module list
 
 ## Learn More
 
-- [Chuck-Stack Postgres Conventions](../../chuckstack.github.io/src-ls/postgres-convention/)
+- Chuck-Stack Postgres Conventions: `chuckstack.github.io/src-ls/postgres-convention/`
+- Nushell + PostgreSQL Best Practices: `chuckstack.github.io/src-ls/postgres-convention/nushell.md`
 - [Related Module Documentation](../stk_related/readme.md)
 ```
 
@@ -361,7 +366,7 @@ Before considering a module complete, verify:
 - [ ] README focuses on concepts, not implementation
 - [ ] Tests follow patterns from [../test/TESTING_NOTES.md](../test/TESTING_NOTES.md)
 - [ ] Module integrates with existing chuck-stack patterns
-- [ ] Code follows nushell best practices
+- [ ] **Code follows nushell best practices** - Verify compliance with `chuckstack.github.io/src-ls/postgres-convention/nushell.md`
 - [ ] Documentation is discoverable and helpful
 
 ## Reference Implementation
