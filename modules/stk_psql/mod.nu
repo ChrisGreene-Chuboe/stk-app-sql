@@ -137,62 +137,24 @@ export def "psql process-record" [
     psql exec $"UPDATE ($table) SET processed = now\() WHERE uu = '($uu)' RETURNING uu, name, processed, is_processed"
 }
 
+
 # Generic create new record in a table
 #
-# Executes an INSERT query to create a new record with specified name and optional fields.
+# Executes an INSERT query to create a new record using a parameter record approach.
 # This provides a standard way to create records in STK tables with automatic defaults.
 # The system automatically assigns default type_uu and entity_uu values via triggers.
+# This implementation eliminates cascading if/else logic by accepting all parameters
+# in a record structure and dynamically building SQL based on which fields are present.
 #
 # Examples:
-#   psql new-record "api" "stk_item" "Product Name"
-#   psql new-record "api" "stk_item" "Service Item" --description "Professional consulting"
-#   psql new-record $STK_SCHEMA $STK_TABLE_NAME $name --type-uu $type_uu --description $desc
-#
-# Returns: uu, name, and other basic fields for the newly created record
-# Error: Command fails if required references don't exist or constraints are violated
-export def "psql new-record" [
-    schema: string              # Database schema (e.g., "api")
-    table_name: string          # Table name (e.g., "stk_item")
-    name: string                # Name for the new record
-    --type-uu(-t): string       # Optional type UUID (uses default type if not provided)
-    --description(-d): string   # Optional description for the record
-    --entity-uu(-e): string     # Optional entity UUID (uses first entity if not provided)
-] {
-    let table = $"($schema).($table_name)"
-    
-    # Build the entity clause - use provided or let trigger handle default
-    let entity_clause = if ($entity_uu | is-empty) {
-        $"\(SELECT uu FROM ($schema).stk_entity LIMIT 1)"
-    } else {
-        $"'($entity_uu)'"
-    }
-    
-    # Build SQL based on what's provided
-    let sql = if ($type_uu | is-not-empty) and ($description | is-not-empty) {
-        $"INSERT INTO ($table) \(name, description, type_uu, stk_entity_uu) VALUES \('($name)', '($description)', '($type_uu)', ($entity_clause)) RETURNING uu, name, description"
-    } else if ($type_uu | is-not-empty) {
-        $"INSERT INTO ($table) \(name, type_uu, stk_entity_uu) VALUES \('($name)', '($type_uu)', ($entity_clause)) RETURNING uu, name"
-    } else if ($description | is-not-empty) {
-        $"INSERT INTO ($table) \(name, description, stk_entity_uu) VALUES \('($name)', '($description)', ($entity_clause)) RETURNING uu, name, description"
-    } else {
-        $"INSERT INTO ($table) \(name, stk_entity_uu) VALUES \('($name)', ($entity_clause)) RETURNING uu, name"
-    }
-    
-    psql exec $sql
-}
-
-# Enhanced new record creation using parameter record approach
-#
-# This is an enhanced version of new-record that eliminates cascading if/else logic
-# by accepting all parameters in a record structure. It dynamically builds SQL
-# based on which fields are present (non-null) in the parameters record.
-#
-# Examples:
-#   let params = {name: "Test Item", description: "A test item"}
-#   psql new-record-enhanced "api" "stk_item" $params
+#   let params = {name: "Product Name"}
+#   psql new-record "api" "stk_item" $params
+#   
+#   let params = {name: "Service Item", description: "Professional consulting"}
+#   psql new-record "api" "stk_item" $params
 #   
 #   let params = {name: "Service", type_uu: "uuid-here", description: "Professional service"}
-#   psql new-record-enhanced $STK_SCHEMA $STK_TABLE_NAME $params
+#   psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 #
 # Parameters record can contain:
 #   - name: string (required)
@@ -202,7 +164,7 @@ export def "psql new-record" [
 #
 # Returns: uu, name, and other fields for the newly created record
 # Error: Command fails if required references don't exist or constraints are violated
-export def "psql new-record-enhanced" [
+export def "psql new-record" [
     schema: string      # Database schema (e.g., "api")
     table_name: string  # Table name (e.g., "stk_item")
     params: record      # Parameters record with name (required) and optional fields

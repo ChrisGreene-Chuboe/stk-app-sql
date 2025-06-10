@@ -78,6 +78,13 @@ let investigation_requests = (request list | where name == "event-request")
 assert (($investigation_requests | length) > 0) "Should find event-request records"
 echo "✓ Help example verified: creating request attached to event"
 
+echo "=== Testing event revoke with piped UUID ==="
+let pipeline_event = ("Event for pipeline revoke test" | .append event "pipeline-test")
+let pipeline_revoke_result = ($pipeline_event.uu.0 | event revoke)
+assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline revoke should return is_revoked status"
+assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked event should be marked as revoked"
+echo "✓ Event revoke with piped UUID verified"
+
 echo "=== Testing metadata functionality ==="
 
 # Test event creation with metadata

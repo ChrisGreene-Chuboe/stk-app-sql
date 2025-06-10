@@ -81,4 +81,11 @@ let revoked_request = (request get ($revoke_test_request.uu.0))
 assert (($revoked_request.is_revoked.0) == true) "Revoked request should show is_revoked as true"
 echo "✓ Request revoke functionality verified"
 
+echo "=== Testing request revoke with piped UUID ==="
+let pipeline_request = (.append request "pipeline-revoke-test" --description "Request for pipeline revoke testing")
+let pipeline_revoke_result = ($pipeline_request.uu.0 | request revoke)
+assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline revoke should return is_revoked status"
+assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked request should be marked as revoked"
+echo "✓ Request revoke with piped UUID verified"
+
 echo "=== All tests completed successfully ==="

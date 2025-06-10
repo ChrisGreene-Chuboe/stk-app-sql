@@ -48,7 +48,7 @@ export def "item new" [
     }
     
     # Single call with all parameters - no more cascading logic
-    psql new-record-enhanced $STK_SCHEMA $STK_TABLE_NAME $params
+    psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 }
 
 # List the 10 most recent items from the chuck-stack system
@@ -103,19 +103,27 @@ export def "item get" [
 # normal selections. Use this instead of hard deleting to maintain
 # audit trails and data integrity in the chuck-stack system.
 #
-# Accepts piped input: none
+# Accepts piped input: 
+#   string - The UUID of the item to revoke (alternative to parameter)
 #
 # Examples:
 #   item revoke "12345678-1234-5678-9012-123456789abc"
-#   item list | where name == "obsolete-product" | get uu.0 | item revoke $in
-#   item list | where is_template == true | each { |row| item revoke $row.uu }
+#   item list | where name == "obsolete-product" | get uu.0 | item revoke
+#   item list | where is_template == true | each { |row| $row.uu | item revoke }
+#   "12345678-1234-5678-9012-123456789abc" | item revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or item is already revoked
 export def "item revoke" [
-    uu: string  # The UUID of the item to revoke
+    uu?: string  # The UUID of the item to revoke (optional if piped)
 ] {
-    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $uu
+    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+    
+    if ($target_uuid | is-empty) {
+        error make { msg: "UUID required either as parameter or piped input" }
+    }
+    
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
 
 # Show detailed item information including type using generic psql detail-record command

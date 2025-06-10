@@ -118,31 +118,39 @@ export def "todo list" [
 # normal todo list views. Use this to mark tasks as finished while
 # maintaining the audit trail in the chuck-stack system.
 #
-# Accepts piped input: none
+# Accepts piped input: 
+#   string - Name or UUID of the todo to mark as done (alternative to parameter)
 #
 # Examples:
 #   todo revoke "Clean garage"  # Mark todo item as done by name
 #   todo revoke "12345678-1234-5678-9012-123456789abc"  # Mark done by UUID
-#   todo list | where name == "completed task" | get uu.0 | todo revoke $in
+#   todo list | where name == "completed task" | get uu.0 | todo revoke
+#   "Clean garage" | todo revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if todo doesn't exist or is already revoked
 export def "todo revoke" [
-    todo_identifier: string      # Name or UUID of the todo to mark as done
+    todo_identifier?: string      # Name or UUID of the todo to mark as done (optional if piped)
 ] {
+    let target_identifier = if ($todo_identifier | is-empty) { $in } else { $todo_identifier }
+    
+    if ($target_identifier | is-empty) {
+        error make { msg: "Todo identifier (name or UUID) required either as parameter or piped input" }
+    }
+    
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
 
     # Try to find by UUID first, then by name
-    let todo_record = if (is_uuid_like $todo_identifier) {
+    let todo_record = if (is_uuid_like $target_identifier) {
         # Looks like a UUID
-        psql exec $"SELECT uu FROM ($table) WHERE uu = '($todo_identifier)' AND is_revoked = false LIMIT 1"
+        psql exec $"SELECT uu FROM ($table) WHERE uu = '($target_identifier)' AND is_revoked = false LIMIT 1"
     } else {
         # Treat as name
-        psql exec $"SELECT uu FROM ($table) WHERE name = '($todo_identifier)' AND is_revoked = false LIMIT 1"
+        psql exec $"SELECT uu FROM ($table) WHERE name = '($target_identifier)' AND is_revoked = false LIMIT 1"
     }
 
     if ($todo_record | is-empty) {
-        error make { msg: $"Todo '($todo_identifier)' not found or already completed" }
+        error make { msg: $"Todo '($target_identifier)' not found or already completed" }
     }
 
     let todo_uuid = $todo_record | get uu.0

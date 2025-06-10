@@ -101,6 +101,13 @@ assert ($revoke_result.uu.0 == $first_item_uu) "Revoked UUID should match reques
 assert ($revoke_result.is_revoked.0) "Item should be marked as revoked"
 echo "✓ Item revoke verified for UUID:" $first_item_uu
 
+echo "=== Testing item revoke with piped UUID ==="
+let pipeline_item = (item new "Pipeline Revoke Test Item")
+let pipeline_revoke_result = ($pipeline_item.uu.0 | item revoke)
+assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline revoke should return is_revoked status"
+assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked item should be marked as revoked"
+echo "✓ Item revoke with piped UUID verified"
+
 echo "=== Testing help examples ==="
 
 echo "=== Example: Create a simple item ==="

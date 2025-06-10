@@ -274,17 +274,25 @@ export def "module get" [
 # Performs a soft delete by setting the revoked timestamp. Use this
 # instead of hard deleting to maintain audit trails.
 #
-# Accepts piped input: none
+# Accepts piped input: 
+#   string - The UUID of the record to revoke (alternative to parameter)
 #
 # Examples:
 #   module revoke "uuid-here"
-#   module list | where name == "old" | get uu.0 | module revoke $in
+#   module list | where name == "old" | get uu.0 | module revoke
+#   "uuid-here" | module revoke
 #
 # Returns: Revocation status and timestamp information
 export def "module revoke" [
-    uu: string  # UUID of the record to revoke
+    uu?: string  # UUID of the record to revoke (optional if piped)
 ] {
-    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $uu
+    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+    
+    if ($target_uuid | is-empty) {
+        error make { msg: "UUID required either as parameter or piped input" }
+    }
+    
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
 ```
 

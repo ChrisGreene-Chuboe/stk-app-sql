@@ -93,19 +93,27 @@ export def "event get" [
 # normal selections. Use this instead of hard deleting to maintain
 # audit trails and data integrity in the chuck-stack system.
 #
-# Accepts piped input: none
+# Accepts piped input: 
+#   string - The UUID of the event to revoke (alternative to parameter)
 #
 # Examples:
 #   event revoke "12345678-1234-5678-9012-123456789abc"
-#   event list | where name == "test" | get uu.0 | event revoke $in
-#   event list | where created < (date now) - 30day | each { |row| event revoke $row.uu }
+#   event list | where name == "test" | get uu.0 | event revoke
+#   event list | where created < (date now) - 30day | each { |row| $row.uu | event revoke }
+#   "12345678-1234-5678-9012-123456789abc" | event revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or event is already revoked
 export def "event revoke" [
-    uu: string  # The UUID of the event to revoke
+    uu?: string  # The UUID of the event to revoke (optional if piped)
 ] {
-    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $uu
+    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+    
+    if ($target_uuid | is-empty) {
+        error make { msg: "UUID required either as parameter or piped input" }
+    }
+    
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
 
 # Create a request attached to a specific event

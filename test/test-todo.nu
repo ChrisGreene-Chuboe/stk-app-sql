@@ -85,6 +85,19 @@ if ($fence_todos | length) > 0 {
     echo "Fix garden fence todo not found - skipping UUID revoke test"
 }
 
+echo "=== Testing todo revoke with piped UUID ==="
+let pipeline_todo = (todo add "Pipeline Revoke Test Todo")
+let pipeline_revoke_result = ($pipeline_todo.uu.0 | todo revoke)
+assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline revoke should return is_revoked status"
+assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked todo should be marked as revoked"
+echo "✓ Todo revoke with piped UUID verified"
+
+echo "=== Testing todo revoke with piped name ==="
+let name_revoke_result = ("Mow lawn" | todo revoke)
+assert ($name_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline name revoke should return is_revoked status"
+assert (($name_revoke_result.is_revoked.0) == true) "Pipeline revoked todo by name should be marked as revoked"
+echo "✓ Todo revoke with piped name verified"
+
 echo "=== Testing todo list with completed items ==="
 let all_todos = (todo list --all)
 let completed_todos = ($all_todos | where is_revoked == true)
