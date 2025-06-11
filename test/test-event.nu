@@ -29,7 +29,7 @@ assert ($event_detail | columns | any {|col| $col == "record_json"}) "Event deta
 echo "✓ Event get verified for UUID:" $event_uu
 
 echo "=== Testing event request functionality ==="
-let request_result = (event request $event_uu --attach "investigate this event")
+let request_result = ($event_uu | event request --description "investigate this event")
 assert ($request_result | columns | any {|col| $col == "uu"}) "Event request should return UUID"
 assert ($request_result.uu | is-not-empty) "Request UUID should not be empty"
 
@@ -40,7 +40,7 @@ assert (($event_requests | length) > 0) "Should find at least one event-request"
 echo "✓ Event request functionality verified"
 
 echo "=== Testing event revoke ==="
-let revoke_result = (event revoke $event_uu)
+let revoke_result = ($event_uu | event revoke)
 assert ($revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke should return is_revoked status"
 assert (($revoke_result.is_revoked.0) == true) "Event should be marked as revoked"
 
@@ -64,13 +64,13 @@ assert (($retrieved_event | length) == 1) "Pipeline example should return one ev
 assert (($retrieved_event.uu.0) == $first_event_uu) "Pipeline should retrieve correct event"
 echo "✓ Help example verified: pipeline usage for event retrieval"
 
-# Test example: event request with --attach
+# Test example: event request with --description
 let error_event = (.append event "system-error" --description "Critical system error detected")
-let investigation_request = (event request $error_event.uu.0 --attach "investigate this error")
+let investigation_request = ($error_event.uu.0 | event request --description "investigate this error")
 assert ($investigation_request | columns | any {|col| $col == "uu"}) "Investigation request should return UUID"
 let investigation_requests = (request list | where name == "event-request")
 assert (($investigation_requests | length) > 0) "Should find event-request records"
-echo "✓ Help example verified: creating request attached to event"
+echo "✓ Help example verified: creating request attached to event with piped UUID"
 
 echo "=== Testing event revoke with piped UUID ==="
 let pipeline_event = (.append event "pipeline-test" --description "Event for pipeline revoke test")

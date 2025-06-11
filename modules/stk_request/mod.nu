@@ -128,23 +128,20 @@ export def "request process" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the request to revoke (alternative to parameter)
+#   string - The UUID of the request to revoke (required via pipe)
 #
 # Examples:
-#   request revoke "12345678-1234-5678-9012-123456789abc"
 #   request list | where name == "obsolete" | get uu.0 | request revoke
 #   request list | where created < (date now) - 30day | each { |row| $row.uu | request revoke }
 #   "12345678-1234-5678-9012-123456789abc" | request revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or request is already revoked
-export def "request revoke" [
-    uu?: string  # The UUID of the request to revoke (optional if piped)
-] {
-    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+export def "request revoke" [] {
+    let target_uuid = $in
     
     if ($target_uuid | is-empty) {
-        error make { msg: "UUID required either as parameter or piped input" }
+        error make { msg: "UUID required via piped input" }
     }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid

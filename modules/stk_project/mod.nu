@@ -110,23 +110,20 @@ export def "project get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the project to revoke (alternative to parameter)
+#   string - The UUID of the project to revoke (required via pipe)
 #
 # Examples:
-#   project revoke "12345678-1234-5678-9012-123456789abc"
 #   project list | where name == "obsolete-project" | get uu.0 | project revoke
 #   project list | where is_template == true | each { |row| $row.uu | project revoke }
 #   "12345678-1234-5678-9012-123456789abc" | project revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or project is already revoked
-export def "project revoke" [
-    uu?: string  # The UUID of the project to revoke (optional if piped)
-] {
-    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+export def "project revoke" [] {
+    let target_uuid = $in
     
     if ($target_uuid | is-empty) {
-        error make { msg: "UUID required either as parameter or piped input" }
+        error make { msg: "UUID required via piped input" }
     }
     
     psql revoke-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $target_uuid
@@ -288,23 +285,21 @@ export def "project line list" [
 # data. Use this when you have a UUID from project line list or from
 # other system outputs.
 #
-# Accepts piped input: none
+# Accepts piped input: 
+#   string - The UUID of the project line to retrieve (required via pipe)
 #
 # Examples:
-#   project line get "12345678-1234-5678-9012-123456789abc"
-#   project line list $project_uuid | get uu.0 | project line get $in
-#   $line_uuid | project line get $in | get description
-#   project line get $uu | if $in.is_revoked { print "Line was revoked" }
+#   project line list $project_uuid | get uu.0 | project line get
+#   $line_uuid | project line get | get description
+#   "12345678-1234-5678-9012-123456789abc" | project line get
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
 # Error: Returns empty result if UUID doesn't exist
-export def "project line get" [
-    uu?: string  # The UUID of the project line to retrieve (optional if piped)
-] {
-    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+export def "project line get" [] {
+    let target_uuid = $in
     
     if ($target_uuid | is-empty) {
-        error make {msg: "Project line UUID is required. Provide as parameter or pipe input."}
+        error make {msg: "Project line UUID is required via piped input."}
     }
     
     psql get-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $STK_BASE_COLUMNS $target_uuid
@@ -318,11 +313,10 @@ export def "project line get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the project line to revoke (alternative to parameter)
+#   string - The UUID of the project line to revoke (required via pipe)
 #   list - Multiple UUIDs to revoke in bulk
 #
 # Examples:
-#   project line revoke "12345678-1234-5678-9012-123456789abc"
 #   project line list $project_uuid | where name == "obsolete-task" | get uu.0 | project line revoke
 #   project line list $project_uuid | where created < (date now) - 30day | get uu | project line revoke
 #   "12345678-1234-5678-9012-123456789abc" | project line revoke
@@ -330,13 +324,11 @@ export def "project line get" [
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status for each revoked line
 # Error: Command fails if UUID doesn't exist or line is already revoked
-export def "project line revoke" [
-    uu?: string  # The UUID of the project line to revoke (optional if piped)
-] {
-    let input_data = if ($uu | is-empty) { $in } else { $uu }
+export def "project line revoke" [] {
+    let input_data = $in
     
     if ($input_data | is-empty) {
-        error make { msg: "UUID required either as parameter or piped input" }
+        error make { msg: "UUID required via piped input" }
     }
     
     # Handle both single UUID (string) and multiple UUIDs (list)
@@ -357,22 +349,21 @@ export def "project line revoke" [
 # information. Use this when you need to see the complete context
 # of a line including its classification and project relationship.
 #
-# Accepts piped input: none
+# Accepts piped input: 
+#   string - The UUID of the project line to get details for (required via pipe)
 #
 # Examples:
-#   project line detail "12345678-1234-5678-9012-123456789abc"
-#   project line list $project_uuid | get uu.0 | project line detail $in
-#   $line_uuid | project line detail $in
+#   "12345678-1234-5678-9012-123456789abc" | project line detail
+#   project line list $project_uuid | get uu.0 | project line detail
+#   $line_uuid | project line detail
 #
 # Returns: Complete project line details with type_enum, type_name, and other information
 # Note: Uses the generic psql detail-record command for consistency across chuck-stack
-export def "project line detail" [
-    uu?: string  # The UUID of the project line to get details for (optional if piped)
-]: string -> record {
-    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+export def "project line detail" []: string -> record {
+    let target_uuid = $in
     
     if ($target_uuid | is-empty) {
-        error make {msg: "Project line UUID is required. Provide as parameter or pipe input."}
+        error make {msg: "Project line UUID is required via piped input."}
     }
     
     psql detail-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_TYPE_TABLE_NAME $target_uuid

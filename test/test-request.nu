@@ -75,7 +75,7 @@ echo "✓ Processed status verification completed"
 
 echo "=== Testing request revoke ==="
 let revoke_test_request = (.append request "test-revoke" --description "Request for revoke testing")
-let revoke_result = (request revoke ($revoke_test_request.uu.0))
+let revoke_result = ($revoke_test_request.uu.0 | request revoke)
 assert ($revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke should return is_revoked status"
 let revoked_request = (request get ($revoke_test_request.uu.0))
 assert (($revoked_request.is_revoked.0) == true) "Revoked request should show is_revoked as true"

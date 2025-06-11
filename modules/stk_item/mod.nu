@@ -6,6 +6,7 @@ const STK_SCHEMA = "api"
 const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_item"
 const STK_TYPE_TABLE_NAME = "stk_item_type"
+const STK_REQUEST_TABLE_NAME = "stk_request"
 const STK_DEFAULT_LIMIT = 10
 const STK_ITEM_COLUMNS = "name, description, is_template, is_valid"
 const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
@@ -104,23 +105,20 @@ export def "item get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the item to revoke (alternative to parameter)
+#   string - The UUID of the item to revoke (required via pipe)
 #
 # Examples:
-#   item revoke "12345678-1234-5678-9012-123456789abc"
 #   item list | where name == "obsolete-product" | get uu.0 | item revoke
 #   item list | where is_template == true | each { |row| $row.uu | item revoke }
 #   "12345678-1234-5678-9012-123456789abc" | item revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or item is already revoked
-export def "item revoke" [
-    uu?: string  # The UUID of the item to revoke (optional if piped)
-] {
-    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+export def "item revoke" [] {
+    let target_uuid = $in
     
     if ($target_uuid | is-empty) {
-        error make { msg: "UUID required either as parameter or piped input" }
+        error make { msg: "UUID required via piped input" }
     }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid

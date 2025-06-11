@@ -92,7 +92,7 @@ assert ($detailed_item.uu.0 == $first_item_uu) "Detailed UUID should match reque
 echo "✓ Item detail verified with type:" ($detailed_item.type_enum.0)
 
 echo "=== Testing item revoke command ==="
-let revoke_result = (item revoke $first_item_uu)
+let revoke_result = ($first_item_uu | item revoke)
 
 echo "=== Verifying item revoke results ==="
 assert ($revoke_result | columns | any {|col| $col == "uu"}) "Revoke result should contain 'uu' field"

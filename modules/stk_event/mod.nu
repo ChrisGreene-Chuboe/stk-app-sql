@@ -112,23 +112,20 @@ export def "event get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the event to revoke (alternative to parameter)
+#   string - The UUID of the event to revoke (required via pipe)
 #
 # Examples:
-#   event revoke "12345678-1234-5678-9012-123456789abc"
 #   event list | where name == "test" | get uu.0 | event revoke
 #   event list | where created < (date now) - 30day | each { |row| $row.uu | event revoke }
 #   "12345678-1234-5678-9012-123456789abc" | event revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or event is already revoked
-export def "event revoke" [
-    uu?: string  # The UUID of the event to revoke (optional if piped)
-] {
-    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+export def "event revoke" [] {
+    let target_uuid = $in
     
     if ($target_uuid | is-empty) {
-        error make { msg: "UUID required either as parameter or piped input" }
+        error make { msg: "UUID required via piped input" }
     }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
@@ -142,35 +139,34 @@ export def "event revoke" [
 # the specified event UUID using the table_name_uu_json convention.
 #
 # Accepts piped input: 
-#   string - UUID of the event to attach the request to (alternative to parameter)
+#   string - UUID of the event to attach the request to (required via pipe)
 #
 # Examples:
-#   event request $error_event_uuid --attach "investigate this error"
-#   event request $auth_event_uuid --attach "follow up on authentication failure"
-#   event list | where name == "critical" | get uu.0 | event request $in --attach "urgent action needed"
-#   $event_uu | event request --attach "review and update documentation"
+#   $error_event_uuid | event request --description "investigate this error"
+#   $auth_event_uuid | event request --description "follow up on authentication failure"
+#   event list | where name == "critical" | get uu.0 | event request --description "urgent action needed"
+#   $event_uu | event request --description "review and update documentation"
 #
 # Returns: The UUID of the newly created request record attached to the event
-# Error: Command fails if event UUID doesn't exist or --attach not provided
+# Error: Command fails if event UUID doesn't exist or --description not provided
 export def "event request" [
-    uu?: string             # The UUID of the event to attach the request to (optional if piped)
-    --attach(-f): string    # Request description text (required)
+    --description(-d): string    # Request description text (required)
 ] {
-    # Validate required attach parameter
-    if ($attach | is-empty) {
-        error make {msg: "Request text is required. Use --attach to provide request description."}
+    # Validate required description parameter
+    if ($description | is-empty) {
+        error make {msg: "Request description is required. Use --description to provide request text."}
     }
     
-    # Use piped UUID if uu parameter not provided
-    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+    # Use piped UUID
+    let target_uuid = $in
     
     if ($target_uuid | is-empty) {
-        error make {msg: "Event UUID is required. Provide as parameter or pipe input."}
+        error make {msg: "Event UUID is required. Provide as pipe input."}
     }
     
     let request_table = $"($STK_SCHEMA).($STK_REQUEST_TABLE_NAME)"
     let name = "event-request"
-    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($attach)', ($STK_SCHEMA).get_table_name_uu_json\('($target_uuid)')) RETURNING uu"
+    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($target_uuid)')) RETURNING uu"
     
     psql exec $sql
 }

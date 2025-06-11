@@ -68,7 +68,7 @@ assert ($weekend_items | all {|row| $row.table_name_uu_json.uu | is-not-empty}) 
 echo "✓ Filtered todo list verified with" ($weekend_items | length) "Weekend Project items"
 
 echo "=== Testing todo revoke (mark as done) by name ==="
-let revoke_result = (todo revoke "Clean garage")
+let revoke_result = ("Clean garage" | todo revoke)
 assert ($revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke should return is_revoked status"
 assert (($revoke_result.is_revoked.0) == true) "Item should be marked as revoked"
 echo "✓ Clean garage marked as done by name"
@@ -77,7 +77,7 @@ echo "=== Testing todo revoke by UUID ==="
 let fence_todos = (todo list | where name == "Fix garden fence")
 if ($fence_todos | length) > 0 {
     let fence_uu = ($fence_todos | get uu.0)
-    let fence_revoke_result = (todo revoke $fence_uu)
+    let fence_revoke_result = ($fence_uu | todo revoke)
     assert ($fence_revoke_result | columns | any {|col| $col == "is_revoked"}) "UUID revoke should return is_revoked status"
     assert (($fence_revoke_result.is_revoked.0) == true) "Fence item should be marked as revoked"
     echo "✓ Fix garden fence marked as done by UUID"
@@ -133,7 +133,7 @@ try {
 
 echo "=== Testing error handling - revoke non-existent todo ==="
 try {
-    todo revoke "Non-existent Todo"
+    "Non-existent Todo" | todo revoke
     assert false "Should have thrown error for non-existent todo"
 } catch {
     echo "✓ Correctly caught error for non-existent todo"

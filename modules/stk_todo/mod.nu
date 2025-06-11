@@ -126,23 +126,20 @@ export def "todo list" [
 # maintaining the audit trail in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - Name or UUID of the todo to mark as done (alternative to parameter)
+#   string - Name or UUID of the todo to mark as done (required via pipe)
 #
 # Examples:
-#   todo revoke "Clean garage"  # Mark todo item as done by name
-#   todo revoke "12345678-1234-5678-9012-123456789abc"  # Mark done by UUID
+#   "Clean garage" | todo revoke  # Mark todo item as done by name
+#   "12345678-1234-5678-9012-123456789abc" | todo revoke  # Mark done by UUID
 #   todo list | where name == "completed task" | get uu.0 | todo revoke
-#   "Clean garage" | todo revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if todo doesn't exist or is already revoked
-export def "todo revoke" [
-    todo_identifier?: string      # Name or UUID of the todo to mark as done (optional if piped)
-] {
-    let target_identifier = if ($todo_identifier | is-empty) { $in } else { $todo_identifier }
+export def "todo revoke" [] {
+    let target_identifier = $in
     
     if ($target_identifier | is-empty) {
-        error make { msg: "Todo identifier (name or UUID) required either as parameter or piped input" }
+        error make { msg: "Todo identifier (name or UUID) required via piped input" }
     }
     
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
