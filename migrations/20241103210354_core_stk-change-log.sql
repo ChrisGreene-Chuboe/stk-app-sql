@@ -81,7 +81,7 @@ BEGIN
             SELECT table_name_actual_parent_v INTO table_name_v;
         END IF;
     EXCEPTION WHEN undefined_column THEN
-        RAISE NOTICE 't10100: table_name column does not exist table_name_v,record_uu_v: %,%:',table_name_v,record_uu_v;
+        --RAISE NOTICE 't10100: table_name column does not exist table_name_v,record_uu_v: %,%:',table_name_v,record_uu_v;
         --TODO: need to return if table_name_v or record_uu_v do not exist
     END;
 
