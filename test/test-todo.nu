@@ -147,6 +147,19 @@ try {
     echo "✓ Correctly caught error for restoring non-revoked todo"
 }
 
+echo "=== Testing .append event with todo UUID ==="
+let active_todo = (todo list | where name == "Review budget" | get uu.0)
+let todo_event_result = ($active_todo | .append event "todo-priority-changed" --description "todo priority has been updated to high")
+assert ($todo_event_result | columns | any {|col| $col == "uu"}) "Todo event should return UUID"
+assert ($todo_event_result.uu | is-not-empty) "Todo event UUID should not be empty"
+echo "✓ .append event with piped todo UUID verified"
+
+echo "=== Testing .append request with todo UUID ==="
+let todo_request_result = ($active_todo | .append request "todo-clarification" --description "need clarification on todo requirements")
+assert ($todo_request_result | columns | any {|col| $col == "uu"}) "Todo request should return UUID"
+assert ($todo_request_result.uu | is-not-empty) "Todo request UUID should not be empty"
+echo "✓ .append request with piped todo UUID verified"
+
 echo "=== Final state verification ==="
 let final_active = (todo list)
 assert (($final_active | length) > 0) "Should have active todos in final state"

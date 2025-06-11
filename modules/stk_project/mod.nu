@@ -8,7 +8,6 @@ const STK_PROJECT_TABLE_NAME = "stk_project"
 const STK_PROJECT_LINE_TABLE_NAME = "stk_project_line"
 const STK_PROJECT_TYPE_TABLE_NAME = "stk_project_type"
 const STK_PROJECT_LINE_TYPE_TABLE_NAME = "stk_project_line_type"
-const STK_REQUEST_TABLE_NAME = "stk_request"
 const STK_DEFAULT_LIMIT = 10
 const STK_PROJECT_COLUMNS = "name, description, is_template, is_valid"
 const STK_PROJECT_LINE_COLUMNS = "name, description, is_template, is_valid"  
@@ -171,45 +170,6 @@ export def "project types" [] {
 }
 
 
-# Create a request attached to a specific project
-#
-# This creates a request record that is specifically linked to a project,
-# enabling you to create follow-up actions, todos, or investigations
-# related to projects. The request is automatically attached to 
-# the specified project UUID using the table_name_uu_json convention.
-#
-# Accepts piped input: 
-#   string - UUID of the project to attach the request to (required via pipe)
-#
-# Examples:
-#   $project_uuid | project request --description "need approval for budget increase"
-#   "12345678-1234-5678-9012-123456789abc" | project request --description "follow up on client requirements"
-#   project list | where name == "critical" | get uu.0 | project request --description "urgent review needed"
-#   $project_uu | project request --description "update project documentation"
-#
-# Returns: The UUID of the newly created request record attached to the project
-# Error: Command fails if project UUID doesn't exist or --description not provided
-export def "project request" [
-    --description(-d): string   # Request description text (required)
-] {
-    # Validate required description parameter
-    if ($description | is-empty) {
-        error make {msg: "Request description is required. Use --description to provide request text."}
-    }
-    
-    # Use piped UUID
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make {msg: "Project UUID is required. Provide as pipe input."}
-    }
-    
-    let request_table = $"($STK_SCHEMA).($STK_REQUEST_TABLE_NAME)"
-    let name = "project-request"
-    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($target_uuid)')) RETURNING uu"
-    
-    psql exec $sql
-}
 
 # Add a line item to a project with specified name and type
 #
@@ -389,42 +349,3 @@ export def "project line types" [] {
     psql list-types $STK_SCHEMA $STK_PROJECT_LINE_TYPE_TABLE_NAME
 }
 
-# Create a request attached to a specific project line
-#
-# This creates a request record that is specifically linked to a project line,
-# enabling you to create follow-up actions, todos, or investigations
-# related to specific line items. The request is automatically attached to 
-# the specified line UUID using the table_name_uu_json convention.
-#
-# Accepts piped input: 
-#   string - UUID of the project line to attach the request to (required via pipe)
-#
-# Examples:
-#   $line_uuid | project line request --description "need clarification on requirements"
-#   "12345678-1234-5678-9012-123456789abc" | project line request --description "blocked waiting for client approval"
-#   project line list $project_uuid | where name == "critical" | get uu.0 | project line request --description "urgent assistance needed"
-#   $line_uu | project line request --description "update time estimate"
-#
-# Returns: The UUID of the newly created request record attached to the project line
-# Error: Command fails if project line UUID doesn't exist or --description not provided
-export def "project line request" [
-    --description(-d): string   # Request description text (required)
-] {
-    # Validate required description parameter
-    if ($description | is-empty) {
-        error make {msg: "Request description is required. Use --description to provide request text."}
-    }
-    
-    # Use piped UUID
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make {msg: "Project line UUID is required. Provide as pipe input."}
-    }
-    
-    let request_table = $"($STK_SCHEMA).($STK_REQUEST_TABLE_NAME)"
-    let name = "project-line-request"
-    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($target_uuid)')) RETURNING uu"
-    
-    psql exec $sql
-}

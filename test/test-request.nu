@@ -88,4 +88,17 @@ assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "P
 assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked request should be marked as revoked"
 echo "✓ Request revoke with piped UUID verified"
 
+echo "=== Testing .append event with request UUID ==="
+let active_request_uu = ($standalone_result.uu.0)  # Use an unrevoked request
+let request_event_result = ($active_request_uu | .append event "request-updated" --description "request has been updated with additional details")
+assert ($request_event_result | columns | any {|col| $col == "uu"}) "Request event should return UUID"
+assert ($request_event_result.uu | is-not-empty) "Request event UUID should not be empty"
+echo "✓ .append event with piped request UUID verified"
+
+echo "=== Testing .append request to attach to another request ==="
+let meta_request_result = ($active_request_uu | .append request "meta-request" --description "follow-up request about this request")
+assert ($meta_request_result | columns | any {|col| $col == "uu"}) "Meta request should return UUID"
+assert ($meta_request_result.uu | is-not-empty) "Meta request UUID should not be empty"
+echo "✓ .append request with piped request UUID verified (request-to-request attachment)"
+
 echo "=== All tests completed successfully ==="

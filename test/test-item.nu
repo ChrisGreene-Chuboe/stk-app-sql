@@ -108,6 +108,19 @@ assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "P
 assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked item should be marked as revoked"
 echo "✓ Item revoke with piped UUID verified"
 
+echo "=== Testing .append event with item UUID ==="
+let active_item_uu = ($described_item.uu.0)  # Use an unrevoked item
+let item_event_result = ($active_item_uu | .append event "item-price-updated" --description "item price has been updated")
+assert ($item_event_result | columns | any {|col| $col == "uu"}) "Item event should return UUID"
+assert ($item_event_result.uu | is-not-empty) "Item event UUID should not be empty"
+echo "✓ .append event with piped item UUID verified"
+
+echo "=== Testing .append request with item UUID ==="
+let item_request_result = ($active_item_uu | .append request "item-inventory-check" --description "need to verify inventory levels")
+assert ($item_request_result | columns | any {|col| $col == "uu"}) "Item request should return UUID"
+assert ($item_request_result.uu | is-not-empty) "Item request UUID should not be empty"
+echo "✓ .append request with piped item UUID verified"
+
 echo "=== Testing help examples ==="
 
 echo "=== Example: Create a simple item ==="

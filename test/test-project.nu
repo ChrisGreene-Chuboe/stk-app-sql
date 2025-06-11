@@ -74,17 +74,29 @@ assert ($described_line.description.0 | str contains "Complete database design")
 echo "✓ Project line with description verified"
 
 echo "=== Testing UUID-only piping for project request ==="
-let project_request_result = ($project_uuid | project request --description "need budget approval for project expansion")
+let project_request_result = ($project_uuid | .append request "project-budget-approval" --description "need budget approval for project expansion")
 assert ($project_request_result | columns | any {|col| $col == "uu"}) "Piped project request should return UUID"
 assert ($project_request_result.uu | is-not-empty) "Project request UUID should not be empty"
-echo "✓ UUID-only piping verified: project request with piped UUID"
+echo "✓ UUID-only piping verified: .append request with piped project UUID"
 
 echo "=== Testing UUID-only piping for project line request ==="
 let line_uuid = ($simple_line.uu.0)
-let line_request_result = ($line_uuid | project line request --description "clarification needed on requirements")
+let line_request_result = ($line_uuid | .append request "line-requirements-clarification" --description "clarification needed on requirements")
 assert ($line_request_result | columns | any {|col| $col == "uu"}) "Piped line request should return UUID"
 assert ($line_request_result.uu | is-not-empty) "Line request UUID should not be empty"
-echo "✓ UUID-only piping verified: project line request with piped UUID"
+echo "✓ UUID-only piping verified: .append request with piped project line UUID"
+
+echo "=== Testing .append event with project UUID ==="
+let project_event_result = ($project_uuid | .append event "project-milestone" --description "project milestone achieved")
+assert ($project_event_result | columns | any {|col| $col == "uu"}) "Project event should return UUID"
+assert ($project_event_result.uu | is-not-empty) "Project event UUID should not be empty"
+echo "✓ .append event with piped project UUID verified"
+
+echo "=== Testing .append event with project line UUID ==="
+let line_event_result = ($line_uuid | .append event "line-completed" --description "project line completed successfully")
+assert ($line_event_result | columns | any {|col| $col == "uu"}) "Line event should return UUID"
+assert ($line_event_result.uu | is-not-empty) "Line event UUID should not be empty"
+echo "✓ .append event with piped project line UUID verified"
 
 echo "=== Testing project revoke with UUID piping ==="
 let revoke_result = ($project_uuid | project revoke)

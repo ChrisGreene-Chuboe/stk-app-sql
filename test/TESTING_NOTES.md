@@ -343,7 +343,7 @@ When writing examples in command help comments:
 2. **Include Variable Patterns**: Use consistent variable naming for substitution
    ```nushell
    # Good: event get $event_uuid
-   # Good: "investigate error" | event request $error_event_uuid  
+   # Good: $error_event_uuid | .append request "error-investigation" --description "investigate error"
    ```
 
 3. **Show Progressive Complexity**: Start simple, build to advanced usage
@@ -355,7 +355,7 @@ When writing examples in command help comments:
 
 4. **Demonstrate Integration**: Show how commands work together
    ```nushell
-   # Create and attach: "investigate this" | event request $event_uuid
+   # Create and attach: $event_uuid | .append request "investigation" --description "investigate this"
    ```
 
 ### Testing Implementation Approach
