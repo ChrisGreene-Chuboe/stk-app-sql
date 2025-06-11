@@ -29,7 +29,7 @@ assert ($request_detail | columns | any {|col| $col == "table_name_uu_json"}) "R
 echo "✓ Request get verified for UUID:" $request_uu
 
 echo "=== Creating test event for attachment test ==="  
-let test_event_result = ("test event for attachment" | .append event "test-attachment")
+let test_event_result = (.append event "test-attachment" --description "test event for attachment")
 assert ($test_event_result | columns | any {|col| $col == "uu"}) "Test event creation should return UUID"
 echo "✓ Test event created for attachment testing"
 

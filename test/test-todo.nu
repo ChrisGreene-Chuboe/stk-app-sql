@@ -32,11 +32,11 @@ let budget_result = (todo add "Review budget" --parent "Work Tasks")
 assert ($budget_result | columns | any {|col| $col == "uu"}) "Budget todo creation should return UUID"
 echo "✓ Review budget added to Work Tasks"
 
-echo "=== Testing piped todo item creation ==="
-let lawn_result = ("Mow lawn" | todo add --parent "Weekend Projects")
-assert ($lawn_result | columns | any {|col| $col == "uu"}) "Piped todo creation should return UUID"
+echo "=== Testing todo item creation with parent parameter ==="
+let lawn_result = (todo add "Mow lawn" --parent "Weekend Projects")
+assert ($lawn_result | columns | any {|col| $col == "uu"}) "Todo creation should return UUID"
 assert ($lawn_result.uu | is-not-empty) "Lawn task UUID should not be empty"
-echo "✓ Mow lawn added via piped input"
+echo "✓ Mow lawn added with parent parameter"
 
 echo "=== Testing standalone todo item ==="
 let dentist_result = (todo add "Call dentist")
@@ -91,6 +91,13 @@ let pipeline_revoke_result = ($pipeline_todo.uu.0 | todo revoke)
 assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline revoke should return is_revoked status"
 assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked todo should be marked as revoked"
 echo "✓ Todo revoke with piped UUID verified"
+
+echo "=== Testing UUID-only piping for todo add ==="
+let parent_todo = (todo add "Piping Test Parent")
+let child_via_pipe = ($parent_todo.uu.0 | todo add "Child via piped UUID")
+assert ($child_via_pipe | columns | any {|col| $col == "uu"}) "Piped parent todo should return UUID"
+assert ($child_via_pipe.uu | is-not-empty) "Piped child UUID should not be empty"
+echo "✓ UUID-only piping verified: todo add with piped parent UUID"
 
 echo "=== Testing todo revoke with piped name ==="
 let name_revoke_result = ("Mow lawn" | todo revoke)

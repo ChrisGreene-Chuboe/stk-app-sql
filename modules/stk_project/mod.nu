@@ -173,6 +173,7 @@ export def "project types" [] {
     psql list-types $STK_SCHEMA $STK_PROJECT_TYPE_TABLE_NAME
 }
 
+
 # Create a request attached to a specific project
 #
 # This creates a request record that is specifically linked to a project,
@@ -181,24 +182,34 @@ export def "project types" [] {
 # the specified project UUID using the table_name_uu_json convention.
 #
 # Accepts piped input: 
-#   string - Request description text (stored in description field)
+#   string - UUID of the project to attach the request to (required via pipe)
 #
 # Examples:
-#   "need approval for budget increase" | project request $project_uuid
-#   "follow up on client requirements" | project request $project_uuid
-#   project list | where name == "critical" | get uu.0 | "urgent review needed" | project request $in
-#   "update project documentation" | project request $project_uu
+#   $project_uuid | project request --description "need approval for budget increase"
+#   "12345678-1234-5678-9012-123456789abc" | project request --description "follow up on client requirements"
+#   project list | where name == "critical" | get uu.0 | project request --description "urgent review needed"
+#   $project_uu | project request --description "update project documentation"
 #
 # Returns: The UUID of the newly created request record attached to the project
-# Error: Command fails if project UUID doesn't exist
+# Error: Command fails if project UUID doesn't exist or --description not provided
 export def "project request" [
-    uu: string              # The UUID of the project to attach the request to
-    --attach(-f): string    # Request text (alternative to pipeline input)
+    --description(-d): string   # Request description text (required)
 ] {
-    let request_text = if ($attach | is-empty) { $in } else { $attach }
+    # Validate required description parameter
+    if ($description | is-empty) {
+        error make {msg: "Request description is required. Use --description to provide request text."}
+    }
+    
+    # Use piped UUID
+    let target_uuid = $in
+    
+    if ($target_uuid | is-empty) {
+        error make {msg: "Project UUID is required. Provide as pipe input."}
+    }
+    
     let request_table = $"($STK_SCHEMA).($STK_REQUEST_TABLE_NAME)"
     let name = "project-request"
-    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($request_text)', ($STK_SCHEMA).get_table_name_uu_json\('($uu)')) RETURNING uu"
+    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($target_uuid)')) RETURNING uu"
     
     psql exec $sql
 }
@@ -288,9 +299,15 @@ export def "project line list" [
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
 # Error: Returns empty result if UUID doesn't exist
 export def "project line get" [
-    uu: string  # The UUID of the project line to retrieve
+    uu?: string  # The UUID of the project line to retrieve (optional if piped)
 ] {
-    psql get-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $STK_BASE_COLUMNS $uu
+    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+    
+    if ($target_uuid | is-empty) {
+        error make {msg: "Project line UUID is required. Provide as parameter or pipe input."}
+    }
+    
+    psql get-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $STK_BASE_COLUMNS $target_uuid
 }
 
 # Revoke a project line by setting its revoked timestamp
@@ -350,9 +367,15 @@ export def "project line revoke" [
 # Returns: Complete project line details with type_enum, type_name, and other information
 # Note: Uses the generic psql detail-record command for consistency across chuck-stack
 export def "project line detail" [
-    uu: string  # The UUID of the project line to get details for
-] {
-    psql detail-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_TYPE_TABLE_NAME $uu
+    uu?: string  # The UUID of the project line to get details for (optional if piped)
+]: string -> record {
+    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+    
+    if ($target_uuid | is-empty) {
+        error make {msg: "Project line UUID is required. Provide as parameter or pipe input."}
+    }
+    
+    psql detail-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_TYPE_TABLE_NAME $target_uuid
 }
 
 # List available project line types using generic psql list-types command
@@ -383,24 +406,34 @@ export def "project line types" [] {
 # the specified line UUID using the table_name_uu_json convention.
 #
 # Accepts piped input: 
-#   string - Request description text (stored in description field)
+#   string - UUID of the project line to attach the request to (required via pipe)
 #
 # Examples:
-#   "need clarification on requirements" | project line request $line_uuid
-#   "blocked waiting for client approval" | project line request $line_uuid
-#   project line list $project_uuid | where name == "critical" | get uu.0 | "urgent assistance needed" | project line request $in
-#   "update time estimate" | project line request $line_uu
+#   $line_uuid | project line request --description "need clarification on requirements"
+#   "12345678-1234-5678-9012-123456789abc" | project line request --description "blocked waiting for client approval"
+#   project line list $project_uuid | where name == "critical" | get uu.0 | project line request --description "urgent assistance needed"
+#   $line_uu | project line request --description "update time estimate"
 #
 # Returns: The UUID of the newly created request record attached to the project line
-# Error: Command fails if project line UUID doesn't exist
+# Error: Command fails if project line UUID doesn't exist or --description not provided
 export def "project line request" [
-    uu: string              # The UUID of the project line to attach the request to
-    --attach(-f): string    # Request text (alternative to pipeline input)
+    --description(-d): string   # Request description text (required)
 ] {
-    let request_text = if ($attach | is-empty) { $in } else { $attach }
+    # Validate required description parameter
+    if ($description | is-empty) {
+        error make {msg: "Request description is required. Use --description to provide request text."}
+    }
+    
+    # Use piped UUID
+    let target_uuid = $in
+    
+    if ($target_uuid | is-empty) {
+        error make {msg: "Project line UUID is required. Provide as pipe input."}
+    }
+    
     let request_table = $"($STK_SCHEMA).($STK_REQUEST_TABLE_NAME)"
     let name = "project-line-request"
-    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($request_text)', ($STK_SCHEMA).get_table_name_uu_json\('($uu)')) RETURNING uu"
+    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($target_uuid)')) RETURNING uu"
     
     psql exec $sql
 }

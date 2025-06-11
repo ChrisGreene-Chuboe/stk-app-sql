@@ -8,7 +8,7 @@ use ./modules *
 use std/assert
 
 echo "=== Creating a simple event ==="
-let result = ("Test event content" | .append event "test-simple")
+let result = (.append event "test-simple" --description "Test event content")
 
 echo "=== Verifying event was created successfully ==="
 # Check that we got a result with a uu field

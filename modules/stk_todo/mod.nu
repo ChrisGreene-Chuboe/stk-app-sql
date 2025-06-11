@@ -19,27 +19,34 @@ def is_uuid_like [
 # Add a new todo list or todo item
 #
 # This is the primary way to create todos in the chuck-stack system.
-# The command takes piped text input and stores it as the todo name.
+# Piped input accepts a UUID of an existing todo item to use as parent.
+# The todo name must be provided as a parameter (not piped).
 # Use --parent to specify either the todo list name or UUID directly.
 # If no parent is specified, creates a new todo list (top-level item).
 #
 # Accepts piped input:
-#   string - Todo name/description (optional if provided as parameter)
+#   string - UUID of parent todo item (optional, alternative to --parent)
 #
 # Examples:
 #   todo add "Weekend Projects"  # Creates a new todo list
 #   todo add "Fix garden fence" --parent "Weekend Projects"  # Add item to list by name
 #   todo add "Clean garage" --parent "123e4567-e89b-12d3-a456-426614174000"  # Add by UUID
-#   "Mow lawn" | todo add --parent "Weekend Projects"  # Pipe in task name
-#   "Buy groceries" | todo add  # Creates standalone todo item
+#   $parent_todo_uuid | todo add "Mow lawn"  # Pipe parent UUID, specify task name
+#   todo add "Buy groceries"  # Creates standalone todo item
 #
 # Returns: The UUID of the newly created todo record
-# Error: Command fails if parent name/UUID doesn't exist
+# Error: Command fails if parent name/UUID doesn't exist or todo_name not provided
 export def "todo add" [
-    todo_name?: string           # The name of the todo (optional if piped)
-    --parent(-p): string         # Name or UUID of parent todo list
+    todo_name: string            # The name of the todo (required)
+    --parent(-p): string         # Name or UUID of parent todo list (optional if piped)
 ] {
-    let name = if ($todo_name | is-empty) { $in } else { $todo_name }
+    # Validate required todo name
+    if ($todo_name | is-empty) {
+        error make {msg: "Todo name is required. Provide as first parameter."}
+    }
+    
+    # Use piped UUID as parent if --parent not provided
+    let parent = if ($parent | is-empty) { $in } else { $parent }
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
 
     if ($parent | is-not-empty) {
@@ -61,10 +68,10 @@ export def "todo add" [
             $parent_lookup | get uu.0
         }
         # Use .append request to create child todo
-        .append request $name --description $name --attach $parent_uuid
+        .append request $todo_name --description $todo_name --attach $parent_uuid
     } else {
         # Create top-level todo list using .append request
-        .append request $name --description $name
+        .append request $todo_name --description $todo_name
     }
 }
 

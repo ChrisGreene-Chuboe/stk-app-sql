@@ -10,33 +10,51 @@ const STK_DEFAULT_LIMIT = 10
 const STK_EVENT_COLUMNS = "name, description, record_json"
 const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
 
-# Append text to the stk_event table with a specified name/topic
+# Create a new event in the chuck-stack system
 #
-# This is the primary way to log events in the chuck-stack system.
-# The command takes piped text input and stores it directly in the
-# description field. Optional metadata can be provided via the --metadata
-# parameter and will be stored in the record_json field as structured data.
+# Use this command to log system events for monitoring, debugging, and
+# audit trails. Events help track what happened, when it happened, and
+# provide context for system behavior analysis.
+#
+# The event description is provided via the --description parameter.
+# Piped input accepts a UUID to link this event to another record.
+# The name parameter categorizes the event for easy filtering and analysis.
 #
 # Accepts piped input:
-#   string - Event description text (stored in description field)
+#   string - UUID of parent record to link this event to (optional)
 #
 # Examples:
-#   "User login successful" | .append event "authentication"
-#   $"Error processing order ($order_id)" | .append event "order-error"
-#   get content | to text | .append event "file-backup"
-#   "Critical system failure" | .append event "system-error" --metadata '{"urgency": "high", "component": "database"}'
-#   "User John logged in" | .append event "authentication" --metadata '{"user_id": 123, "ip": "192.168.1.1"}'
+#   .append event "authentication" --description "User login successful"
+#   .append event "system-backup" --description $"Database backup completed: ($backup_size) MB"
+#   .append event "order-error" --description $"Error processing order ($order_id)"
+#   .append event "file-backup" --description (get content | to text)
+#   .append event "system-error" --description "Critical system failure" --metadata '{"urgency": "high", "component": "database"}'
+#   $parent_record_uuid | .append event "authentication" --description "User John logged in" --metadata '{"user_id": 123, "ip": "192.168.1.1"}'
 #
 # Returns: The UUID of the newly created event record
-# Note: Text content goes to description field, metadata goes to record_json field
+# Note: Description goes to description field, metadata goes to record_json field, piped UUID goes to table_name_uu_json field
 export def ".append event" [
     name: string                    # The name/topic of the event (used for categorization and filtering)
+    --description(-d): string       # The event description text (required)
     --metadata(-m): string          # Optional JSON metadata to store in record_json field
 ] {
+    # Validate required description parameter
+    if ($description | is-empty) {
+        error make {msg: "Description is required. Use --description to provide event details."}
+    }
+    
+    # Handle optional piped UUID for parent record linking via table_name_uu_json
+    let piped_uuid = $in
+    let table_name_uu_json = if ($piped_uuid | is-empty) { 
+        "'{}'"
+    } else { 
+        $"($STK_SCHEMA).get_table_name_uu_json\('($piped_uuid)'::uuid)"
+    }
+    
     # Create the SQL command
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     let metadata_json = if ($metadata | is-empty) { "'{}'" } else { $"'($metadata)'" }
-    let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($in)', ($metadata_json)::jsonb) RETURNING uu"
+    let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', ($table_name_uu_json), ($metadata_json)::jsonb) RETURNING uu"
 
     psql exec $sql
 }
@@ -124,24 +142,35 @@ export def "event revoke" [
 # the specified event UUID using the table_name_uu_json convention.
 #
 # Accepts piped input: 
-#   string - Request description text (stored in description field)
+#   string - UUID of the event to attach the request to (alternative to parameter)
 #
 # Examples:
-#   "investigate this error" | event request $error_event_uuid
-#   "follow up on authentication failure" | event request $auth_event_uuid
-#   event list | where name == "critical" | get uu.0 | "urgent action needed" | event request $in
-#   "review and update documentation" | event request $event_uu
+#   event request $error_event_uuid --attach "investigate this error"
+#   event request $auth_event_uuid --attach "follow up on authentication failure"
+#   event list | where name == "critical" | get uu.0 | event request $in --attach "urgent action needed"
+#   $event_uu | event request --attach "review and update documentation"
 #
 # Returns: The UUID of the newly created request record attached to the event
-# Error: Command fails if event UUID doesn't exist
+# Error: Command fails if event UUID doesn't exist or --attach not provided
 export def "event request" [
-    uu: string              # The UUID of the event to attach the request to
-    --attach(-f): string    # Request text (alternative to pipeline input)
+    uu?: string             # The UUID of the event to attach the request to (optional if piped)
+    --attach(-f): string    # Request description text (required)
 ] {
-    let request_text = if ($attach | is-empty) { $in } else { $attach }
+    # Validate required attach parameter
+    if ($attach | is-empty) {
+        error make {msg: "Request text is required. Use --attach to provide request description."}
+    }
+    
+    # Use piped UUID if uu parameter not provided
+    let target_uuid = if ($uu | is-empty) { $in } else { $uu }
+    
+    if ($target_uuid | is-empty) {
+        error make {msg: "Event UUID is required. Provide as parameter or pipe input."}
+    }
+    
     let request_table = $"($STK_SCHEMA).($STK_REQUEST_TABLE_NAME)"
     let name = "event-request"
-    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($request_text)', ($STK_SCHEMA).get_table_name_uu_json\('($uu)')) RETURNING uu"
+    let sql = $"INSERT INTO ($request_table) \(name, description, table_name_uu_json) VALUES \('($name)', '($attach)', ($STK_SCHEMA).get_table_name_uu_json\('($target_uuid)')) RETURNING uu"
     
     psql exec $sql
 }
