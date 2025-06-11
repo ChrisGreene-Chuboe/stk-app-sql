@@ -58,7 +58,7 @@ let project_uuid = ($described_project.uu.0)
 echo $"Using project UUID: ($project_uuid)"
 
 echo "=== Testing project line creation ==="
-let simple_line = (project line new $project_uuid "User Authentication")
+let simple_line = ($project_uuid | project line new "User Authentication")
 assert ($simple_line | columns | any {|col| $col == "uu"}) "Result should contain 'uu' field"
 assert ($simple_line.uu | is-not-empty) "UUID field should not be empty"
 assert ($simple_line | columns | any {|col| $col == "name"}) "Result should contain 'name' field"
@@ -66,12 +66,22 @@ assert ($simple_line.name.0 | str contains "User Authentication") "Name should m
 echo "✓ Basic project line creation verified"
 
 echo "=== Testing project line with description and type ==="
-let described_line = (project line new $project_uuid "Database Design" --description "Complete database design" --type "TASK")
+let described_line = ($project_uuid | project line new "Database Design" --description "Complete database design" --type "TASK")
 assert ($described_line | columns | any {|col| $col == "uu"}) "Result should contain 'uu' field"
 assert ($described_line.uu | is-not-empty) "UUID field should not be empty"
 assert ($described_line | columns | any {|col| $col == "description"}) "Result should contain 'description' field"
 assert ($described_line.description.0 | str contains "Complete database design") "Description should match input"
 echo "✓ Project line with description verified"
+
+echo "=== Testing project line list with piped UUID ==="
+let line_list = ($project_uuid | project line list)
+assert (($line_list | length) >= 2) "Should return at least 2 lines (the ones we created)"
+assert ($line_list | columns | any {|col| $col == "uu"}) "Result should contain 'uu' field"
+assert ($line_list | columns | any {|col| $col == "name"}) "Result should contain 'name' field"
+let line_names = ($line_list | get name)
+assert ($line_names | any {|name| $name | str contains "User Authentication"}) "Should contain User Authentication line"
+assert ($line_names | any {|name| $name | str contains "Database Design"}) "Should contain Database Design line"
+echo "✓ Project line list with piped UUID verified"
 
 echo "=== Testing UUID-only piping for project request ==="
 let project_request_result = ($project_uuid | .append request "project-budget-approval" --description "need budget approval for project expansion")

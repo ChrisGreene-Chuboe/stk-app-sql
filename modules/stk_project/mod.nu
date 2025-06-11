@@ -178,24 +178,29 @@ export def "project types" [] {
 # items that make up a project and can be tagged with stk_item for billing.
 # The system automatically assigns default values via triggers if type is not specified.
 #
-# Accepts piped input: none
+# Accepts piped input: project UUID (required)
 #
 # Examples:
-#   project line new $project_uuid "User Auth Implementation"
-#   project line new $project_uuid "Database Design" --description "Complete database design" --type "TASK"
-#   project line new $project_uuid "Production Deployment" --type "MILESTONE" --description "Deploy to production server"
-#   project line new $project_uuid "Requirements Analysis" --template
+#   $project_uuid | project line new "User Auth Implementation"
+#   $project_uuid | project line new "Database Design" --description "Complete database design" --type "TASK"
+#   $project_uuid | project line new "Production Deployment" --type "MILESTONE" --description "Deploy to production server"
+#   $project_uuid | project line new "Requirements Analysis" --template
 #
 # Returns: The UUID and name of the newly created project line record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
 export def "project line new" [
-    project_uu: string              # The UUID of the project to add the line to
     name: string                    # The name of the project line
     --type(-t): string             # Line type: TASK, MILESTONE, DELIVERABLE, RESOURCE
     --description(-d): string      # Optional description of the line
     --template                     # Mark this line as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
 ] {
+    let project_uu = $in
+    
+    if ($project_uu | is-empty) {
+        error make {msg: "Project UUID is required via piped input."}
+    }
+    
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
@@ -219,19 +224,23 @@ export def "project line new" [
 # view project breakdown, track progress, or manage project tasks.
 # Shows the most recent lines first for easy review.
 #
-# Accepts piped input: none
+# Accepts piped input: project UUID (required)
 #
 # Examples:
-#   project line list $project_uuid
-#   project line list $project_uuid | where is_template == false
-#   project line list $project_uuid | select name description | table
-#   project line list $project_uuid | where name =~ "test"
+#   $project_uuid | project line list
+#   $project_uuid | project line list | where is_template == false
+#   $project_uuid | project line list | select name description | table
+#   $project_uuid | project line list | where name =~ "test"
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
 # Note: Shows all non-revoked lines for the specified project
-export def "project line list" [
-    project_uu: string  # The UUID of the project whose lines to list
-] {
+export def "project line list" [] {
+    let project_uu = $in
+    
+    if ($project_uu | is-empty) {
+        error make {msg: "Project UUID is required via piped input."}
+    }
+    
     let table = $"($STK_SCHEMA).($STK_PROJECT_LINE_TABLE_NAME)"
     let sql = $"SELECT ($STK_PROJECT_LINE_COLUMNS), ($STK_BASE_COLUMNS) FROM ($table) WHERE header_uu = '($project_uu)' AND is_revoked = false ORDER BY created DESC"
     
