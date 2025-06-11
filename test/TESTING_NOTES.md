@@ -98,15 +98,20 @@ assert ($result.uu | is-not-empty) "UUID field should not be empty"
 ```
 
 #### Testing Pattern Requirements
+
+**CRITICAL: Test File Permissions**
+All test files must be executable before running. This is a common source of "Permission denied" errors:
+```bash
+# ALWAYS run this after creating any test file
+chmod +x test-new-feature.nu
+```
+
 1. **Import modules and assert**: Always include both module imports and assert functionality
    ```nushell
    use ../modules *
    use std/assert
    ```
-2. **Make test executable**: Always make test files executable after creation
-   ```bash
-   chmod +x test-new-feature.nu
-   ```
+2. **Make test executable**: Always make test files executable after creation (see above)
 3. **Capture results**: Store command outputs in variables for verification
 4. **Assert outcomes**: Verify specific expected results, not just execution success
 5. **Clear messages**: Provide descriptive assertion failure messages
@@ -142,14 +147,14 @@ assert ($result.name | str contains "test")  # Error: can't convert list<bool> t
 assert ($result.name.0 | str contains "test")
 ```
 
-**❌ Permission Issues**
+**❌ Permission Issues** (Most Common Error)
 ```bash
 # WRONG: File not executable
 ./test-new-feature.nu  # Error: Permission denied
 
 # CORRECT: Make file executable first
 chmod +x test-new-feature.nu
-./test-new-feature.nu
+./test-new-feature.nu  # ✅ Runs successfully
 ```
 
 **✅ Complete Test Creation Checklist**
