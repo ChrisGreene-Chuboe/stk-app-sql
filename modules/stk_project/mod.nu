@@ -237,13 +237,12 @@ export def "project line new" [
             psql resolve-type $STK_SCHEMA $STK_PROJECT_LINE_TYPE_TABLE_NAME $type
         })
         description: ($description | default null)
-        stk_project_uu: $project_uu
         is_template: ($template | default false)
         entity_uu: ($entity_uu | default null)
     }
     
     # Single call with all parameters - no more cascading logic
-    psql new-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $params
+    psql new-line-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $project_uu $params
 }
 
 # List project lines for a specific project
@@ -266,7 +265,7 @@ export def "project line list" [
     project_uu: string  # The UUID of the project whose lines to list
 ] {
     let table = $"($STK_SCHEMA).($STK_PROJECT_LINE_TABLE_NAME)"
-    let sql = $"SELECT ($STK_PROJECT_LINE_COLUMNS), ($STK_BASE_COLUMNS) FROM ($table) WHERE stk_project_uu = '($project_uu)' AND is_revoked = false ORDER BY created DESC"
+    let sql = $"SELECT ($STK_PROJECT_LINE_COLUMNS), ($STK_BASE_COLUMNS) FROM ($table) WHERE header_uu = '($project_uu)' AND is_revoked = false ORDER BY created DESC"
     
     psql exec $sql
 }

@@ -17,3 +17,6 @@ export use stk_todo *
 
 # Item management for products, services, accounts, and charges
 export use stk_item *
+
+# Project management with hierarchical structure and line items
+export use stk_project *

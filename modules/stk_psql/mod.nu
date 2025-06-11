@@ -210,6 +210,84 @@ export def "psql new-record" [
     psql exec $sql
 }
 
+# Generic create new line record for header-line relationships
+#
+# Creates a new line record that belongs to a header record using the established
+# chuck-stack header-line pattern. This handles the common ERP scenario where
+# detailed line items belong to summary header records (project/project_line,
+# invoice/invoice_line, order/order_line, etc.).
+#
+# The function automatically derives the header table name by removing '_line' suffix
+# and constructs the foreign key field name as {header_table_name}_uu.
+#
+# Examples:
+#   let params = {name: "User Authentication"}
+#   psql new-line-record "api" "stk_project_line" $project_uu $params
+#   
+#   let params = {name: "Consulting Hours", description: "Professional services", type_uu: $type_uu}
+#   psql new-line-record "api" "stk_invoice_line" $invoice_uu $params
+#   
+#   let params = {name: "Product Item", description: "Hardware component"}
+#   psql new-line-record $STK_SCHEMA $STK_LINE_TABLE_NAME $header_uu $params
+#
+# Parameters record can contain:
+#   - name: string (required)
+#   - type_uu: string (optional)
+#   - description: string (optional) 
+#   - entity_uu: string (optional)
+#   - is_template: boolean (optional)
+#
+# Returns: uu, name, and other fields for the newly created line record
+# Error: Command fails if required references don't exist or constraints are violated
+export def "psql new-line-record" [
+    schema: string           # Database schema (e.g., "api")
+    line_table_name: string  # Line table name (e.g., "stk_project_line")
+    header_uu: string        # UUID of the header record
+    params: record           # Parameters record with name (required) and optional fields
+] {
+    let table = $"($schema).($line_table_name)"
+    
+    # Validate required name parameter
+    if ($params.name? | is-empty) {
+        error make {msg: "Parameter 'name' is required in params record"}
+    }
+    
+    # Build entity clause - use provided or let trigger handle default
+    let entity_clause = if ($params.entity_uu? | is-empty) {
+        $"\(SELECT uu FROM ($schema).stk_entity LIMIT 1)"
+    } else {
+        $"'($params.entity_uu)'"
+    }
+    
+    # Build columns and values lists dynamically
+    let base_columns = ["name", "stk_entity_uu", "header_uu"]
+    let base_values = [$"'($params.name)'", $entity_clause, $"'($header_uu)'"]
+    
+    # Add optional columns and values if they exist
+    let final_columns = $base_columns 
+        | append (if ($params.type_uu? | is-not-empty) { ["type_uu"] } else { [] })
+        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
+        | append (if ($params.is_template? | is-not-empty) { ["is_template"] } else { [] })
+    
+    let final_values = $base_values
+        | append (if ($params.type_uu? | is-not-empty) { [$"'($params.type_uu)'"] } else { [] })
+        | append (if ($params.description? | is-not-empty) { [$"'($params.description)'"] } else { [] })
+        | append (if ($params.is_template? | is-not-empty) { [$"($params.is_template)"] } else { [] })
+    
+    # Build RETURNING clause based on what we're inserting
+    let returning_columns = ["uu", "name"]
+        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
+    
+    # Construct final SQL
+    let columns_str = $final_columns | str join ", "
+    let values_str = $final_values | str join ", "
+    let returning_str = $returning_columns | str join ", "
+    
+    let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING ($returning_str)"
+    
+    psql exec $sql
+}
+
 # Generic list types for a specific table concept
 #
 # Shows all available types for any STK table that has an associated type table.

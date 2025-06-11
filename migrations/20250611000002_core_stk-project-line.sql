@@ -58,7 +58,7 @@ CREATE TABLE private.stk_project_line (
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_project_line_type(uu),
-  stk_project_uu UUID NOT NULL REFERENCES private.stk_project(uu),
+  header_uu UUID NOT NULL REFERENCES private.stk_project(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
