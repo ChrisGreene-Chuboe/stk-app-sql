@@ -207,6 +207,36 @@ echo "=== All tests completed successfully ==="
 
 **IMPORTANT**: All nushell tests must be run within the nix-shell environment to access the PostgreSQL database and required dependencies.
 
+**CRITICAL for Claude Code**: Claude Code cannot use interactive nix-shell sessions. All tests must be run using the `nix-shell --run` pattern:
+```bash
+# ✅ CORRECT: Non-interactive execution
+nix-shell --run "./test-script.nu"
+
+# ❌ INCORRECT: Interactive nix-shell (exits immediately in Claude Code)
+nix-shell
+./test-script.nu
+```
+
+When developing new features that need testing, create dedicated test scripts rather than attempting interactive debugging.
+
+#### Debugging New Tests
+
+When debugging new tests or features, use the `tail -50` approach to get general output without being overwhelmed by environment setup:
+
+```bash
+# ✅ RECOMMENDED: Debug new test with manageable output
+nix-shell --run "./test-new-feature.nu" 2>&1 | tail -50
+
+# ✅ ALTERNATIVE: Write output to external file for review
+nix-shell --run "./test-debug.nu" 2>&1 | tail -50
+# (where test-debug.nu writes key information to /tmp/debug-output.txt)
+
+# ✅ Get even more context if needed
+nix-shell --run "./test-elaborate.nu" 2>&1 | tail -100
+```
+
+The `tail -50` approach provides enough context to see test results, errors, and environment cleanup without the thousands of lines from database initialization. This is ideal for iterative development and debugging.
+
 #### Efficient Test Execution Patterns
 
 ```bash

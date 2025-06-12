@@ -416,3 +416,108 @@ export def "psql detail-record" [
     "
     psql exec $sql
 }
+
+# Elaborate foreign key references in a table by adding resolved columns
+#
+# Takes a table with UUID references and adds new columns containing the full
+# referenced records. This enhances data exploration by automatically resolving
+# foreign key relationships without modifying the original data structure.
+#
+# Handles two patterns:
+# 1. table_name_uu_json columns - Already contain table name and UUID
+# 2. xxx_uu columns - Uses api.get_table_name_uu_json() to find the table
+#
+# For each resolvable column, adds a new column with suffix "_resolved" containing
+# the complete referenced record. Errors are handled gracefully with informative
+# messages when lookups fail.
+#
+# Examples:
+#   event list | elaborate
+#   todo list | elaborate | select name todo_uu_resolved.name
+#   request list | where status == "OPEN" | elaborate
+#
+# Returns: Original table with additional _resolved columns for each UUID reference
+# Note: Resolution happens dynamically by calling each module's get command
+export def elaborate [] {
+    let input_table = $in
+    
+    # Return empty if input is empty
+    if ($input_table | is-empty) {
+        return $input_table
+    }
+    
+    mut result = $input_table
+    
+    # Process table_name_uu_json columns
+    let table_uu_json_cols = $result 
+        | columns 
+        | where {|x| ($x == 'table_name_uu_json')}
+    
+    if ($table_uu_json_cols | is-not-empty) {
+        for col in $table_uu_json_cols {
+            $result = $result | insert $"($col)_resolved" {|row| 
+                let ref = ($row | get $col)
+                if ($ref != null) and ($ref.uu? != null) and ($ref.uu != "") and ($ref.table_name? != null) and ($ref.table_name != "") {
+                    # Use psql get-record directly instead of module commands
+                    # This avoids dynamic command execution issues
+                    try {
+                        # Query the table directly using psql
+                        let query = $"SELECT * FROM api.($ref.table_name) WHERE uu = '($ref.uu)'"
+                        let records = (psql exec $query)
+                        if ($records | is-empty) {
+                            {error: $"Record not found: ($ref.table_name)/($ref.uu)"}
+                        } else {
+                            $records | first
+                        }
+                    } catch {
+                        # Return error info if resolution fails
+                        {error: $"Could not resolve ($ref.table_name)/($ref.uu)"}
+                    }
+                } else {
+                    null
+                }
+            }
+        }
+    }
+    
+    # Process xxx_uu columns (but not the primary 'uu' column)
+    let uu_cols = $result 
+        | columns 
+        | where {|x| ($x | str ends-with '_uu') and ($x != 'uu')}
+    
+    if ($uu_cols | is-not-empty) {
+        for col in $uu_cols {
+            $result = $result | insert $"($col)_resolved" {|row|
+                let uu_value = ($row | get $col)
+                if ($uu_value != null) and ($uu_value != "") {
+                    # Look up table name using PostgreSQL function
+                    let lookup_result = (psql exec $"SELECT api.get_table_name_uu_json\('($uu_value)'::uuid)" | first)
+                    let ref = ($lookup_result | get "get_table_name_uu_json")
+                    
+                    if ($ref != null) and ($ref.table_name? != null) and ($ref.table_name != "") and ($ref.uu? != null) and ($ref.uu != "") {
+                        # Use psql to query the table directly
+                        try {
+                            # Query the table directly using psql
+                            let query = $"SELECT * FROM api.($ref.table_name) WHERE uu = '($ref.uu)'"
+                            let records = (psql exec $query)
+                            if ($records | is-empty) {
+                                {error: $"Record not found: ($ref.table_name)/($ref.uu)"}
+                            } else {
+                                $records | first
+                            }
+                        } catch {
+                            # Return error info if resolution fails
+                            {error: $"Could not resolve ($ref.table_name)/($ref.uu)"}
+                        }
+                    } else {
+                        {error: $"UUID ($uu_value) not found in any table"}
+                    }
+                } else {
+                    null
+                }
+            }
+        }
+    }
+    
+    $result
+}
