@@ -62,20 +62,30 @@ export def "project new" [
 # monitor recent activity, track project status, or review project portfolio.
 # This is typically your starting point for project investigation.
 # Use the returned UUIDs with other project commands for detailed work.
+# Use --detail to include type information for all projects.
 #
 # Accepts piped input: none
 #
 # Examples:
 #   project list
+#   project list --detail
 #   project list | where is_template == true
+#   project list --detail | where type_enum == "CLIENT"
 #   project list | where is_revoked == false
 #   project list | select name description | table
 #   project list | where name =~ "client"
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent projects - use direct SQL for larger queries
-export def "project list" [] {
-    psql list-records $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+export def "project list" [
+    --detail(-d)  # Include detailed type information for all projects
+] {
+    if $detail {
+        psql list-records-with-detail $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_TYPE_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    } else {
+        psql list-records $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    }
 }
 
 # Retrieve a specific project by its UUID
@@ -83,22 +93,35 @@ export def "project list" [] {
 # Fetches complete details for a single project when you need to
 # inspect its contents, verify its state, or extract specific
 # data. Use this when you have a UUID from project list or from
-# other system outputs.
+# other system outputs. Use --detail to include type information.
 #
-# Accepts piped input: none
+# Accepts piped input:
+#   string - The UUID of the project to retrieve (required via pipe)
 #
 # Examples:
-#   project get "12345678-1234-5678-9012-123456789abc"
-#   project list | get uu.0 | project get $in
-#   $project_uuid | project get $in | get description
-#   project get $uu | if $in.is_revoked { print "Project was revoked" }
+#   "12345678-1234-5678-9012-123456789abc" | project get
+#   project list | get uu.0 | project get
+#   $project_uuid | project get | get description
+#   $project_uuid | project get --detail | get type_enum
+#   $uu | project get | if $in.is_revoked { print "Project was revoked" }
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "project get" [
-    uu: string  # The UUID of the project to retrieve
+    --detail(-d)  # Include detailed type information
 ] {
-    psql get-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $uu
+    let uu = $in
+    
+    if ($uu | is-empty) {
+        error make { msg: "UUID required via piped input" }
+    }
+    
+    if $detail {
+        psql detail-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_TYPE_TABLE_NAME $uu
+    } else {
+        psql get-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $uu
+    }
 }
 
 # Revoke a project by setting its revoked timestamp
@@ -128,26 +151,6 @@ export def "project revoke" [] {
     psql revoke-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $target_uuid
 }
 
-# Show detailed project information including type using generic psql detail-record command
-#
-# Provides a comprehensive view of a project by joining with its type
-# information. Use this when you need to see the complete context
-# of a project including its classification and parent relationships.
-#
-# Accepts piped input: none
-#
-# Examples:
-#   project detail "12345678-1234-5678-9012-123456789abc"
-#   project list | get uu.0 | project detail $in
-#   $project_uuid | project detail $in
-#
-# Returns: Complete project details with type_enum, type_name, and other information
-# Note: Uses the generic psql detail-record command for consistency across chuck-stack
-export def "project detail" [
-    uu: string  # The UUID of the project to get details for
-] {
-    psql detail-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_TYPE_TABLE_NAME $uu
-}
 
 # List available project types using generic psql list-types command
 #
@@ -252,7 +255,7 @@ export def "project line list" [] {
 # Fetches complete details for a single project line when you need to
 # inspect its contents, verify its state, or extract specific
 # data. Use this when you have a UUID from project line list or from
-# other system outputs.
+# other system outputs. Use --detail to include type information.
 #
 # Accepts piped input: 
 #   string - The UUID of the project line to retrieve (required via pipe)
@@ -260,18 +263,26 @@ export def "project line list" [] {
 # Examples:
 #   project line list $project_uuid | get uu.0 | project line get
 #   $line_uuid | project line get | get description
+#   $line_uuid | project line get --detail | get type_enum
 #   "12345678-1234-5678-9012-123456789abc" | project line get
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
-export def "project line get" [] {
+export def "project line get" [
+    --detail(-d)  # Include detailed type information
+] {
     let target_uuid = $in
     
     if ($target_uuid | is-empty) {
         error make {msg: "Project line UUID is required via piped input."}
     }
     
-    psql get-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $STK_BASE_COLUMNS $target_uuid
+    if $detail {
+        psql detail-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_TYPE_TABLE_NAME $target_uuid
+    } else {
+        psql get-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $STK_BASE_COLUMNS $target_uuid
+    }
 }
 
 # Revoke a project line by setting its revoked timestamp
@@ -312,31 +323,6 @@ export def "project line revoke" [] {
     }
 }
 
-# Show detailed project line information including type using generic psql detail-record command
-#
-# Provides a comprehensive view of a project line by joining with its type
-# information. Use this when you need to see the complete context
-# of a line including its classification and project relationship.
-#
-# Accepts piped input: 
-#   string - The UUID of the project line to get details for (required via pipe)
-#
-# Examples:
-#   "12345678-1234-5678-9012-123456789abc" | project line detail
-#   project line list $project_uuid | get uu.0 | project line detail
-#   $line_uuid | project line detail
-#
-# Returns: Complete project line details with type_enum, type_name, and other information
-# Note: Uses the generic psql detail-record command for consistency across chuck-stack
-export def "project line detail" []: string -> record {
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make {msg: "Project line UUID is required via piped input."}
-    }
-    
-    psql detail-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_TYPE_TABLE_NAME $target_uuid
-}
 
 # List available project line types using generic psql list-types command
 #

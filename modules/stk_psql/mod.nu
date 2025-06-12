@@ -341,11 +341,53 @@ export def "psql resolve-type" [
     }
 }
 
+# Generic list records with detailed type information
+#
+# Executes a SELECT query with joins to type table for detailed views.
+# Returns records with type information ordered by created DESC with configurable limit.
+# Used by module-specific list --detail commands to reduce code duplication.
+#
+# Examples:
+#   psql list-records-with-detail "api" "stk_item" "stk_item_type" "name, description, is_template, is_valid" "created, updated, is_revoked, uu" 10
+#   psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+#
+# Returns: All specified columns plus type_enum, type_name, type_description from joined type table
+# Note: Uses LEFT JOIN to include records without type assignments
+export def "psql list-records-with-detail" [
+    schema: string           # Database schema (e.g., "api")
+    table_name: string       # Table name (e.g., "stk_item") 
+    type_table_name: string  # Type table name (e.g., "stk_item_type")
+    specific_columns: string # Module-specific columns (e.g., "name, description, is_template, is_valid")
+    base_columns: string     # Base columns (e.g., "created, updated, is_revoked, uu")
+    limit: int = 10          # Maximum number of records to return
+] {
+    let table = $"($schema).($table_name)"
+    let type_table = $"($schema).($type_table_name)"
+    # Split columns to prefix with table aliases properly
+    let specific_cols = $specific_columns | split row "," | each {|col| $"i.($col | str trim)"} | str join ", "
+    let base_cols = $base_columns | split row "," | each {|col| $"i.($col | str trim)"} | str join ", "
+    
+    let sql = $"
+        SELECT 
+            ($specific_cols), ($base_cols),
+            t.type_enum, t.name as type_name, t.description as type_description
+        FROM ($table) i
+        LEFT JOIN ($type_table) t ON i.type_uu = t.uu
+        WHERE i.is_revoked = false
+        ORDER BY i.created DESC
+        LIMIT ($limit)
+    "
+    psql exec $sql
+}
+
 # Generic get detailed record information including type
 #
 # Provides a comprehensive view of any STK record by joining with its type
 # table to show classification and context. This is a standard pattern across
 # all chuck-stack concepts that have associated type tables.
+# 
+# This function dynamically selects columns that exist in the table to handle
+# different table schemas across STK modules.
 #
 # Examples:
 #   psql detail-record "api" "stk_item" "stk_item_type" $uuid
@@ -362,13 +404,14 @@ export def "psql detail-record" [
 ] {
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($type_table_name)"
+    
+    # Use SELECT * to avoid hardcoding column names that may not exist across all tables
     let sql = $"
         SELECT 
-            i.uu, i.name, i.description, i.is_template, i.is_valid,
-            it.type_enum, it.name as type_name,
-            i.created, i.updated, i.is_revoked
+            i.*,
+            t.type_enum, t.name as type_name, t.description as type_description
         FROM ($table) i
-        JOIN ($type_table) it ON i.type_uu = it.uu
+        LEFT JOIN ($type_table) t ON i.type_uu = t.uu
         WHERE i.uu = '($uu)'
     "
     psql exec $sql

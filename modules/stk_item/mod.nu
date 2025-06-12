@@ -58,20 +58,30 @@ export def "item new" [
 # browse available products, services, and charges. This is typically
 # your starting point for item management and selection.
 # Use the returned UUIDs with other item commands for detailed work.
+# Use --detail to include type information for all items.
 #
 # Accepts piped input: none
 #
 # Examples:
 #   item list
+#   item list --detail
 #   item list | where name =~ "laptop"
+#   item list --detail | where type_enum == "PRODUCT-STOCKED"
 #   item list | where is_template == true
 #   item list | where is_revoked == false
 #   item list | select name description | table
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent items - use direct SQL for larger queries
-export def "item list" [] {
-    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+export def "item list" [
+    --detail(-d)  # Include detailed type information for all items
+] {
+    if $detail {
+        psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    } else {
+        psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    }
 }
 
 # Retrieve a specific item by its UUID
@@ -79,22 +89,35 @@ export def "item list" [] {
 # Fetches complete details for a single item when you need to
 # inspect its properties, verify its state, or extract specific
 # data. Use this when you have a UUID from item list or from
-# other system outputs.
+# other system outputs. Use --detail to include type information.
 #
-# Accepts piped input: none
+# Accepts piped input:
+#   string - The UUID of the item to retrieve (required via pipe)
 #
 # Examples:
-#   item get "12345678-1234-5678-9012-123456789abc"
-#   item list | get uu.0 | item get $in
-#   $item_uuid | item get $in | get description
-#   item get $uu | if $in.is_revoked { print "Item was revoked" }
+#   "12345678-1234-5678-9012-123456789abc" | item get
+#   item list | get uu.0 | item get
+#   $item_uuid | item get | get description
+#   $item_uuid | item get --detail | get type_enum
+#   $uu | item get | if $in.is_revoked { print "Item was revoked" }
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "item get" [
-    uu: string  # The UUID of the item to retrieve
+    --detail(-d)  # Include detailed type information
 ] {
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $uu
+    let uu = $in
+    
+    if ($uu | is-empty) {
+        error make { msg: "UUID required via piped input" }
+    }
+    
+    if $detail {
+        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $uu
+    } else {
+        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $uu
+    }
 }
 
 # Revoke an item by setting its revoked timestamp
@@ -124,26 +147,6 @@ export def "item revoke" [] {
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
 
-# Show detailed item information including type using generic psql detail-record command
-#
-# Provides a comprehensive view of an item by joining with its type
-# information. Use this when you need to see the complete context
-# of an item including its classification.
-#
-# Accepts piped input: none
-#
-# Examples:
-#   item detail "12345678-1234-5678-9012-123456789abc"
-#   item list | get uu.0 | item detail $in
-#   $item_uuid | item detail $in
-#
-# Returns: Complete item details with type_enum, type_name, and other information
-# Note: Uses the generic psql detail-record command for consistency across chuck-stack
-export def "item detail" [
-    uu: string  # The UUID of the item to get details for
-] {
-    psql detail-record $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $uu
-}
 
 # List available item types using generic psql list-types command
 #

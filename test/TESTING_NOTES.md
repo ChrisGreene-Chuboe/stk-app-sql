@@ -207,6 +207,8 @@ echo "=== All tests completed successfully ==="
 
 **IMPORTANT**: All nushell tests must be run within the nix-shell environment to access the PostgreSQL database and required dependencies.
 
+#### Efficient Test Execution Patterns
+
 ```bash
 # Single test execution (REQUIRED approach)
 nix-shell --run "./test-simple.nu"
@@ -214,9 +216,42 @@ nix-shell --run "./test-request.nu"
 nix-shell --run "./test-event.nu"
 nix-shell --run "./test-todo-list.nu"
 
+# EFFICIENT: Test all modules with minimal output
+nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
+
+# EFFICIENT: Quick verification of test success (filters verbose environment output)
+nix-shell --run "./test-event.nu" 2>/dev/null | tail -5
+
+# EFFICIENT: Check specific test results without environment noise
+nix-shell --run "./test-all.nu" 2>/dev/null | grep -A1 -B1 "test-event"
+
 # Verify test success using standardized output
 nix-shell --run "./test-event.nu" 2>&1 | grep "=== All tests completed successfully ==="
+```
 
+#### Verbose vs. Efficient Testing
+
+**❌ Verbose (expensive to review):**
+```bash
+# Shows full environment setup/teardown output (thousands of lines)
+nix-shell --run "./test-all.nu"
+```
+
+**✅ Efficient (focused on results):**
+```bash
+# Shows only test results (6 lines)
+nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
+
+# Shows only the end of a specific test
+nix-shell --run "./test-item.nu" 2>/dev/null | tail -5
+
+# Shows context around a specific test in test-all
+nix-shell --run "./test-all.nu" 2>/dev/null | grep -A1 -B1 "test-project"
+```
+
+#### Legacy Test Management Patterns
+
+```bash
 # Run all tests in sequence
 for test in test-*.nu { nix-shell --run $"./($test)" }
 
@@ -237,6 +272,30 @@ nix-shell
 ./test-request.nu
 ./test-event.nu
 ./test-todo-list.nu
+```
+
+#### grep Filtering Best Practices
+
+**Key insight**: Nix-shell environment setup produces significant output that can obscure actual test results. Use grep filtering to focus on relevant information:
+
+```bash
+# Filter for test outcomes only
+| grep -E "PASSED|FAILED"
+
+# Filter for success confirmation
+| grep "=== All tests completed successfully ==="
+
+# Show context around specific tests  
+| grep -A1 -B1 "test-module-name"
+
+# Show end of test output (final results)
+| tail -5
+
+# Redirect stderr to avoid nix-shell warnings
+2>/dev/null
+
+# Combined efficient pattern
+nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 ```
 
 **Why nix-shell is required:**

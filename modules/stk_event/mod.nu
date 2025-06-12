@@ -5,6 +5,7 @@
 const STK_SCHEMA = "api"
 const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_event"
+const STK_TYPE_TABLE_NAME = "stk_event_type"
 const STK_DEFAULT_LIMIT = 10
 const STK_EVENT_COLUMNS = "name, description, table_name_uu_json, record_json"
 const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
@@ -64,19 +65,29 @@ export def ".append event" [
 # monitor recent activity, debug issues, or track system behavior.
 # This is typically your starting point for event investigation.
 # Use the returned UUIDs with other event commands for detailed work.
+# Use --detail to include type information for all events.
 #
 # Accepts piped input: none
 #
 # Examples:
 #   event list
+#   event list --detail
 #   event list | where name == "authentication" 
+#   event list --detail | where type_enum == "ACTION"
 #   event list | where is_revoked == false
 #   event list | select name created | table
 #
 # Returns: name, description, table_name_uu_json, record_json, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent events - use direct SQL for larger queries
-export def "event list" [] {
-    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+export def "event list" [
+    --detail(-d)  # Include detailed type information for all events
+] {
+    if $detail {
+        psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    } else {
+        psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    }
 }
 
 # Retrieve a specific event by its UUID
@@ -85,23 +96,37 @@ export def "event list" [] {
 # inspect its contents, verify its state, or extract specific
 # data from the record_json field. Use this when you have a
 # UUID from event list or from other system outputs.
+# Use --detail to include type information.
 #
-# Accepts piped input: none
+# Accepts piped input:
+#   string - The UUID of the event to retrieve (required via pipe)
 #
 # Examples:
-#   event get "12345678-1234-5678-9012-123456789abc"
-#   event list | get uu.0 | event get $in
-#   $event_uuid | event get $in | get description
-#   event get $uu | get record_json
-#   event get $uu | get table_name_uu_json
-#   event get $uu | if $in.is_revoked { print "Event was revoked" }
+#   "12345678-1234-5678-9012-123456789abc" | event get
+#   event list | get uu.0 | event get
+#   $event_uuid | event get | get description
+#   $event_uuid | event get --detail | get type_enum
+#   $uu | event get | get record_json
+#   $uu | event get | get table_name_uu_json
+#   $uu | event get | if $in.is_revoked { print "Event was revoked" }
 #
 # Returns: name, description, record_json, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "event get" [
-    uu: string  # The UUID of the event to retrieve
+    --detail(-d)  # Include detailed type information
 ] {
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $uu
+    let uu = $in
+    
+    if ($uu | is-empty) {
+        error make { msg: "UUID required via piped input" }
+    }
+    
+    if $detail {
+        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $uu
+    } else {
+        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $uu
+    }
 }
 
 # Revoke an event by setting its revoked timestamp
@@ -129,6 +154,26 @@ export def "event revoke" [] {
     }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
+}
+
+# List available event types using generic psql list-types command
+#
+# Shows all available event types that can be used when creating events.
+# Use this to see valid type options and their descriptions before
+# creating new events with specific types.
+#
+# Accepts piped input: none
+#
+# Examples:
+#   event types
+#   event types | where type_enum == "ACTION"
+#   event types | where is_default == true
+#   event types | select type_enum name is_default | table
+#
+# Returns: uu, type_enum, name, description, is_default, created for all event types
+# Note: Uses the generic psql list-types command for consistency across chuck-stack
+export def "event types" [] {
+    psql list-types $STK_SCHEMA $STK_TYPE_TABLE_NAME
 }
 
 

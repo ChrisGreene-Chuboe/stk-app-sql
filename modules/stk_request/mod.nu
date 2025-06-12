@@ -5,6 +5,7 @@
 const STK_SCHEMA = "api"
 const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_request"
+const STK_TYPE_TABLE_NAME = "stk_request_type"
 const STK_DEFAULT_LIMIT = 10
 const STK_REQUEST_COLUMNS = "name, description, table_name_uu_json, is_processed"
 const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
@@ -59,20 +60,30 @@ export def ".append request" [
 # monitor recent activity, track outstanding requests, or review request
 # history. This is typically your starting point for request investigation.
 # Use the returned UUIDs with other request commands for detailed work.
+# Use --detail to include type information for all requests.
 #
 # Accepts piped input: none
 #
 # Examples:
 #   request list
+#   request list --detail
 #   request list | where name == "urgent"
+#   request list --detail | where type_enum == "TODO"
 #   request list | where is_revoked == false
 #   request list | where is_processed == false
 #   request list | select name description created | table
 #
 # Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent requests - use direct SQL for larger queries
-export def "request list" [] {
-    psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+export def "request list" [
+    --detail(-d)  # Include detailed type information for all requests
+] {
+    if $detail {
+        psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    } else {
+        psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+    }
 }
 
 # Retrieve a specific request by its UUID
@@ -81,21 +92,35 @@ export def "request list" [] {
 # inspect its contents, verify its state, check attachments, or
 # extract specific data. Use this when you have a UUID from
 # request list or from other system outputs.
+# Use --detail to include type information.
 #
-# Accepts piped input: none
+# Accepts piped input:
+#   string - The UUID of the request to retrieve (required via pipe)
 #
 # Examples:
-#   request get "12345678-1234-5678-9012-123456789abc"
-#   request list | get uu.0 | request get $in
-#   $request_uuid | request get $in | get table_name_uu_json
-#   request get $uu | if $in.is_processed { print "Request completed" }
+#   "12345678-1234-5678-9012-123456789abc" | request get
+#   request list | get uu.0 | request get
+#   $request_uuid | request get | get table_name_uu_json
+#   $request_uuid | request get --detail | get type_enum
+#   $uu | request get | if $in.is_processed { print "Request completed" }
 #
 # Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu
+# Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "request get" [
-    uu: string  # The UUID of the request to retrieve
+    --detail(-d)  # Include detailed type information
 ] {
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $uu
+    let uu = $in
+    
+    if ($uu | is-empty) {
+        error make { msg: "UUID required via piped input" }
+    }
+    
+    if $detail {
+        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $uu
+    } else {
+        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $uu
+    }
 }
 
 # Mark a request as processed by setting its processed timestamp
@@ -145,4 +170,24 @@ export def "request revoke" [] {
     }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
+}
+
+# List available request types using generic psql list-types command
+#
+# Shows all available request types that can be used when creating requests.
+# Use this to see valid type options and their descriptions before
+# creating new requests with specific types.
+#
+# Accepts piped input: none
+#
+# Examples:
+#   request types
+#   request types | where type_enum == "TODO"
+#   request types | where is_default == true
+#   request types | select type_enum name is_default | table
+#
+# Returns: uu, type_enum, name, description, is_default, created for all request types
+# Note: Uses the generic psql list-types command for consistency across chuck-stack
+export def "request types" [] {
+    psql list-types $STK_SCHEMA $STK_TYPE_TABLE_NAME
 }

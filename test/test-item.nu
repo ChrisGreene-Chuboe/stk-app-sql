@@ -71,7 +71,7 @@ echo "✓ Item list verified successfully"
 
 echo "=== Testing item get command ==="
 let first_item_uu = ($items_list | get uu.0)
-let retrieved_item = (item get $first_item_uu)
+let retrieved_item = ($first_item_uu | item get)
 
 echo "=== Verifying item get results ==="
 assert (($retrieved_item | length) == 1) "Should return exactly one item"
@@ -80,16 +80,16 @@ assert ($retrieved_item.uu.0 == $first_item_uu) "Retrieved UUID should match req
 assert ($retrieved_item | columns | any {|col| $col == "name"}) "Retrieved item should contain 'name' field"
 echo "✓ Item get verified for UUID:" $first_item_uu
 
-echo "=== Testing item detail command ==="
-let detailed_item = (item detail $first_item_uu)
+echo "=== Testing item get --detail command ==="
+let detailed_item = ($first_item_uu | item get --detail)
 
-echo "=== Verifying item detail results ==="
+echo "=== Verifying item get --detail results ==="
 assert (($detailed_item | length) == 1) "Should return exactly one detailed item"
 assert ($detailed_item | columns | any {|col| $col == "uu"}) "Detailed item should contain 'uu' field"
 assert ($detailed_item | columns | any {|col| $col == "type_enum"}) "Detailed item should contain 'type_enum' field"
 assert ($detailed_item | columns | any {|col| $col == "type_name"}) "Detailed item should contain 'type_name' field"
 assert ($detailed_item.uu.0 == $first_item_uu) "Detailed UUID should match requested UUID"
-echo "✓ Item detail verified with type:" ($detailed_item.type_enum.0)
+echo "✓ Item get --detail verified with type:" ($detailed_item.type_enum.0)
 
 echo "=== Testing item revoke command ==="
 let revoke_result = ($first_item_uu | item revoke)
@@ -140,8 +140,15 @@ echo "✓ Help example filtering verified"
 
 echo "=== Example: Get item details ==="
 let latest_uu = (item list | get uu.0)
-let example_detail = (item detail $latest_uu)
+let example_detail = ($latest_uu | item get --detail)
 assert ($example_detail | columns | any {|col| $col == "type_enum"}) "Example detail should include type information"
 echo "✓ Help example detail verified"
+
+echo "=== Testing item list --detail command ==="
+let detailed_list = (item list --detail)
+assert (($detailed_list | length) >= 3) "Should return at least the items we created"
+assert ($detailed_list | columns | any {|col| $col == "type_enum"}) "Detailed list should contain 'type_enum' field"
+assert ($detailed_list | columns | any {|col| $col == "type_name"}) "Detailed list should contain 'type_name' field"
+echo "✓ Item list --detail verified"
 
 echo "=== All tests completed successfully ==="

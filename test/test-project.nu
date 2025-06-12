@@ -108,6 +108,52 @@ assert ($line_event_result | columns | any {|col| $col == "uu"}) "Line event sho
 assert ($line_event_result.uu | is-not-empty) "Line event UUID should not be empty"
 echo "✓ .append event with piped project line UUID verified"
 
+echo "=== Testing project list command ==="
+let projects_list = (project list)
+assert (($projects_list | length) >= 1) "Should return at least one project"
+assert ($projects_list | columns | any {|col| $col == "uu"}) "List should contain 'uu' field"
+assert ($projects_list | columns | any {|col| $col == "name"}) "List should contain 'name' field"
+echo "✓ Project list verified successfully"
+
+echo "=== Testing project list --detail command ==="
+let detailed_projects_list = (project list --detail)
+assert (($detailed_projects_list | length) >= 1) "Should return at least one detailed project"
+assert ($detailed_projects_list | columns | any {|col| $col == "type_enum"}) "Detailed list should contain 'type_enum' field"
+assert ($detailed_projects_list | columns | any {|col| $col == "type_name"}) "Detailed list should contain 'type_name' field"
+echo "✓ Project list --detail verified successfully"
+
+echo "=== Testing project get command ==="
+let first_project_uu = ($projects_list | get uu.0)
+let retrieved_project = ($first_project_uu | project get)
+assert (($retrieved_project | length) == 1) "Should return exactly one project"
+assert ($retrieved_project | columns | any {|col| $col == "uu"}) "Retrieved project should contain 'uu' field"
+assert ($retrieved_project.uu.0 == $first_project_uu) "Retrieved UUID should match requested UUID"
+echo "✓ Project get verified for UUID:" $first_project_uu
+
+echo "=== Testing project get --detail command ==="
+let detailed_project = ($first_project_uu | project get --detail)
+assert (($detailed_project | length) == 1) "Should return exactly one detailed project"
+assert ($detailed_project | columns | any {|col| $col == "uu"}) "Detailed project should contain 'uu' field"
+assert ($detailed_project | columns | any {|col| $col == "type_enum"}) "Detailed project should contain 'type_enum' field"
+assert ($detailed_project | columns | any {|col| $col == "type_name"}) "Detailed project should contain 'type_name' field"
+echo "✓ Project get --detail verified with type:" ($detailed_project.type_enum.0)
+
+echo "=== Testing project line get command ==="
+let first_line_uu = ($line_list | get uu.0)
+let retrieved_line = ($first_line_uu | project line get)
+assert (($retrieved_line | length) == 1) "Should return exactly one project line"
+assert ($retrieved_line | columns | any {|col| $col == "uu"}) "Retrieved line should contain 'uu' field"
+assert ($retrieved_line.uu.0 == $first_line_uu) "Retrieved line UUID should match requested UUID"
+echo "✓ Project line get verified for UUID:" $first_line_uu
+
+echo "=== Testing project line get --detail command ==="
+let detailed_line = ($first_line_uu | project line get --detail)
+assert (($detailed_line | length) == 1) "Should return exactly one detailed project line"
+assert ($detailed_line | columns | any {|col| $col == "uu"}) "Detailed line should contain 'uu' field"
+assert ($detailed_line | columns | any {|col| $col == "type_enum"}) "Detailed line should contain 'type_enum' field"
+assert ($detailed_line | columns | any {|col| $col == "type_name"}) "Detailed line should contain 'type_name' field"
+echo "✓ Project line get --detail verified with type:" ($detailed_line.type_enum.0)
+
 echo "=== Testing project revoke with UUID piping ==="
 let revoke_result = ($project_uuid | project revoke)
 assert ($revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke should return is_revoked status"
