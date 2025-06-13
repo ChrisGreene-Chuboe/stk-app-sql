@@ -2,6 +2,35 @@
 
 This guide reflects the evolved practices for creating chuck-stack nushell modules as of 2025, based on patterns established in recent implementations.
 
+## CRITICAL: Nushell SQL Syntax Issue
+
+### Parentheses Escaping in SQL Strings
+
+**IMPORTANT**: In nushell string interpolation, opening parentheses `(` have special meaning for command calls and MUST be escaped when used in SQL or other literal contexts.
+
+**❌ WRONG - causes parse errors:**
+```nushell
+let sql = $"INSERT INTO table (column) VALUES ('value')"
+let sql = $"SELECT COUNT(*) FROM table"
+let sql = $"SELECT EXISTS (SELECT 1 FROM table)"
+```
+
+**✅ CORRECT - escape opening parentheses:**
+```nushell
+let sql = $"INSERT INTO table \(column) VALUES \('value')"
+let sql = $"SELECT COUNT\(*) FROM table"
+let sql = $"SELECT EXISTS \(SELECT 1 FROM table)"
+```
+
+**Common SQL patterns requiring escaping:**
+- `COUNT(*)` → `COUNT\(*)`
+- `EXISTS (subquery)` → `EXISTS \(subquery)`
+- `INSERT INTO table (col1, col2)` → `INSERT INTO table \(col1, col2)`
+- `COALESCE(value, default)` → `COALESCE\(value, default)`
+- Function calls: `NOW()` → `NOW\()`, `gen_random_uuid()` → `gen_random_uuid\()`
+
+This is a recurring issue that causes "invalid characters after closing delimiter" errors. **ALWAYS** escape opening parentheses in SQL strings within nushell modules.
+
 ## Key Changes Since Original Guide
 
 ### 1. **Parameters Record Pattern** 

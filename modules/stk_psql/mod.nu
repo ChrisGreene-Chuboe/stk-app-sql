@@ -521,3 +521,76 @@ export def elaborate [] {
     
     $result
 }
+
+# Helper function to check if a table exists in the api schema
+def table-exists [table_name: string] {
+    let query = $"SELECT COUNT\(*) as count FROM information_schema.tables WHERE table_schema = 'api' AND table_name = '($table_name)'"
+    let result = (psql exec $query)
+    if ($result | is-empty) {
+        false
+    } else {
+        ($result | get count | get 0 | into int) > 0
+    }
+}
+
+# Add a 'lines' column to records that have associated line tables
+#
+# This command enhances table data by adding a column containing all related line records
+# for tables that follow the header-line pattern (e.g., stk_project -> stk_project_line).
+#
+# Purpose:
+# - Automatically detects if a table has an associated '_line' table
+# - Fetches all related line records using the header_uu foreign key
+# - Adds a 'lines' column containing the full line records
+#
+# Example:
+# > project list | lines
+# Returns project records with a 'lines' column containing all stk_project_line records
+#
+# Returns:
+# - Original table with an additional 'lines' column
+# - The 'lines' column contains an array of line records or null if no line table exists
+#
+# Error handling:
+# - Returns null if no line table exists for the given table_name
+# - Returns empty array if line table exists but no lines are found
+# - Returns error object if database query fails
+export def lines [] {
+    let input = $in
+    
+    # Return empty if no input
+    if ($input | is-empty) {
+        return []
+    }
+    
+    # Process each record
+    let result = $input | each { |record|
+        # Check if record has table_name column
+        if 'table_name' not-in ($record | columns) {
+            return $record | insert lines null
+        }
+        
+        let table_name = $record.table_name
+        let line_table_name = $"($table_name)_line"
+        
+        # Check if the line table exists
+        if (table-exists $line_table_name) {
+            # Line table exists, fetch the actual lines
+            try {
+                let lines_query = $"SELECT * FROM api.($line_table_name) WHERE header_uu = '($record.uu)' ORDER BY created"
+                let lines_data = (psql exec $lines_query)
+                
+                # Add lines column with fetched data
+                $record | insert lines $lines_data
+            } catch {
+                # Error occurred, return error object
+                $record | insert lines { error: $"Failed to fetch lines from ($line_table_name): ($in)" }
+            }
+        } else {
+            # No line table exists, add null column
+            $record | insert lines null
+        }
+    }
+    
+    $result
+}

@@ -11,7 +11,7 @@ const STK_PROJECT_LINE_TYPE_TABLE_NAME = "stk_project_line_type"
 const STK_DEFAULT_LIMIT = 10
 const STK_PROJECT_COLUMNS = "name, description, is_template, is_valid"
 const STK_PROJECT_LINE_COLUMNS = "name, description, is_template, is_valid"  
-const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
+const STK_BASE_COLUMNS = "created, updated, is_revoked, uu, table_name"
 
 # Create a new project with specified name and type
 #
@@ -74,8 +74,11 @@ export def "project new" [
 #   project list | where is_revoked == false
 #   project list | select name description | table
 #   project list | where name =~ "client"
+#   project list | lines  # Add lines column with all project line items
+#   project list | lines | where {|p| ($p.lines | length) > 5}  # Projects with more than 5 lines
+#   project list | lines | get lines.0 | flatten  # Get all line items from all projects
 #
-# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
 # Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent projects - use direct SQL for larger queries
 export def "project list" [
@@ -104,8 +107,10 @@ export def "project list" [
 #   $project_uuid | project get | get description
 #   $project_uuid | project get --detail | get type_enum
 #   $uu | project get | if $in.is_revoked { print "Project was revoked" }
+#   $project_uuid | project get | lines  # Get project with all its line items
+#   $project_uuid | project get | lines | get lines.0  # Extract just the lines
 #
-# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
 # Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "project get" [
@@ -234,8 +239,10 @@ export def "project line new" [
 #   $project_uuid | project line list | where is_template == false
 #   $project_uuid | project line list | select name description | table
 #   $project_uuid | project line list | where name =~ "test"
+#   $project_uuid | project line list | elaborate  # Resolve all UUID references
+#   $project_uuid | project line list | elaborate | get type_uu_resolved  # See line type details
 #
-# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
 # Note: Shows all non-revoked lines for the specified project
 export def "project line list" [] {
     let project_uu = $in

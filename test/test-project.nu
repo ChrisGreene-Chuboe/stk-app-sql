@@ -160,4 +160,29 @@ assert ($revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke sho
 assert (($revoke_result.is_revoked.0) == true) "Project should be marked as revoked"
 echo "✓ Project revoke with piped UUID verified"
 
+echo "=== Testing lines command - Step 1: Basic functionality ==="
+# Create a test project for lines
+let lines_test_project = (project new "Lines Test Project")
+let lines_project_uuid = ($lines_test_project.uu.0)
+
+# Create some project lines
+$lines_project_uuid | project line new "Task 1" --description "First task"
+$lines_project_uuid | project line new "Task 2" --description "Second task"
+
+echo "=== Testing lines command adds column ==="
+let projects_with_lines = (project list | lines)
+assert ($projects_with_lines | columns | any {|col| $col == "lines"}) "Result should contain 'lines' column"
+echo "✓ Lines column added successfully"
+
+echo "=== Testing lines content for stk_project ==="
+let test_proj = ($projects_with_lines | where name == "Lines Test Project" | get 0)
+assert ($test_proj.lines | is-not-empty) "Project should have lines"
+assert (($test_proj.lines | length) == 2) "Project should have 2 lines"
+
+# Check the line names
+let line_names = ($test_proj.lines | get name)
+assert ($line_names | any {|n| $n == "Task 1"}) "Should have Task 1"
+assert ($line_names | any {|n| $n == "Task 2"}) "Should have Task 2"
+echo "✓ Lines data fetched successfully"
+
 echo "=== All tests completed successfully ==="
