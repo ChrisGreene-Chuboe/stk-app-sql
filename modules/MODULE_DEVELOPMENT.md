@@ -31,6 +31,40 @@ let sql = $"SELECT EXISTS \(SELECT 1 FROM table)"
 
 This is a recurring issue that causes "invalid characters after closing delimiter" errors. **ALWAYS** escape opening parentheses in SQL strings within nushell modules.
 
+### Mutable Variable Capture in Closures
+
+**IMPORTANT**: Nushell does not allow capturing mutable variables in closures (like `each`, `where`, `reduce` blocks).
+
+**❌ WRONG - causes "Capture of mutable variable" error:**
+```nushell
+mut cache = {}
+$input | each { |item|
+    if ($item in $cache) {  # Error: cannot capture mutable $cache
+        $cache | get $item
+    }
+}
+```
+
+**✅ CORRECT - use immutable variables or build cache upfront:**
+```nushell
+# Option 1: Build cache upfront
+let cache = $items | reduce -f {} { |item, acc|
+    $acc | insert $item (compute-value $item)
+}
+$input | each { |item|
+    $cache | get $item  # OK: $cache is immutable
+}
+
+# Option 2: Return updated values from closure
+let result = $input | reduce -f {cache: {}, results: []} { |item, acc|
+    # Update and return the accumulator
+    {
+        cache: ($acc.cache | insert $item (compute-value $item))
+        results: ($acc.results | append $processed_item)
+    }
+}
+```
+
 ## Key Changes Since Original Guide
 
 ### 1. **Parameters Record Pattern** 
@@ -81,13 +115,20 @@ This is a recurring issue that causes "invalid characters after closing delimite
 **See**: `stk_item/mod.nu:164-166` and `stk_project/mod.nu:168-170` for examples.
 
 ### 6. **Enhanced Constants Pattern**
-**Updated**: Constants now include type table references:
+**Updated**: Constants now include type table references and standardized base columns:
 
 ```nushell
+const STK_SCHEMA = "api"
+const STK_TABLE_NAME = "stk_module"
 const STK_TYPE_TABLE_NAME = "stk_module_type"
 const STK_LINE_TABLE_NAME = "stk_module_line"  # For header-line patterns
-const STK_LINE_TYPE_TABLE_NAME = "stk_module_line_type"
+const STK_BASE_COLUMNS = "created, updated, is_revoked, uu, table_name"
+const STK_MODULE_COLUMNS = "name, description, ..."  # Module-specific columns
 ```
+
+**Important**: All modules must now include `table_name` in their `STK_BASE_COLUMNS` constant to support cross-module operations like the `lines` command.
+
+**Note**: Line type table names follow the predictable pattern and don't need separate constants (e.g., `stk_module_line` → `stk_module_line_type`).
 
 **See**: `stk_project/mod.nu:4-14` for complete constants example.
 
@@ -130,7 +171,7 @@ const STK_LINE_TYPE_TABLE_NAME = "stk_module_line_type"
 
 When updating existing modules to evolved patterns:
 
-- [ ] **Update constants** - Add type table names
+- [ ] **Update constants** - Add type table names and include `table_name` in `STK_BASE_COLUMNS`
 - [ ] **Refactor creation** - Use `psql new-record` with parameters record
 - [ ] **Convert UUID operations** - Pipeline-only, no optional parameters  
 - [ ] **Replace custom SQL** - Use generic `psql` commands

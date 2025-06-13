@@ -563,7 +563,19 @@ export def lines [] {
         return []
     }
     
-    # Process each record
+    # Build cache of table existence checks upfront
+    # This avoids mutable variable capture in closures
+    let unique_tables = $input 
+        | where { |record| 'table_name' in ($record | columns) }
+        | get table_name
+        | uniq
+    
+    let table_cache = $unique_tables | reduce -f {} { |table_name, acc|
+        let line_table_name = $"($table_name)_line"
+        $acc | insert $line_table_name (table-exists $line_table_name)
+    }
+    
+    # Process each record using the immutable cache
     let result = $input | each { |record|
         # Check if record has table_name column
         if 'table_name' not-in ($record | columns) {
@@ -573,8 +585,10 @@ export def lines [] {
         let table_name = $record.table_name
         let line_table_name = $"($table_name)_line"
         
-        # Check if the line table exists
-        if (table-exists $line_table_name) {
+        # Look up in the pre-built cache
+        let line_table_exists = $table_cache | get -i $line_table_name | default false
+        
+        if $line_table_exists {
             # Line table exists, fetch the actual lines
             try {
                 let lines_query = $"SELECT * FROM api.($line_table_name) WHERE header_uu = '($record.uu)' ORDER BY created"
