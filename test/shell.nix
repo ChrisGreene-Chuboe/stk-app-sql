@@ -51,7 +51,12 @@ let
 
   # Function to cleanup test environment
   stopTest = pkgs.writeShellScriptBin "stop-test" ''
-    ${pkgs.nushell}/bin/nu "$STK_PWD_SHELL/stop-test.nu"
+    if [ -n "$STK_STOP_SCRIPT" ] && [ -f "$STK_STOP_SCRIPT" ]; then
+      ${pkgs.nushell}/bin/nu "$STK_STOP_SCRIPT"
+    else
+      echo "Error: Stop script not found. STK_STOP_SCRIPT=$STK_STOP_SCRIPT"
+      exit 1
+    fi
   '';
 
   # Function to override usql to psql
@@ -76,6 +81,7 @@ in pkgs.mkShell {
   shellHook = ''
     # Setup environment variables for chuck-stack test environment
     export STK_PWD_SHELL=$PWD
+    export STK_STOP_SCRIPT="$PWD/stop-test.nu"
     export STK_TEST_DIR="/tmp/stk-test-$$"
     export PGHOST="$STK_TEST_DIR/pgdata"
     export PGDATA="$PGHOST"
@@ -87,6 +93,7 @@ in pkgs.mkShell {
     export STK_PG_ROLE="stk_api_role"
     export STK_PG_SESSION="'{\"psql_user\": \"$STK_USER\"}'"
     export PSQLRC="$STK_TEST_DIR"/.psqlrc
+    export STK_PSQLRC_NU="$STK_TEST_DIR"/.psqlrc-nu
     export HISTFILE="$STK_TEST_DIR/.psql_history"
     export USQL_DSN=""
     export f="-r %functions%"

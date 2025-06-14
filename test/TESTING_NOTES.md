@@ -18,17 +18,17 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
 Run existing tests:
 ```bash
 cd test
-nix-shell --run "./test-simple.nu"
-nix-shell --run "./test-project.nu"
-nix-shell --run "./test-all.nu"
+nix-shell --run "./suite/test-simple.nu"
+nix-shell --run "./suite/test-project.nu"
+nix-shell --run "./suite/test-all.nu"
 ```
 
 Create new test:
 ```bash
 # Create test file with executable permissions
-echo '#!/usr/bin/env nu' > test-feature.nu
-chmod +x test-feature.nu
-# Edit test following patterns in test-simple.nu
+echo '#!/usr/bin/env nu' > suite/test-feature.nu
+chmod +x suite/test-feature.nu
+# Edit test following patterns in suite/test-simple.nu
 ```
 
 ## Testing Philosophy
@@ -44,7 +44,7 @@ Chuck-stack tests validate that:
 Commands include examples in their `--help` documentation. Tests validate these examples work in practice, ensuring documentation stays accurate.
 
 ### Assertion-Based Testing
-Tests use nushell's `assert` command to verify expected outcomes rather than just checking execution success. See `test-simple.nu` for the reference pattern.
+Tests use nushell's `assert` command to verify expected outcomes rather than just checking execution success. See `suite/test-simple.nu` for the reference pattern.
 
 ## Test Environment
 
@@ -61,11 +61,13 @@ When `nix-shell` runs, it creates a temporary test workspace:
 /tmp/stk-test-XXXXX/
 ├── modules/          # Copied from ../modules
 ├── migrations/       # Database migrations
-├── test-*.nu        # Test scripts
+├── suite/            # Test scripts
+│   ├── test-*.nu
+│   └── ...
 └── ...              # Other test files
 ```
 
-**IMPORTANT**: The modules are copied to `./modules` within the test directory, which is why test files use `use ./modules *` instead of `use ../modules *`.
+**IMPORTANT**: The modules are copied to `./modules` within the test directory, while test files are in `./suite`, which is why test files use `use ../modules *` to access the modules.
 
 ### Key Components
 - **nix-shell**: Provides PostgreSQL and dependencies
@@ -97,7 +99,7 @@ SELECT private.get_table_name_uu_json('uuid-here'::uuid);
 echo "=== Testing module functionality ==="
 
 # Import modules and assertions
-use ./modules *
+use ../modules *
 use std/assert
 
 # Test basic functionality
@@ -115,12 +117,12 @@ echo "=== All tests completed successfully ==="
 
 #### 1. Always Make Tests Executable
 ```bash
-chmod +x test-new.nu  # Required before first run
+chmod +x suite/test-new.nu  # Required before first run
 ```
 
 #### 2. Import Requirements
 ```nushell
-use ./modules *     # Access module commands (copied to test directory)
+use ../modules *    # Access module commands (test files are in suite/)
 use std/assert      # Enable assertions
 ```
 
@@ -164,34 +166,34 @@ let attached = ($uuid | .append request "investigation")
 
 ```bash
 # Correct for Claude Code
-nix-shell --run "./test-script.nu"
+nix-shell --run "./suite/test-script.nu"
 
 # Incorrect (exits immediately)
 nix-shell
-./test-script.nu
+./suite/test-script.nu
 ```
 
 ### Execution Patterns
 
 #### Single Test
 ```bash
-nix-shell --run "./test-simple.nu"
+nix-shell --run "./suite/test-simple.nu"
 ```
 
 #### Verify Success
 ```bash
-nix-shell --run "./test-event.nu" 2>&1 | grep "=== All tests completed successfully ==="
+nix-shell --run "./suite/test-event.nu" 2>&1 | grep "=== All tests completed successfully ==="
 ```
 
 #### Debug Output (Last 50 Lines)
 ```bash
-nix-shell --run "./test-new.nu" 2>&1 | tail -50
+nix-shell --run "./suite/test-new.nu" 2>&1 | tail -50
 ```
 
 #### Efficient Multi-Test
 ```bash
 # Run all with filtered output
-nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
+nix-shell --run "./suite/test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 ```
 
 ### Debugging Tests
@@ -199,13 +201,13 @@ nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 When tests fail, use targeted output:
 ```bash
 # See end of output
-nix-shell --run "./test-failing.nu" 2>&1 | tail -50
+nix-shell --run "./suite/test-failing.nu" 2>&1 | tail -50
 
 # Find specific errors
-nix-shell --run "./test-failing.nu" 2>&1 | grep -A5 "Error"
+nix-shell --run "./suite/test-failing.nu" 2>&1 | grep -A5 "Error"
 
 # Check assertion failures
-nix-shell --run "./test-failing.nu" 2>&1 | grep -B2 "Assertion failed"
+nix-shell --run "./suite/test-failing.nu" 2>&1 | grep -B2 "Assertion failed"
 ```
 
 ## Common Issues
@@ -213,10 +215,10 @@ nix-shell --run "./test-failing.nu" 2>&1 | grep -B2 "Assertion failed"
 ### Permission Denied
 ```bash
 # Problem
-./test-new.nu  # Error: Permission denied
+./suite/test-new.nu  # Error: Permission denied
 
 # Solution
-chmod +x test-new.nu
+chmod +x suite/test-new.nu
 ```
 
 ### Module Not Found

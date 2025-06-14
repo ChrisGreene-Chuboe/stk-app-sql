@@ -3,7 +3,7 @@
 echo "=== Testing elaborate command ==="
 
 # Import modules and assert
-use modules *
+use ../modules *
 use std/assert
 
 echo "=== Setting up test data ==="

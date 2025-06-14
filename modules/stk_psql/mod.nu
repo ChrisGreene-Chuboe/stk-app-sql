@@ -24,7 +24,19 @@ def "into bool ext" [] {
 export def "psql exec" [
     query: string  # The SQL query to execute
 ] {
-    with-env {PSQLRC: ".psqlrc-nu"} {
+    # Ensure STK_PSQLRC_NU environment variable is set
+    if not ("STK_PSQLRC_NU" in $env) {
+        error make {
+            msg: "STK_PSQLRC_NU environment variable not set"
+            label: {
+                text: "Required environment variable missing"
+                span: (metadata $query).span
+            }
+            help: "Set STK_PSQLRC_NU to the path of your .psqlrc-nu file"
+        }
+    }
+    
+    with-env {PSQLRC: $env.STK_PSQLRC_NU} {
         mut result = []
         $result = echo $query | psql | from csv --no-infer
         let date_cols = $result 

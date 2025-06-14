@@ -4,11 +4,6 @@
 def main [] {
     print $"(ansi yellow)Stopping PostgreSQL and cleaning up test environment...(ansi reset)"
     
-    # Change back to original directory
-    if ($env.STK_PWD_SHELL? | is-not-empty) {
-        cd $env.STK_PWD_SHELL
-    }
-    
     # Stop PostgreSQL if running
     if ($env.PGHOST? | is-not-empty) and ($env.PGHOST | path exists) {
         try {

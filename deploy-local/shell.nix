@@ -47,7 +47,12 @@ let
 
   # Function to stop deployment environment (but preserve data)
   stopDeploy = pkgs.writeShellScriptBin "stop-deploy" ''
-    ${pkgs.nushell}/bin/nu "./stop-deploy.nu"
+    if [ -n "$STK_STOP_SCRIPT" ] && [ -f "$STK_STOP_SCRIPT" ]; then
+      ${pkgs.nushell}/bin/nu "$STK_STOP_SCRIPT"
+    else
+      echo "Error: Stop script not found. STK_STOP_SCRIPT=$STK_STOP_SCRIPT"
+      exit 1
+    fi
   '';
 
   # Function to override usql to psql
@@ -95,6 +100,7 @@ in pkgs.mkShell {
     export STK_PG_ROLE="stk_api_role"
     export STK_PG_SESSION="'{\"psql_user\": \"$STK_USER\"}'"
     export PSQLRC="$STK_DEPLOY_DIR"/.psqlrc
+    export STK_PSQLRC_NU="$STK_DEPLOY_DIR"/.psqlrc-nu
     export HISTFILE="$STK_DEPLOY_DIR/.bash_history"
     export USQL_DSN=""
     export f="-r %functions%"
@@ -145,6 +151,7 @@ in pkgs.mkShell {
 
     # If we reach here, we're running from an instance directory
     export STK_DEPLOY_DIR="$PWD"
+    export STK_STOP_SCRIPT="$PWD/stop-deploy.nu"
     # Update PGHOST to use current directory, not the template-time variable
     export PGHOST="$PWD/pgdata"
     export PGDATA="$PGHOST"

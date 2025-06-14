@@ -4,7 +4,7 @@
 echo "=== Testing Basic Functionality ==="
 
 # REQUIRED: Import modules and assert
-use ./modules *
+use ../modules *
 use std/assert
 
 echo "=== Creating a simple event ==="
