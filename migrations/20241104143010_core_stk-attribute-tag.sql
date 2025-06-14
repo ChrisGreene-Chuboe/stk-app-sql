@@ -80,8 +80,6 @@ CREATE TABLE private.stk_attribute_tag_part (
   is_template BOOLEAN NOT NULL DEFAULT false,
   is_valid BOOLEAN NOT NULL DEFAULT true,
   type_uu UUID NOT NULL REFERENCES private.stk_attribute_tag_type(uu),
-  ----Prompt: ask the user if they need to create parent child relationships inside the table
-  --parent_uu UUID REFERENCES private.stk_attribute_tag(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   processed TIMESTAMPTZ,
   is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,

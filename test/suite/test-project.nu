@@ -108,6 +108,55 @@ assert ($line_event_result | columns | any {|col| $col == "uu"}) "Line event sho
 assert ($line_event_result.uu | is-not-empty) "Line event UUID should not be empty"
 echo "✓ .append event with piped project line UUID verified"
 
+echo "=== Testing project creation with parent UUID via pipe ==="
+# Create a parent project first
+let parent_project = (project new "Parent Project" --description "This is the parent project")
+let parent_uuid = ($parent_project.uu.0)
+echo $"Created parent project with UUID: ($parent_uuid)"
+
+# Create sub-project using piped parent UUID
+let sub_project = ($parent_uuid | project new "Sub-project via Pipe" --description "Created with piped parent UUID")
+assert ($sub_project | columns | any {|col| $col == "uu"}) "Sub-project should have UUID"
+assert ($sub_project.uu | is-not-empty) "Sub-project UUID should not be empty"
+assert ($sub_project.name.0 | str contains "Sub-project via Pipe") "Sub-project name should match"
+
+# Verify parent_uu is actually set in the returned data
+assert ($sub_project | columns | any {|col| $col == "parent_uu"}) "Sub-project should have parent_uu column"
+assert ($sub_project.parent_uu.0 == $parent_uuid) "Sub-project parent_uu should match parent UUID"
+echo "✓ Sub-project creation with piped parent UUID verified"
+
+echo "=== Testing multi-level hierarchy ==="
+# Create grandchild project
+let sub_uuid = ($sub_project.uu.0)
+let grandchild = ($sub_uuid | project new "Grandchild Project" --description "Third level project")
+assert ($grandchild.uu | is-not-empty) "Grandchild UUID should not be empty"
+assert ($grandchild.parent_uu.0 == $sub_uuid) "Grandchild parent_uu should match sub-project UUID"
+echo "✓ Multi-level project hierarchy verified"
+
+echo "=== Testing parent UUID validation ==="
+# Create a non-project UUID (using request)
+let request = (.append request "test-request" --description "For validation testing")
+let request_uuid = ($request.uu.0)
+
+# Try to create project with non-project parent UUID - should fail
+let invalid_result = (do { $request_uuid | project new "Invalid Parent Test" } | complete)
+assert ($invalid_result.exit_code != 0) "Should fail with non-project parent UUID"
+assert ($invalid_result.stderr | str contains "not found in table stk_project") "Should show proper validation error"
+echo "✓ Parent UUID validation verified - correctly rejects non-project UUIDs"
+
+echo "=== Testing edge cases for parent UUID ==="
+# Test with empty string
+let empty_result = ("" | project new "Empty Parent Test")
+assert ($empty_result.uu | is-not-empty) "Should create project with empty parent"
+assert ($empty_result | columns | any {|col| $col == "parent_uu"} | not) "Should not have parent_uu with empty input"
+
+# Test with null (no piped input)
+let null_result = (project new "No Parent Test")
+assert ($null_result.uu | is-not-empty) "Should create project without parent"
+assert ($null_result | columns | any {|col| $col == "parent_uu"} | not) "Should not have parent_uu without piped input"
+echo "✓ Edge cases for parent UUID verified"
+
+
 echo "=== Testing project list command ==="
 let projects_list = (project list)
 assert (($projects_list | length) >= 1) "Should return at least one project"

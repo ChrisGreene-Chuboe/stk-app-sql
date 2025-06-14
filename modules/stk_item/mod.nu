@@ -48,7 +48,7 @@ export def "item new" [
         name: $name
         type_uu: ($resolved_type_uu | default null)
         description: ($description | default null)
-        entity_uu: ($entity_uu | default null)
+        stk_entity_uu: ($entity_uu | default null)
     }
     
     # Single call with all parameters - no more cascading logic

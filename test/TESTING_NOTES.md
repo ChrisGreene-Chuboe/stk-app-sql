@@ -159,6 +159,21 @@ let result = (command new "name" --type-search-key "TYPE_ENUM")
 let attached = ($uuid | .append request "investigation")
 ```
 
+#### Parent-Child Relationships (parent_uu)
+```nushell
+# Create parent-child relationship via piped UUID (only method)
+let parent = (project new "Parent Project")
+let parent_uuid = ($parent.uu.0)
+let child = ($parent_uuid | project new "Sub-project")
+
+# Test validation - parent UUID must belong to correct table
+let request = (.append request "test-request")
+let request_uuid = ($request.uu.0)
+let invalid_result = (do { $request_uuid | project new "Test" } | complete)
+assert ($invalid_result.exit_code != 0) "Should fail with wrong table UUID"
+assert ($invalid_result.stderr | str contains "Invalid parent UUID") "Should show validation error"
+```
+
 ## Running Tests
 
 ### Claude Code Requirements

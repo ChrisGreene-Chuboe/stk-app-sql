@@ -15,13 +15,14 @@ const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid]
 # or maintenance activities that can contain multiple line items and tasks.
 # The system automatically assigns default values via triggers if type is not specified.
 #
-# Accepts piped input: none
+# Accepts piped input:
+#   string - UUID of parent project for creating sub-projects (optional)
 #
 # Examples:
 #   project new "Website Redesign"
 #   project new "CRM Development" --description "Internal CRM system development"
 #   project new "AI Research" --type-search-key "research" --description "Research new AI technologies"
-#   project new "Server Maintenance" --type-search-key "MAINTENANCE" --parent $parent_project_uu
+#   "12345678-1234-5678-9012-123456789abc" | project new "Sub-project Name"
 #
 # Returns: The UUID and name of the newly created project record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
@@ -30,13 +31,21 @@ export def "project new" [
     --type-uu: string              # Type UUID (use 'project types' to find UUIDs)
     --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the project
-    --parent(-p): string           # Optional parent project UUID for sub-projects
     --template                     # Mark this project as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
 ] {
     # Validate that only one type parameter is provided
     if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
         error make {msg: "Specify either --type-uu or --type-search-key, not both"}
+    }
+    
+    # Handle optional piped parent UUID
+    let piped_uuid = $in
+    let parent_uuid = if ($piped_uuid | is-not-empty) {
+        # Validate that the piped UUID exists in the project table
+        psql validate-uuid-table $piped_uuid $STK_PROJECT_TABLE_NAME
+    } else {
+        null
     }
     
     # Resolve type if search key is provided
@@ -51,9 +60,9 @@ export def "project new" [
         name: $name
         type_uu: ($resolved_type_uu | default null)
         description: ($description | default null)
-        parent_uu: ($parent | default null)
+        parent_uu: ($parent_uuid | default null)
         is_template: ($template | default false)
-        entity_uu: ($entity_uu | default null)
+        stk_entity_uu: ($entity_uu | default null)
     }
     
     # Single call with all parameters - no more cascading logic
@@ -240,7 +249,7 @@ export def "project line new" [
         type_uu: ($resolved_type_uu | default null)
         description: ($description | default null)
         is_template: ($template | default false)
-        entity_uu: ($entity_uu | default null)
+        stk_entity_uu: ($entity_uu | default null)
     }
     
     # Single call with all parameters - no more cascading logic

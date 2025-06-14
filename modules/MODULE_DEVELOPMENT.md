@@ -73,7 +73,7 @@ let params = {
     name: $name
     type_uu: ($resolved_type_uu | default null)
     description: ($description | default null)
-    parent_uu: ($parent | default null)
+    parent_uu: ($parent | default null)  # For parent-child relationships
     is_template: ($template | default false)
     entity_uu: ($entity_uu | default null)
 }
@@ -131,7 +131,31 @@ For related tables (e.g., project/project_line):
 - Line operations receive line UUID via pipe
 - Supports bulk operations on lists
 
-### 7. Dynamic Command Building
+### 7. Parent-Child Pattern
+
+For hierarchical relationships within the same table (e.g., project sub-projects):
+- Parent UUID is provided via piped input to creation command
+- Validation ensures parent UUID exists in the same table
+- Enables tree structures for categories, organizations, or project hierarchies
+
+```nushell
+# Create parent
+let parent = (project new "Q4 Initiative")
+
+# Create child by piping parent UUID
+$parent.uu.0 | project new "Phase 1 - Research"
+
+# Implementation pattern
+let piped_uuid = $in
+let parent_uuid = if ($piped_uuid | is-not-empty) {
+    # Validate parent exists in same table
+    psql validate-uuid-table $piped_uuid $STK_TABLE_NAME
+} else {
+    null
+}
+```
+
+### 8. Dynamic Command Building
 Optional flags are passed via args array to enable clean command composition:
 
 ```nushell

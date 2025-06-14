@@ -175,6 +175,33 @@ export def "psql get-record" [
     psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
 }
 
+
+# Validate that a UUID exists in a specific table
+#
+# Performs a simple EXISTS check to verify the UUID is present in the
+# expected table. This is used to ensure parent-child relationships 
+# are created with valid UUIDs from the correct table.
+#
+# Examples:
+#   psql validate-uuid-table $uuid "stk_project"  # Returns UUID if valid
+#   psql validate-uuid-table $parent_uuid $STK_PROJECT_TABLE_NAME
+#
+# Returns: The validated UUID if it exists in the expected table
+# Error: Throws error if UUID doesn't exist in the expected table
+export def "psql validate-uuid-table" [
+    uuid: string           # UUID to validate
+    expected_table: string # Expected table name (e.g., "stk_project")
+] {
+    let sql = $"SELECT EXISTS\(SELECT 1 FROM api.($expected_table) WHERE uu = '($uuid)'::uuid) AS is_valid"
+    let result = (psql exec $sql | get 0 | get is_valid)
+    
+    if not $result {
+        error make {msg: $"UUID ($uuid) not found in table ($expected_table)"}
+    }
+    
+    $uuid  # Return the validated UUID
+}
+
 # Generic revoke record by UUID in a table
 #
 # Executes an UPDATE query to set the revoked timestamp to now() for the specified UUID.
@@ -222,68 +249,57 @@ export def "psql process-record" [
 #
 # Executes an INSERT query to create a new record using a parameter record approach.
 # This provides a standard way to create records in STK tables with automatic defaults.
-# The system automatically assigns default type_uu and entity_uu values via triggers.
-# This implementation eliminates cascading if/else logic by accepting all parameters
-# in a record structure and dynamically building SQL based on which fields are present.
+# The system automatically assigns default values via database triggers for any
+# columns not provided (e.g., type_uu, stk_entity_uu).
+# Dynamically handles any columns provided in the params record.
 #
 # Examples:
 #   let params = {name: "Product Name"}
 #   psql new-record "api" "stk_item" $params
 #   
-#   let params = {name: "Service Item", description: "Professional consulting"}
-#   psql new-record "api" "stk_item" $params
+#   let params = {description: "Important event", record_json: {data: "value"}}
+#   psql new-record "api" "stk_event" $params
 #   
-#   let params = {name: "Service", type_uu: "uuid-here", description: "Professional service"}
+#   let params = {name: "Service", type_uu: "uuid-here", parent_uu: "parent-uuid"}
 #   psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 #
-# Parameters record can contain:
-#   - name: string (required)
-#   - type_uu: string (optional)
-#   - description: string (optional) 
-#   - entity_uu: string (optional)
+# Parameters record can contain any valid column names for the target table
+# The calling module determines which columns are required
 #
-# Returns: uu, name, and other fields for the newly created record
-# Error: Command fails if required references don't exist or constraints are violated
+# Returns: All provided columns plus STK_BASE_COLUMNS (mandatory columns)
+# Error: Command fails if database constraints are violated
 export def "psql new-record" [
     schema: string      # Database schema (e.g., "api")
     table_name: string  # Table name (e.g., "stk_item")
-    params: record      # Parameters record with name (required) and optional fields
+    params: record      # Parameters record with column values to insert
 ] {
     let table = $"($schema).($table_name)"
     
-    # Validate required name parameter
-    if ($params.name? | is-empty) {
-        error make {msg: "Parameter 'name' is required in params record"}
+    # Validate params is not empty
+    if ($params | is-empty) {
+        error make {msg: "Parameters record cannot be empty"}
     }
     
-    # Build entity clause - use provided or let trigger handle default
-    let entity_clause = if ($params.entity_uu? | is-empty) {
-        $"\(SELECT uu FROM ($schema).stk_entity LIMIT 1)"
-    } else {
-        $"'($params.entity_uu)'"
-    }
+    # Build columns and values from params dynamically
+    let columns = ($params | columns)
+    let values = ($columns | each {|col|
+        let val = ($params | get $col)
+        if ($val == null) {
+            "NULL"
+        } else if ($val | describe) == "bool" {
+            $val | into string
+        } else {
+            $"'($val)'"
+        }
+    })
     
-    # Build columns and values lists dynamically
-    let base_columns = ["name", "stk_entity_uu"]
-    let base_values = [$"'($params.name)'", $entity_clause]
+    # Construct SQL
+    let columns_str = ($columns | str join ", ")
+    let values_str = ($values | str join ", ")
     
-    # Add optional columns and values if they exist
-    let final_columns = $base_columns 
-        | append (if ($params.type_uu? | is-not-empty) { ["type_uu"] } else { [] })
-        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
-    
-    let final_values = $base_values
-        | append (if ($params.type_uu? | is-not-empty) { [$"'($params.type_uu)'"] } else { [] })
-        | append (if ($params.description? | is-not-empty) { [$"'($params.description)'"] } else { [] })
-    
-    # Build RETURNING clause based on what we're inserting
-    let returning_columns = ["uu", "name"]
-        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
-    
-    # Construct final SQL
-    let columns_str = $final_columns | str join ", "
-    let values_str = $final_values | str join ", "
-    let returning_str = $returning_columns | str join ", "
+    # Return all provided columns plus mandatory STK_BASE_COLUMNS
+    let returning_columns = ($columns | append $STK_BASE_COLUMNS | uniq)
+    let returning_str = ($returning_columns | str join ", ")
     
     let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING ($returning_str)"
     
@@ -297,8 +313,9 @@ export def "psql new-record" [
 # detailed line items belong to summary header records (project/project_line,
 # invoice/invoice_line, order/order_line, etc.).
 #
-# The function automatically derives the header table name by removing '_line' suffix
-# and constructs the foreign key field name as {header_table_name}_uu.
+# Automatically adds header_uu column to link line with its header record.
+# The system automatically assigns default values via database triggers for any
+# columns not provided (e.g., type_uu, stk_entity_uu).
 #
 # Examples:
 #   let params = {name: "User Authentication"}
@@ -307,61 +324,51 @@ export def "psql new-record" [
 #   let params = {name: "Consulting Hours", description: "Professional services", type_uu: $type_uu}
 #   psql new-line-record "api" "stk_invoice_line" $invoice_uu $params
 #   
-#   let params = {name: "Product Item", description: "Hardware component"}
+#   let params = {description: "Important milestone"}
 #   psql new-line-record $STK_SCHEMA $STK_LINE_TABLE_NAME $header_uu $params
 #
-# Parameters record can contain:
-#   - name: string (required)
-#   - type_uu: string (optional)
-#   - description: string (optional) 
-#   - entity_uu: string (optional)
-#   - is_template: boolean (optional)
+# Parameters record can contain any valid column names for the target line table
+# The calling module determines which columns are required
+# The header_uu is automatically added to link the line to its header
 #
-# Returns: uu, name, and other fields for the newly created line record
-# Error: Command fails if required references don't exist or constraints are violated
+# Returns: All provided columns plus header_uu and STK_BASE_COLUMNS
+# Error: Command fails if database constraints are violated
 export def "psql new-line-record" [
     schema: string           # Database schema (e.g., "api")
     line_table_name: string  # Line table name (e.g., "stk_project_line")
     header_uu: string        # UUID of the header record
-    params: record           # Parameters record with name (required) and optional fields
+    params: record           # Parameters record with column values to insert
 ] {
     let table = $"($schema).($line_table_name)"
     
-    # Validate required name parameter
-    if ($params.name? | is-empty) {
-        error make {msg: "Parameter 'name' is required in params record"}
+    # Validate params is not empty
+    if ($params | is-empty) {
+        error make {msg: "Parameters record cannot be empty"}
     }
     
-    # Build entity clause - use provided or let trigger handle default
-    let entity_clause = if ($params.entity_uu? | is-empty) {
-        $"\(SELECT uu FROM ($schema).stk_entity LIMIT 1)"
-    } else {
-        $"'($params.entity_uu)'"
-    }
+    # Add header_uu to params
+    let full_params = ($params | merge {header_uu: $header_uu})
     
-    # Build columns and values lists dynamically
-    let base_columns = ["name", "stk_entity_uu", "header_uu"]
-    let base_values = [$"'($params.name)'", $entity_clause, $"'($header_uu)'"]
+    # Build columns and values from params dynamically
+    let columns = ($full_params | columns)
+    let values = ($columns | each {|col|
+        let val = ($full_params | get $col)
+        if ($val == null) {
+            "NULL"
+        } else if ($val | describe) == "bool" {
+            $val | into string
+        } else {
+            $"'($val)'"
+        }
+    })
     
-    # Add optional columns and values if they exist
-    let final_columns = $base_columns 
-        | append (if ($params.type_uu? | is-not-empty) { ["type_uu"] } else { [] })
-        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
-        | append (if ($params.is_template? | is-not-empty) { ["is_template"] } else { [] })
+    # Construct SQL
+    let columns_str = ($columns | str join ", ")
+    let values_str = ($values | str join ", ")
     
-    let final_values = $base_values
-        | append (if ($params.type_uu? | is-not-empty) { [$"'($params.type_uu)'"] } else { [] })
-        | append (if ($params.description? | is-not-empty) { [$"'($params.description)'"] } else { [] })
-        | append (if ($params.is_template? | is-not-empty) { [$"($params.is_template)"] } else { [] })
-    
-    # Build RETURNING clause based on what we're inserting
-    let returning_columns = ["uu", "name"]
-        | append (if ($params.description? | is-not-empty) { ["description"] } else { [] })
-    
-    # Construct final SQL
-    let columns_str = $final_columns | str join ", "
-    let values_str = $final_values | str join ", "
-    let returning_str = $returning_columns | str join ", "
+    # Return all provided columns plus mandatory STK_BASE_COLUMNS
+    let returning_columns = ($columns | append $STK_BASE_COLUMNS | uniq)
+    let returning_str = ($returning_columns | str join ", ")
     
     let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING ($returning_str)"
     
