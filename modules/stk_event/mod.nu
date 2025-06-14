@@ -80,22 +80,17 @@ export def "event list" [
     --detail(-d)  # Include detailed type information for all events
     --all(-a)     # Include revoked events
 ] {
-    # TODO: This nested if/else pattern is not ideal. We need to find a way to build
-    # command arguments dynamically in nushell. Currently, spread operators (...$args)
-    # are not supported for function calls, forcing us to use this verbose approach.
-    # Future parameters will make this even more complex.
+    # Build complete arguments array including flags
+    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_EVENT_COLUMNS
+    
+    # Add --all flag to args if needed
+    let args = if $all { $args | append "--all" } else { $args }
+    
+    # Choose command and execute with spread - no nested if/else!
     if $detail {
-        if $all {
-            psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS --all
-        } else {
-            psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS
-        }
+        psql list-records-with-detail ...$args
     } else {
-        if $all {
-            psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS --all
-        } else {
-            psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS
-        }
+        psql list-records ...$args
     }
 }
 

@@ -60,21 +60,40 @@ export def "psql exec" [
 # Used by module-specific list commands to reduce code duplication.
 #
 # Examples:
-#   psql list-records "api" "stk_event" [name, record_json] $STK_BASE_COLUMNS 10
-#   psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+#   psql list-records "api" "stk_event" "name" "record_json"
+#   psql list-records "api" "stk_event" "name" "record_json" --all
+#   psql list-records "api" "stk_event" "name" "record_json" --limit 20
+#   
+# With spread operator:
+#   let args = ["api", "stk_event", "name", "record_json"]
+#   psql list-records ...$args
+#   psql list-records ...$args --all
 #
 # Returns: All specified columns from the table, newest records first
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql list-records" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_event") 
-    specific_columns: list  # Module-specific columns (e.g., [name, record_json])
-    limit: int = 10         # Maximum number of records to return
+    ...args: string         # Positional arguments: schema, table_name, column1, column2, ...
     --all(-a)               # Include revoked records
+    --limit: int = 10       # Maximum number of records to return
 ] {
+    # Check if --all flag is present in args
+    let has_all = ("--all" in $args)
+    
+    # Filter out any flags from the args to get only positional arguments
+    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
+    
+    # Validate minimum arguments
+    if ($positional_args | length) < 3 {
+        error make {msg: "Expected at least 3 arguments: schema, table_name, and at least one column"}
+    }
+    
+    let schema = $positional_args.0
+    let table_name = $positional_args.1
+    let specific_columns = ($positional_args | skip 2)  # All remaining args are columns
+    
     let table = $"($schema).($table_name)"
     let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-    let where_clause = if $all { "" } else { " WHERE is_revoked = false" }
+    let where_clause = if $has_all { "" } else { " WHERE is_revoked = false" }
     psql exec $"SELECT ($columns) FROM ($table)($where_clause) ORDER BY created DESC LIMIT ($limit)"
 }
 
@@ -380,18 +399,36 @@ export def "psql resolve-type" [
 # Used by module-specific list --detail commands to reduce code duplication.
 #
 # Examples:
-#   psql list-records-with-detail "api" "stk_item" [name, description, is_template, is_valid] 10
-#   psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS
+#   psql list-records-with-detail "api" "stk_item" "name" "description" "is_template" "is_valid"
+#   psql list-records-with-detail "api" "stk_item" "name" "description" --all
+#   psql list-records-with-detail "api" "stk_item" "name" "description" --limit 20
+#   
+# With spread operator:
+#   let args = ["api", "stk_item", "name", "description", "is_template", "is_valid"]
+#   psql list-records-with-detail ...$args
+#   psql list-records-with-detail ...$args --all
 #
 # Returns: All specified columns plus type_enum, type_name, type_description from joined type table
 # Note: Uses LEFT JOIN to include records without type assignments
 export def "psql list-records-with-detail" [
-    schema: string           # Database schema (e.g., "api")
-    table_name: string       # Table name (e.g., "stk_item") 
-    specific_columns: list   # Module-specific columns (e.g., [name, description, is_template, is_valid])
-    limit: int = 10          # Maximum number of records to return
+    ...args: string          # Positional arguments: schema, table_name, column1, column2, ...
     --all(-a)                # Include revoked records
+    --limit: int = 10        # Maximum number of records to return
 ] {
+    # Check if --all flag is present in args
+    let has_all = ("--all" in $args)
+    
+    # Filter out any flags from the args to get only positional arguments
+    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
+    
+    # Validate minimum arguments
+    if ($positional_args | length) < 3 {
+        error make {msg: "Expected at least 3 arguments: schema, table_name, and at least one column"}
+    }
+    
+    let schema = $positional_args.0
+    let table_name = $positional_args.1
+    let specific_columns = ($positional_args | skip 2)  # All remaining args are columns
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($table_name)_type"
     # Prefix columns with table aliases properly
@@ -408,7 +445,7 @@ export def "psql list-records-with-detail" [
         }
     } | str join ", "
     
-    let where_clause = if $all { "" } else { "WHERE i.is_revoked = false" }
+    let where_clause = if $has_all { "" } else { "WHERE i.is_revoked = false" }
     
     let sql = $"
         SELECT 
