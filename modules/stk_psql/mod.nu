@@ -70,10 +70,12 @@ export def "psql list-records" [
     table_name: string      # Table name (e.g., "stk_event") 
     specific_columns: list  # Module-specific columns (e.g., [name, record_json])
     limit: int = 10         # Maximum number of records to return
+    --all(-a)               # Include revoked records
 ] {
     let table = $"($schema).($table_name)"
     let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-    psql exec $"SELECT ($columns) FROM ($table) ORDER BY created DESC LIMIT ($limit)"
+    let where_clause = if $all { "" } else { " WHERE is_revoked = false" }
+    psql exec $"SELECT ($columns) FROM ($table)($where_clause) ORDER BY created DESC LIMIT ($limit)"
 }
 
 # Generic list line records filtered by header UUID
@@ -388,6 +390,7 @@ export def "psql list-records-with-detail" [
     table_name: string       # Table name (e.g., "stk_item") 
     specific_columns: list   # Module-specific columns (e.g., [name, description, is_template, is_valid])
     limit: int = 10          # Maximum number of records to return
+    --all(-a)                # Include revoked records
 ] {
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($table_name)_type"
@@ -405,13 +408,15 @@ export def "psql list-records-with-detail" [
         }
     } | str join ", "
     
+    let where_clause = if $all { "" } else { "WHERE i.is_revoked = false" }
+    
     let sql = $"
         SELECT 
             ($specific_cols), ($base_cols),
             ($type_cols)
         FROM ($table) i
         LEFT JOIN ($type_table) t ON i.type_uu = t.uu
-        WHERE i.is_revoked = false
+        ($where_clause)
         ORDER BY i.created DESC
         LIMIT ($limit)
     "

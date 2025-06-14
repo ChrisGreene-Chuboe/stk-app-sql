@@ -52,7 +52,8 @@ echo "✓ Event revoke functionality verified"
 echo "=== Testing basic event functionality completed ==="
 
 # Test example: event list | where name == "test-constants"
-let test_events = (event list | where name == "test-constants")
+# Note: Using --all flag because the test-constants event was revoked earlier
+let test_events = (event list --all | where name == "test-constants")
 assert (($test_events | length) > 0) "Should find test-constants events"
 assert ($test_events | all {|row| $row.name == "test-constants"}) "All returned events should be test-constants type"
 echo "✓ Help example verified: filtering events by name"
