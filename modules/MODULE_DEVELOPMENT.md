@@ -151,6 +151,52 @@ psql list-line-records $schema $table $specific_cols $header_uu  # header-line p
 
 **See**: `project line revoke` command in `stk_project` module for bulk implementation.
 
+### 9. **Dynamic Command Building with Optional Flags**
+**Pattern**: Optional flags like `--all` are incorporated into `...args` parameter to enable dynamic command composition.
+
+**Problem Solved**: When using nushell's spread operator (`...$args`) to pass arguments between commands, you cannot conditionally include/exclude named flags. The spread operator passes positional arguments, not named parameters.
+
+**Key Insight**: 
+- **`--limit` is always present** (has a default value) - it's never "missing" from the query
+- **`--all` is truly optional** - its presence/absence fundamentally changes the query behavior
+- Making a flag optional when building dynamic commands is difficult without this pattern
+
+**Implementation**:
+```nushell
+# In calling module (e.g., stk_event)
+let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_EVENT_COLUMNS
+let args = if $all { $args | append "--all" } else { $args }
+
+# Clean invocation - no nested if/else!
+if $detail {
+    psql list-records-with-detail ...$args
+} else {
+    psql list-records ...$args
+}
+```
+
+**In receiving function (stk_psql)**:
+```nushell
+export def "psql list-records" [
+    ...args: string         # Positional arguments: schema, table_name, column1, column2, ... [, --all]
+    --limit: int = 10       # Always present with default
+] {
+    # Check if --all flag is present in args
+    let has_all = ("--all" in $args)
+    
+    # Filter out flags to get only positional arguments
+    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
+    # ... rest of implementation
+}
+```
+
+**Why This Matters**: Without this pattern, you would need either:
+- Nested if/else blocks for each combination of optional flags (exponential complexity)
+- Give up on using the spread operator entirely
+- Duplicate code for each flag combination
+
+**Reference**: See `stk_event/mod.nu:84-94` for the canonical implementation of this pattern.
+
 ## Implementation Patterns
 
 ### Basic Module (Single Table)
