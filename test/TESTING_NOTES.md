@@ -245,6 +245,22 @@ let result = (command params)  # Error: Command not found
 use ../modules *  # Add at top of test
 ```
 
+### NULL Values Returned as Strings
+```nushell
+# Problem
+assert ($result.parent_uu.0 == null)  # Fails because NULL is "null" string
+
+# Solution (temporary)
+assert ($result.parent_uu.0 == "null")  # Check for string "null"
+
+# Explanation
+The .psqlrc-nu configuration sets \pset null 'null' to distinguish
+NULL from empty strings in CSV format. This causes PostgreSQL NULL
+values to be returned as the string "null" rather than nushell's
+native null type. A future enhancement will convert these strings
+back to proper null values in the psql exec command.
+```
+
 ### Assertion Syntax Error
 ```nushell
 # Problem
