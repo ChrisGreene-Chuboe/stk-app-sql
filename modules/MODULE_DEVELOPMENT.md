@@ -1,173 +1,145 @@
-# Chuck-Stack Module Development Guide (Updated 2025)
+# Chuck-Stack Module Development Guide
 
-This guide reflects the evolved practices for creating chuck-stack nushell modules as of 2025, based on patterns established in recent implementations.
+This guide provides patterns for creating chuck-stack nushell modules. Modules expose database functionality through pipeline-oriented commands following consistent patterns.
 
-## CRITICAL: Nushell SQL Syntax Issue
+## Table of Contents
 
-### Parentheses Escaping in SQL Strings
+- [Quick Start](#quick-start)
+- [Module Structure](#module-structure)
+- [Database Schema Context](#database-schema-context)
+- [Core Patterns](#core-patterns)
+- [Implementation Guide](#implementation-guide)
+- [Module Development Checklist](#module-development-checklist)
+- [Documentation Standards](#documentation-standards)
+- [Reference Implementations](#reference-implementations)
+- [Appendix: Common Pitfalls](#appendix-common-pitfalls)
+- [Document Maintenance Guidelines](#document-maintenance-guidelines)
 
-**IMPORTANT**: In nushell string interpolation, opening parentheses `(` have special meaning for command calls and MUST be escaped when used in SQL or other literal contexts.
+## Quick Start
 
-**❌ WRONG - causes parse errors:**
-```nushell
-let sql = $"INSERT INTO table (column) VALUES ('value')"
-let sql = $"SELECT COUNT(*) FROM table"
-let sql = $"SELECT EXISTS (SELECT 1 FROM table)"
-```
+To create a new module:
+1. Copy an existing module (e.g., `stk_item` for single table, `stk_project` for header-line)
+2. Update constants (schema, table name, columns)
+3. Adjust command parameters for your business logic
+4. Write conceptual README
+5. Test all command variations
 
-**✅ CORRECT - escape opening parentheses:**
-```nushell
-let sql = $"INSERT INTO table \(column) VALUES \('value')"
-let sql = $"SELECT COUNT\(*) FROM table"
-let sql = $"SELECT EXISTS \(SELECT 1 FROM table)"
-```
-
-**Common SQL patterns requiring escaping:**
-- `COUNT(*)` → `COUNT\(*)`
-- `EXISTS (subquery)` → `EXISTS \(subquery)`
-- `INSERT INTO table (col1, col2)` → `INSERT INTO table \(col1, col2)`
-- `COALESCE(value, default)` → `COALESCE\(value, default)`
-- Function calls: `NOW()` → `NOW\()`, `gen_random_uuid()` → `gen_random_uuid\()`
-
-This is a recurring issue that causes "invalid characters after closing delimiter" errors. **ALWAYS** escape opening parentheses in SQL strings within nushell modules.
-
-### Mutable Variable Capture in Closures
-
-**IMPORTANT**: Nushell does not allow capturing mutable variables in closures (like `each`, `where`, `reduce` blocks).
-
-**❌ WRONG - causes "Capture of mutable variable" error:**
-```nushell
-mut cache = {}
-$input | each { |item|
-    if ($item in $cache) {  # Error: cannot capture mutable $cache
-        $cache | get $item
-    }
-}
-```
-
-**✅ CORRECT - use immutable variables or build cache upfront:**
-```nushell
-# Option 1: Build cache upfront
-let cache = $items | reduce -f {} { |item, acc|
-    $acc | insert $item (compute-value $item)
-}
-$input | each { |item|
-    $cache | get $item  # OK: $cache is immutable
-}
-
-# Option 2: Return updated values from closure
-let result = $input | reduce -f {cache: {}, results: []} { |item, acc|
-    # Update and return the accumulator
-    {
-        cache: ($acc.cache | insert $item (compute-value $item))
-        results: ($acc.results | append $processed_item)
-    }
-}
-```
-
-## Key Changes Since Original Guide
-
-### 1. **Parameters Record Pattern** 
-**New Standard**: Creation commands now use parameters record approach to eliminate cascading if/else logic.
-
-**See**: `stk_project/mod.nu:32-57` and `stk_item/mod.nu:33-53` for complete examples.
-
-**Key Benefits**:
-- Single call to `psql new-record` with all parameters
-- Cleaner null handling with `default null`
-- Eliminates cascading conditional logic
-
-### 2. **Pipeline-Only UUID Operations**
-**New Standard**: Commands operating on existing records require UUIDs via piped input only.
-
-**See**: `stk_project/mod.nu:121-129` (project revoke) and `stk_project/mod.nu:267-275` (project line get) for examples.
-
-**Breaking Change**: No more optional UUID parameters - pipeline input is required.
-
-### 3. **Generic PSQL Commands**
-**New Standard**: All modules must use standardized commands from `stk_psql/mod.nu`.
-
-**Replace custom SQL with**:
-- `psql new-record` - Creation with parameters record
-- `psql new-line-record` - Header-line creation  
-- `psql list-records` - Standard listing
-- `psql get-record` - Single record retrieval
-- `psql revoke-record` - Soft delete
-- `psql get-type-by-search-key` - Type lookup by search key
-- `psql list-types` - Type listing
-- `psql detail-record` - Record with type details
-
-### 4. **Header-Line Pattern**
-**New Pattern**: Standardized support for header-line relationships (project/project_line).
-
-**See**: `stk_project/mod.nu:174-359` for complete header-line implementation including:
-- Line creation via piped header UUID
-- Line listing via piped header UUID  
-- Line operations via piped line UUID
-- Bulk operations support
-
-### 5. **Type Management Integration**
-**New Standard**: All modules with types must include:
-- `module types` - List available types
-- `module detail <uu>` - Show record with type information
-- Type resolution in creation commands
-
-**See**: `item types` and `project types` commands for examples.
-
-### 6. **List-Based Column Definitions**
-**New Standard**: All column definitions must use nushell lists:
+## Module Structure
 
 ```nushell
+# STK [Module] Module
+# This module provides commands for working with stk_[table] tables
+
 # Module Constants
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_module"
-const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]  # List syntax, no quotes
+const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
+
+# Commands: new, list, get, revoke, types
 ```
 
-**Key Changes**:
-- Column definitions changed from comma-separated strings to lists
-- Base columns are centralized (see `stk_psql/mod.nu` module constants)
-- Type table names are auto-derived using `{table}_type` convention
-- Minimal constants per module - only what's unique
-
-**Reference Implementation**: See `stk_item` module for clean single-table pattern.
-
-### 7. **Simplified PSQL Function Signatures**
-**Updated**: PSQL functions no longer require base_columns parameter:
-
-```nushell
-# Old pattern (removed)
-psql list-records $schema $table $specific_cols $base_cols $limit
-
-# New pattern
-psql list-records $schema $table $specific_cols
-psql list-line-records $schema $table $specific_cols $header_uu  # header-line pattern
+### File Organization
+```
+stk_module/
+├── mod.nu      # Module implementation
+└── README.md   # Conceptual documentation
 ```
 
-**Available Functions**: See `psql` commands in `stk_psql/mod.nu` for complete list.
+## Database Schema Context
 
-### 8. **Bulk Operations Support**
-**New Feature**: Commands can handle both single UUIDs and lists where appropriate.
+### First-Class Citizen Tables
+Chuck-stack concepts (first-class citizen tables) always include:
+- Main table (e.g., `stk_project`)
+- Accompanying `_type` table (e.g., `stk_project_type`)
+- Standard columns and triggers for chuck-stack behavior
 
-**See**: `project line revoke` command in `stk_project` module for bulk implementation.
+**Creating new concepts**: Refer to sample-table-convention in postgres-convention documentation for the complete migration template and prompting process.
 
-### 9. **Dynamic Command Building with Optional Flags**
-**Pattern**: Optional flags like `--all` are incorporated into `...args` parameter to enable dynamic command composition.
+### Working with Existing Tables
+Most modules expose existing tables. Before implementing:
+- Verify table structure and column names
+- Check for existing `_type` table
+- Understand any special relationships (header-line, attachments)
 
-**Problem Solved**: When using nushell's spread operator (`...$args`) to pass arguments between commands, you cannot conditionally include/exclude named flags. The spread operator passes positional arguments, not named parameters.
+## Core Patterns
 
-**Key Insight**: 
-- **`--limit` is always present** (has a default value) - it's never "missing" from the query
-- **`--all` is truly optional** - its presence/absence fundamentally changes the query behavior
-- Making a flag optional when building dynamic commands is difficult without this pattern
+### 1. Parameters Record Pattern
 
-**Implementation**:
+Creation commands use a parameters record to eliminate cascading if/else logic:
+
 ```nushell
-# In calling module (e.g., stk_event)
-let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_EVENT_COLUMNS
+# Build parameters record
+let params = {
+    name: $name
+    type_uu: ($resolved_type_uu | default null)
+    description: ($description | default null)
+    parent_uu: ($parent | default null)
+    is_template: ($template | default false)
+    entity_uu: ($entity_uu | default null)
+}
+
+# Single call with all parameters
+psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
+```
+
+### 2. Pipeline-Only UUID Operations
+
+Commands operating on existing records require UUIDs via piped input:
+
+```nushell
+# Examples
+$uuid | project get
+$uuid | project revoke
+$project_uuid | project line list
+```
+
+### 3. Generic PSQL Commands
+
+All modules use standardized commands from `stk_psql`:
+- `psql new-record` - Create with parameters record
+- `psql new-line-record` - Create header-line records  
+- `psql list-records` - List with optional --detail
+- `psql list-line-records` - List lines for header
+- `psql get-record` - Retrieve single record
+- `psql detail-record` - Get with type information
+- `psql revoke-record` - Soft delete
+- `psql list-types` - List available types
+- `psql get-type-by-search-key` - Resolve type by key
+
+### 4. Module Constants
+
+```nushell
+const STK_SCHEMA = "api"
+const STK_TABLE_NAME = "stk_module"  
+const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
+```
+
+Note: Base columns (created, updated, uu, etc.) are handled by psql commands.
+
+### 5. Type Support
+
+Modules with business classification include:
+- Type resolution in creation (--type-uu or --type-search-key)
+- `module types` command to list available types
+- `--detail` flag on get/list commands for type information
+
+### 6. Header-Line Pattern
+
+For related tables (e.g., project/project_line):
+- Line creation receives header UUID via pipe
+- Line listing receives header UUID via pipe
+- Line operations receive line UUID via pipe
+- Supports bulk operations on lists
+
+### 7. Dynamic Command Building
+Optional flags are passed via args array to enable clean command composition:
+
+```nushell
+# Build args array with optional flag
+let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
 let args = if $all { $args | append "--all" } else { $args }
 
-# Clean invocation - no nested if/else!
+# Single invocation point
 if $detail {
     psql list-records-with-detail ...$args
 } else {
@@ -175,107 +147,169 @@ if $detail {
 }
 ```
 
-**In receiving function (stk_psql)**:
+This pattern avoids nested if/else blocks when combining optional parameters.
+
+## Implementation Guide
+
+### Step 1: Define Module Constants
+
 ```nushell
-export def "psql list-records" [
-    ...args: string         # Positional arguments: schema, table_name, column1, column2, ... [, --all]
-    --limit: int = 10       # Always present with default
+const STK_SCHEMA = "api"
+const STK_TABLE_NAME = "stk_module"
+const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
+```
+
+### Step 2: Implement Core Commands
+
+#### Creation Command
+```nushell
+export def "module new" [
+    name: string
+    --type-uu: string
+    --type-search-key: string  
+    --description(-d): string
+    --template
+    --entity-uu(-e): string
 ] {
-    # Check if --all flag is present in args
-    let has_all = ("--all" in $args)
+    # Type resolution
+    let resolved_type_uu = if ($type_search_key | is-not-empty) {
+        (psql get-type-by-search-key $STK_SCHEMA $STK_TABLE_NAME $type_search_key | get uu)
+    } else {
+        $type_uu
+    }
     
-    # Filter out flags to get only positional arguments
-    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
-    # ... rest of implementation
+    # Build parameters
+    let params = {
+        name: $name
+        type_uu: ($resolved_type_uu | default null)
+        description: ($description | default null)
+        is_template: ($template | default false)
+        entity_uu: ($entity_uu | default null)
+    }
+    
+    psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 }
 ```
 
-**Why This Matters**: Without this pattern, you would need either:
-- Nested if/else blocks for each combination of optional flags (exponential complexity)
-- Give up on using the spread operator entirely
-- Duplicate code for each flag combination
+#### List Command  
+```nushell
+export def "module list" [
+    --detail(-d)
+    --all(-a)
+] {
+    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
+    let args = if $all { $args | append "--all" } else { $args }
+    
+    if $detail {
+        psql list-records-with-detail ...$args
+    } else {
+        psql list-records ...$args
+    }
+}
+```
 
-**Reference**: See `stk_event/mod.nu:84-94` for the canonical implementation of this pattern.
+#### Get Command
+```nushell
+export def "module get" [
+    --detail(-d)
+] {
+    let uu = $in
+    
+    if ($uu | is-empty) {
+        error make { msg: "UUID required via piped input" }
+    }
+    
+    if $detail {
+        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
+    } else {
+        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_MODULE_COLUMNS $uu
+    }
+}
+```
 
-## Implementation Patterns
+#### Revoke Command
+```nushell
+export def "module revoke" [] {
+    let target_uuid = $in
+    
+    if ($target_uuid | is-empty) {
+        error make { msg: "UUID required via piped input" }
+    }
+    
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
+}
+```
 
-### Basic Module (Single Table)
-**Reference**: `stk_item` module - Clean example with minimal constants and list-based columns.
+#### Types Command (if applicable)
+```nushell
+export def "module types" [] {
+    psql list-types $STK_SCHEMA $STK_TABLE_NAME
+}
+```
 
-**Key Commands**:
-- `item new` - Parameters record creation
-- `item list` - Generic listing with `--detail` option
-- `item get` - Standard retrieval with `--detail` option
-- `item revoke` - Pipeline-only soft delete
-- `item types` - Type listing
+### Step 3: Add Header-Line Commands (if needed)
 
-### Header-Line Module (Related Tables)
-**Reference**: `stk_project` module - Complete header-line implementation using `psql list-line-records`.
+For modules with line tables, add:
+- `module line new` - Creates lines for a header
+- `module line list` - Lists lines for a header  
+- `module line get` - Gets specific line
+- `module line revoke` - Revokes line(s)
 
-**Key Commands**:
-- `project new` - Header creation
-- `project line new` - Line creation via piped header UUID
-- `project line list` - Lines via piped header UUID
-- `project line get` - Line via piped line UUID
-- `project line revoke` - Bulk-capable line deletion
+## Module Development Checklist
 
-### Legacy Patterns (Attachment/Linking)
-**Reference**: `stk_event/mod.nu` and `stk_request/mod.nu` - Specialized attachment patterns.
+- [ ] Define module constants (schema, table, columns)
+- [ ] Implement `new` command with parameters record
+- [ ] Implement `list` command with --detail and --all flags
+- [ ] Implement `get` command with pipeline UUID input
+- [ ] Implement `revoke` command with pipeline UUID input
+- [ ] Add `types` command if table has associated types
+- [ ] Add header-line commands if applicable
+- [ ] Write comprehensive help documentation
+- [ ] Create README.md focusing on concepts
+- [ ] Test all command variations
 
-**Key Commands**:
-- `.append event` - Attachment-based creation
-- Uses `table_name_uu_json` for cross-entity linking
+## Documentation Standards
 
-## Migration Checklist
+### Command Help
+Each command must include:
+- Purpose and context
+- Pipeline input specification
+- Multiple practical examples
+- Return value description
+- Error conditions
 
-When updating existing modules to evolved patterns:
-
-- [ ] **Update constants** - Add type table names and include `table_name` in `STK_BASE_COLUMNS`
-- [ ] **Refactor creation** - Use `psql new-record` with parameters record
-- [ ] **Convert UUID operations** - Pipeline-only, no optional parameters  
-- [ ] **Replace custom SQL** - Use generic `psql` commands
-- [ ] **Add type commands** - `types` and `detail` where applicable
-- [ ] **Update help docs** - Reflect pipeline-only and new patterns
-- [ ] **Test thoroughly** - Ensure compatibility with workflows
-
-## Quality Standards
-
-### Documentation
-- **README**: Concepts and discovery (see `stk_event/readme.md`)
-- **Command Help**: Implementation details and examples
-- **Pipeline Specification**: Required for all commands
-
-### Testing  
-- **See**: `../test/TESTING_NOTES.md` for comprehensive standards
-- **Test all patterns**: Creation, pipeline operations, bulk operations
-- **Reference**: `test-project.nu` for header-line testing patterns
-
-### Integration
-- **Generic Commands**: Use `stk_psql` functions exclusively
-- **Type Support**: Implement where business logic requires
-- **Cross-Module**: Support pipeline workflows between modules
+### Module README
+Focus on:
+- Module purpose and chuck-stack integration
+- Conceptual overview (not command details)
+- Quick start examples
+- Links to related documentation
 
 ## Reference Implementations
 
-### Primary References
-- **`stk_project/mod.nu`** - Complete evolved patterns with header-line support
-- **`stk_item/mod.nu`** - Clean single-table implementation  
-- **`stk_psql/mod.nu`** - All generic commands and modern nushell patterns
+- **`stk_item`** - Clean single-table module
+- **`stk_project`** - Complete header-line pattern
+- **`stk_psql`** - Generic command implementations
+- **`stk_event`** - Specialized attachment patterns
 
-### Legacy References  
-- **`stk_event/mod.nu`** - Attachment pattern for specialized use cases
-- **`stk_request/mod.nu`** - Cross-entity linking pattern
+## Appendix: Common Pitfalls
 
-### Testing References
-- **`test-project.nu`** - Header-line testing patterns
-- **`test-item.nu`** - Single-table testing patterns
+### Nushell Syntax
+- **Escape parentheses in SQL**: `$"SELECT COUNT\(*) FROM table"`  
+- **No mutable captures in closures**: Use immutable variables or reduce pattern
 
-## Breaking Changes Summary
+### Design Guidelines
+- **Pipeline-only UUIDs**: Never accept UUID as optional parameter
+- **No custom SQL**: Always use psql generic commands
+- **Include type support**: If table has `_type` companion
+- **Support bulk operations**: Accept lists where logical
 
-1. **Creation Commands**: Must use parameters record pattern
-2. **UUID Operations**: Must use pipeline-only approach (no optional parameters)
-3. **SQL Operations**: Must use generic `psql` commands (no custom SQL)
-4. **Type Integration**: Required for modules with business classification
-5. **Constants**: Must include type table references where applicable
+## Document Maintenance Guidelines
 
-These changes reflect the maturation of chuck-stack patterns and significantly improve code consistency, maintainability, and functionality across all modules.
+### Core Principles
+- **Clear and concise**: Remove redundancy, focus on essential information
+- **Logical flow**: Start with overview, progress to specifics, end with references
+- **Serve AI needs**: Provide concrete examples and templates that can be directly applied
+- **Avoid line numbers**: Use searchable string references (e.g., "see Parameters Record Pattern")
+- **Current patterns only**: Remove historical context and deprecated approaches
+- **Maintain table of contents**: Update TOC when adding/removing major sections
