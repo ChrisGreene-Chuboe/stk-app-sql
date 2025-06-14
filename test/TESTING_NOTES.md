@@ -1,474 +1,317 @@
-# Testing Notes
+# Chuck-Stack Testing Guide
 
-## Database Function Access
+This guide provides patterns for testing chuck-stack nushell modules in the test environment.
 
-**Important**: Always use the `api` schema for function calls in testing and nushell modules.
+## Table of Contents
 
-- ✅ Correct: `SELECT api.get_table_name_uu_json('uuid-here'::uuid);`
-- ❌ Incorrect: `SELECT private.get_table_name_uu_json('uuid-here'::uuid);` (permission denied)
+- [Quick Start](#quick-start)
+- [Testing Philosophy](#testing-philosophy)
+- [Test Environment](#test-environment)
+- [Writing Tests](#writing-tests)
+- [Running Tests](#running-tests)
+- [Common Issues](#common-issues)
+- [Maintenance Tasks](#maintenance-tasks)
+- [Document Maintenance Guidelines](#document-maintenance-guidelines)
 
-The `api` schema provides the public interface following chuck-stack conventions, while `private` schema functions are internal implementation details.
+## Quick Start
 
-## Test Environment Setup
-
-### Nushell-First Architecture
-
-The chuck-stack test environment now uses a **nushell-first architecture** where all database setup, migrations, and operations are handled through nushell scripts rather than bash.
-
-### Starting the Environment
-
-1. **Start test environment**: `cd test && nix-shell`
-   - Automatically runs `start-test.nu` for complete environment setup
-   - Uses `chuck-stack-nushell-psql-migration` for database operations
-   - Sets up PostgreSQL, runs migrations, generates schema details
-   - Configures PostgREST and aichat integration
-
-2. **Default user** is `stk_login` with `stk_api_role` 
-
-3. **For DDL testing**, switch to superuser:
-   ```bash
-   export PGUSER=stk_superuser
-   export STK_PG_ROLE=stk_superuser
-   ```
-
-### Migration Management (Nushell-Based)
-
-The environment now uses **chuck-stack-nushell-psql-migration** instead of sqlx-cli:
-
+Run existing tests:
 ```bash
-# Migration status and management (run from $STK_TEST_DIR)
-migrate status ./migrations          # Show migration status
-migrate history ./migrations         # Show migration history  
-migrate run ./migrations --dry-run   # Test without applying
-migrate add ./migrations <description> # Create new migration
-migrate validate ./migrations        # Validate migration files
-
-# Legacy commands are no longer available:
-# sqlx migrate run    ❌ (replaced with: migrate run ./migrations)
-# sqlx migrate add    ❌ (replaced with: migrate add ./migrations <description>)
+cd test
+nix-shell --run "./test-simple.nu"
+nix-shell --run "./test-project.nu"
+nix-shell --run "./test-all.nu"
 ```
 
-### Environment Scripts
-
-- **start-test.nu**: Comprehensive environment setup (database, migrations, schema generation)
-- **stop-test.nu**: Clean environment teardown
-- **Shell integration**: `nix-shell` automatically calls these scripts
-
-### Best Practices for Nushell/PostgreSQL Integration
-
-1. **Use standard PostgreSQL environment variables**: 
-   - `PGHOST`, `PGUSER`, `PGDATABASE` (no more `DATABASE_URL`)
-   
-2. **Migration file compatibility**: 
-   - Existing SQL files work unchanged
-   - Standard PostgreSQL SQL syntax (no tool-specific extensions)
-   
-3. **Nushell SQL patterns**:
-   ```nushell
-   # Escape opening parentheses in SQL strings
-   let sql = $"INSERT INTO table \(column) VALUES \('value')"  # ✅ Correct
-   let sql = $"INSERT INTO table (column) VALUES ('value')"    # ❌ Parse error
-   ```
-
-## Nushell Module Testing
-
-### Test Scripts
-- `test-simple.nu` - **Reference implementation** for assertion-based testing patterns
-- `test-request.nu` - Comprehensive request module functionality test
-- `test-event.nu` - Complete event module testing with request integration
-- `test-todo-list.nu` - Complete todo list module testing with hierarchical todos
-
-### Testing Best Practices
-
-**IMPORTANT**: Before adding new tests or modifying existing tests, review `test-simple.nu` as the reference implementation for proper assertion-based testing.
-
-#### Use Assertions for Verification
-Tests should use nushell's `assert` command to verify expected outcomes rather than relying on "command doesn't fail" testing:
-
-```nushell
-# Import assert functionality
-use std/assert
-
-# Capture command results
-let result = ("Test data" | .append request "test-name")
-
-# Assert on specific outcomes
-assert ($result | columns | any {|col| $col == "uu"}) "Result should contain a 'uu' field"
-assert ($result.uu | is-not-empty) "UUID field should not be empty"
-```
-
-#### Testing Pattern Requirements
-
-**CRITICAL: Test File Permissions**
-All test files must be executable before running. This is a common source of "Permission denied" errors:
+Create new test:
 ```bash
-# ALWAYS run this after creating any test file
-chmod +x test-new-feature.nu
+# Create test file with executable permissions
+echo '#!/usr/bin/env nu' > test-feature.nu
+chmod +x test-feature.nu
+# Edit test following patterns in test-simple.nu
 ```
 
-1. **Import modules and assert**: Always include both module imports and assert functionality
-   ```nushell
-   use ../modules *
-   use std/assert
-   ```
-2. **Make test executable**: Always make test files executable after creation (see above)
-3. **Capture results**: Store command outputs in variables for verification
-4. **Assert outcomes**: Verify specific expected results, not just execution success
-5. **Clear messages**: Provide descriptive assertion failure messages
-6. **Reference test-simple.nu**: Follow the established patterns for consistency
+## Testing Philosophy
 
-#### Common Testing Pitfalls and Solutions
+### Purpose
+Chuck-stack tests validate that:
+- Module commands work as documented
+- Database operations execute correctly
+- Help examples actually function
+- Pipeline patterns integrate properly
 
-**❌ Assertion Syntax Errors**
-```nushell
-# WRONG: Missing parentheses around comparison
-assert ($result | length) > 0 "Should have results"  # Error: expected bool, found int
+### Help Example Testing
+Commands include examples in their `--help` documentation. Tests validate these examples work in practice, ensuring documentation stays accurate.
 
-# CORRECT: Wrap comparison in parentheses
-assert (($result | length) > 0) "Should have results"
+### Assertion-Based Testing
+Tests use nushell's `assert` command to verify expected outcomes rather than just checking execution success. See `test-simple.nu` for the reference pattern.
+
+## Test Environment
+
+### Architecture
+The test environment uses a **nushell-first architecture**:
+- PostgreSQL setup via `start-test.nu`
+- Database migrations via `chuck-stack-nushell-psql-migration`
+- Automatic cleanup via `stop-test.nu`
+- Isolated `/tmp/stk-test-*` workspace
+
+### Test Directory Structure
+When `nix-shell` runs, it creates a temporary test workspace:
+```
+/tmp/stk-test-XXXXX/
+├── modules/          # Copied from ../modules
+├── migrations/       # Database migrations
+├── test-*.nu        # Test scripts
+└── ...              # Other test files
 ```
 
-**❌ Module Import Issues**
-```nushell
-# WRONG: Missing module import
-let result = (item new "test")  # Error: Command `item` not found
+**IMPORTANT**: The modules are copied to `./modules` within the test directory, which is why test files use `use ./modules *` instead of `use ../modules *`.
 
-# CORRECT: Import modules first
-use ../modules *
-let result = (item new "test")
+### Key Components
+- **nix-shell**: Provides PostgreSQL and dependencies
+- **start-test.nu**: Initializes database and runs migrations
+- **migrate command**: Manages database migrations (replaces sqlx-cli)
+- **psql commands**: Execute database operations
+
+### Environment Variables
+- `PGHOST`, `PGUSER`, `PGDATABASE`: Standard PostgreSQL connection
+- `STK_PG_ROLE`: Current database role
+- `STK_TEST_DIR`: Test workspace directory
+
+### Database Access
+Always use the `api` schema for function calls:
+```sql
+-- Correct
+SELECT api.get_table_name_uu_json('uuid-here'::uuid);
+
+-- Incorrect (permission denied)
+SELECT private.get_table_name_uu_json('uuid-here'::uuid);
 ```
 
-**❌ Data Access Errors**  
-```nushell
-# WRONG: Accessing string field directly on list result
-assert ($result.name | str contains "test")  # Error: can't convert list<bool> to bool
+## Writing Tests
 
-# CORRECT: Access first element of list result
-assert ($result.name.0 | str contains "test")
-```
-
-**❌ Permission Issues** (Most Common Error)
-```bash
-# WRONG: File not executable
-./test-new-feature.nu  # Error: Permission denied
-
-# CORRECT: Make file executable first
-chmod +x test-new-feature.nu
-./test-new-feature.nu  # ✅ Runs successfully
-```
-
-**✅ Complete Test Creation Checklist**
-1. Create test file with `#!/usr/bin/env nu` shebang
-2. Import modules: `use ../modules *` and `use std/assert`
-3. Make file executable: `chmod +x test-filename.nu`
-4. Use proper assertion syntax with parentheses around comparisons
-5. Access list result fields with `.0` for first element
-6. Run test with `nix-shell --run "./test-filename.nu"`
-
-## Standardized Test Output
-
-**IMPORTANT**: All tests must end with the exact same success message for consistent verification:
-
-```
-=== All tests completed successfully ===
-```
-
-This standard output enables reliable test verification using grep:
-```bash
-# Verify test success
-nix-shell --run "./test-module.nu" 2>&1 | grep "=== All tests completed successfully ==="
-```
-
-**✅ Complete Test Template**
+### Test Structure Template
 ```nushell
 #!/usr/bin/env nu
 
 echo "=== Testing module functionality ==="
 
-# REQUIRED: Import modules and assert
-use ../modules *
+# Import modules and assertions
+use ./modules *
 use std/assert
 
-echo "=== Testing command ==="
-let result = (command_to_test "parameter")
+# Test basic functionality
+echo "=== Testing basic command ==="
+let result = (command parameters)
 
-echo "=== Verifying results ==="
-# CORRECT: Wrap comparisons in parentheses
+# Verify with assertions
 assert (($result | length) > 0) "Should return results"
-# CORRECT: Access list elements with .0
 assert ($result.field.0 | str contains "expected") "Field should match"
-# CORRECT: Boolean fields can be accessed directly if single result
-assert ($result.is_active.0) "Should be active"
 
 echo "=== All tests completed successfully ==="
 ```
 
-### Running Tests
+### Key Patterns
 
-**IMPORTANT**: All nushell tests must be run within the nix-shell environment to access the PostgreSQL database and required dependencies.
-
-**CRITICAL for Claude Code**: Claude Code cannot use interactive nix-shell sessions. All tests must be run using the `nix-shell --run` pattern:
+#### 1. Always Make Tests Executable
 ```bash
-# ✅ CORRECT: Non-interactive execution
+chmod +x test-new.nu  # Required before first run
+```
+
+#### 2. Import Requirements
+```nushell
+use ./modules *     # Access module commands (copied to test directory)
+use std/assert      # Enable assertions
+```
+
+#### 3. Assertion Syntax
+```nushell
+# Wrap comparisons in parentheses
+assert (($result | length) > 0) "Error message"
+
+# Access list elements with .0
+assert ($result.field.0 == "value") "Field should match"
+```
+
+#### 4. Standard Output
+End all tests with:
+```nushell
+echo "=== All tests completed successfully ==="
+```
+
+### Testing Patterns
+
+#### UUID Piping
+```nushell
+let uuid = ($result.uu.0)
+let details = ($uuid | command get)
+```
+
+#### Type Resolution
+```nushell
+let result = (command new "name" --type-search-key "TYPE_ENUM")
+```
+
+#### Request/Event Attachment
+```nushell
+let attached = ($uuid | .append request "investigation")
+```
+
+## Running Tests
+
+### Claude Code Requirements
+**CRITICAL**: Claude Code cannot use interactive nix-shell. Always use `--run`:
+
+```bash
+# Correct for Claude Code
 nix-shell --run "./test-script.nu"
 
-# ❌ INCORRECT: Interactive nix-shell (exits immediately in Claude Code)
+# Incorrect (exits immediately)
 nix-shell
 ./test-script.nu
 ```
 
-When developing new features that need testing, create dedicated test scripts rather than attempting interactive debugging.
+### Execution Patterns
 
-#### Debugging New Tests
-
-When debugging new tests or features, use the `tail -50` approach to get general output without being overwhelmed by environment setup:
-
+#### Single Test
 ```bash
-# ✅ RECOMMENDED: Debug new test with manageable output
-nix-shell --run "./test-new-feature.nu" 2>&1 | tail -50
-
-# ✅ ALTERNATIVE: Write output to external file for review
-nix-shell --run "./test-debug.nu" 2>&1 | tail -50
-# (where test-debug.nu writes key information to /tmp/debug-output.txt)
-
-# ✅ Get even more context if needed
-nix-shell --run "./test-elaborate.nu" 2>&1 | tail -100
+nix-shell --run "./test-simple.nu"
 ```
 
-The `tail -50` approach provides enough context to see test results, errors, and environment cleanup without the thousands of lines from database initialization. This is ideal for iterative development and debugging.
-
-#### Efficient Test Execution Patterns
-
+#### Verify Success
 ```bash
-# Single test execution (REQUIRED approach)
-nix-shell --run "./test-simple.nu"
-nix-shell --run "./test-request.nu" 
-nix-shell --run "./test-event.nu"
-nix-shell --run "./test-todo-list.nu"
-
-# EFFICIENT: Test all modules with minimal output
-nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
-
-# EFFICIENT: Quick verification of test success (filters verbose environment output)
-nix-shell --run "./test-event.nu" 2>/dev/null | tail -5
-
-# EFFICIENT: Check specific test results without environment noise
-nix-shell --run "./test-all.nu" 2>/dev/null | grep -A1 -B1 "test-event"
-
-# Verify test success using standardized output
 nix-shell --run "./test-event.nu" 2>&1 | grep "=== All tests completed successfully ==="
 ```
 
-#### Verbose vs. Efficient Testing
-
-**❌ Verbose (expensive to review):**
+#### Debug Output (Last 50 Lines)
 ```bash
-# Shows full environment setup/teardown output (thousands of lines)
-nix-shell --run "./test-all.nu"
+nix-shell --run "./test-new.nu" 2>&1 | tail -50
 ```
 
-**✅ Efficient (focused on results):**
+#### Efficient Multi-Test
 ```bash
-# Shows only test results (6 lines)
-nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
-
-# Shows only the end of a specific test
-nix-shell --run "./test-item.nu" 2>/dev/null | tail -5
-
-# Shows context around a specific test in test-all
-nix-shell --run "./test-all.nu" 2>/dev/null | grep -A1 -B1 "test-project"
-```
-
-#### Legacy Test Management Patterns
-
-```bash
-# Run all tests in sequence
-for test in test-*.nu { nix-shell --run $"./($test)" }
-
-# Run all tests and verify success
-for test in test-*.nu { 
-    echo "Testing $test..."
-    if (nix-shell --run $"./($test)" 2>&1 | grep "=== All tests completed successfully ===" | is-empty) {
-        echo "❌ FAILED: $test"
-    } else {
-        echo "✅ PASSED: $test"
-    }
-}
-
-# Interactive testing (start shell first, then run commands)
-nix-shell
-# Inside nix-shell:
-./test-simple.nu
-./test-request.nu
-./test-event.nu
-./test-todo-list.nu
-```
-
-#### grep Filtering Best Practices
-
-**Key insight**: Nix-shell environment setup produces significant output that can obscure actual test results. Use grep filtering to focus on relevant information:
-
-```bash
-# Filter for test outcomes only
-| grep -E "PASSED|FAILED"
-
-# Filter for success confirmation
-| grep "=== All tests completed successfully ==="
-
-# Show context around specific tests  
-| grep -A1 -B1 "test-module-name"
-
-# Show end of test output (final results)
-| tail -5
-
-# Redirect stderr to avoid nix-shell warnings
-2>/dev/null
-
-# Combined efficient pattern
+# Run all with filtered output
 nix-shell --run "./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 ```
 
-**Why nix-shell is required:**
-- Sets up temporary PostgreSQL instance with test database
-- Runs database migrations automatically
-- Configures environment variables (PGUSER, PGHOST, etc.)
-- Provides access to nushell modules and psql commands
-- Automatically cleans up on exit
+### Debugging Tests
 
-## Updating GitHub Repository Hashes in Nix
-
-### Overview
-
-When the chuck-stack-nushell-psql-migration repository is updated, the test environment's shell.nix file needs to be updated with the new commit hash and corresponding SHA256 hash.
-
-### Location
-
-The GitHub repository reference is in `/stk-app-sql/test/shell.nix` at lines 17-21:
-
-```nix
-migrationUtilSrc = pkgs.fetchgit {
-  url = "https://github.com/chuckstack/chuck-stack-nushell-psql-migration";
-  rev = "ab93bb3c6072e9b91e487727e9a560beb887783f";  # commit hash
-  sha256 = "sha256-RtUsbiL2+9+3dOotBhhbyn0cdl6Njp2MsAYtVBI90Lw=";
-};
-```
-
-### Step-by-Step Update Process
-
-**1. Get the latest commit hash:**
+When tests fail, use targeted output:
 ```bash
-git log --format="%H" -1  # from the updated migration submodule
+# See end of output
+nix-shell --run "./test-failing.nu" 2>&1 | tail -50
+
+# Find specific errors
+nix-shell --run "./test-failing.nu" 2>&1 | grep -A5 "Error"
+
+# Check assertion failures
+nix-shell --run "./test-failing.nu" 2>&1 | grep -B2 "Assertion failed"
 ```
 
-**2. Update the commit hash in shell.nix:**
-- Replace the `rev = "..."` line with the new full commit hash
-- Use a placeholder SHA256 initially: `sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";`
+## Common Issues
 
-**3. Get the correct SHA256 hash:**
+### Permission Denied
 ```bash
-cd /path/to/stk-app-sql/test
-timeout 30 nix-shell --command "echo 'testing'" 2>&1 | grep -A5 -B5 "hash mismatch\|expected\|got\|AAAA"
+# Problem
+./test-new.nu  # Error: Permission denied
+
+# Solution
+chmod +x test-new.nu
 ```
 
-**4. Extract the correct hash from the error:**
-Look for output like:
-```
-error: hash mismatch in fixed-output derivation:
-         specified: sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-            got:    sha256-RtUsbiL2+9+3dOotBhhbyn0cdl6Njp2MsAYtVBI90Lw=
-```
-
-**5. Update shell.nix with the correct SHA256:**
-- Replace the placeholder SHA256 with the "got:" value from the error
-
-**6. Test the updated configuration:**
-```bash
-timeout 60 nix-shell --command "echo 'Integration test successful'"
-```
-
-### Troubleshooting
-
-- **Command not found errors**: Ensure you're in the correct directory with shell.nix
-- **Timeout issues**: Increase timeout value or test without timeout
-- **Hash validation failures**: Double-check that both commit hash and SHA256 are correctly copied
-- **Build failures**: Verify the commit hash exists in the GitHub repository
-
-### Alternative Method (if nix-prefetch-git is available)
-
-If `nix-prefetch-git` is installed, you can get the hash directly:
-```bash
-nix-prefetch-git https://github.com/chuckstack/chuck-stack-nushell-psql-migration --rev COMMIT_HASH_HERE
-```
-
-## Help Example Testing Philosophy
-
-### Intent and Benefits
-
-The chuck-stack testing strategy includes validating examples from command `--help` documentation to ensure:
-
-1. **Documentation Accuracy**: Examples in `--help` actually work as shown
-2. **Living Documentation**: Help text stays current with code changes
-3. **User Confidence**: Users can trust that documented examples will work
-4. **Regression Prevention**: Changes that break documented examples are caught
-5. **Single Source of Truth**: Examples serve dual purpose as docs and tests
-
-### Documentation-Test Integration Strategy
-
-The complementary strategy between README and `--help` extends to testing:
-- **README**: Conceptual understanding and discovery (not directly tested)
-- **`--help`**: Implementation examples that become test cases
-- **Tests**: Validate that help examples work in practice
-
-### Help Example Standards for Testing
-
-When writing examples in command help comments:
-
-1. **Use Realistic Data**: Examples should use data patterns that can be tested
-   ```nushell
-   # Good: "User login successful" | .append event "authentication"
-   # Avoid: "some text" | .append event "some-name"
-   ```
-
-2. **Include Variable Patterns**: Use consistent variable naming for substitution
-   ```nushell
-   # Good: event get $event_uuid
-   # Good: $error_event_uuid | .append request "error-investigation" --description "investigate error"
-   ```
-
-3. **Show Progressive Complexity**: Start simple, build to advanced usage
-   ```nushell
-   # Basic: event list
-   # Filtered: event list | where name == "authentication"
-   # Piped: event list | get uu.0 | event get $in
-   ```
-
-4. **Demonstrate Integration**: Show how commands work together
-   ```nushell
-   # Create and attach: $event_uuid | .append request "investigation" --description "investigate this"
-   ```
-
-### Testing Implementation Approach
-
-Tests should validate help examples through:
-
-1. **Manual Test Cases First**: Start by manually implementing key examples in test scripts
-2. **Variable Substitution**: Replace example variables with real test data
-3. **Result Validation**: Assert expected outcomes, not just execution success
-4. **Progressive Automation**: Eventually extract and validate examples automatically
-
-### Example Testing Pattern
-
+### Module Not Found
 ```nushell
-# In test script
-echo "=== Testing help examples ==="
+# Problem
+let result = (command params)  # Error: Command not found
 
-# Test example: "User login successful" | .append event "authentication"
-let result = ("User login successful" | .append event "authentication")
-assert ($result | columns | any {|col| $col == "uu"}) "Event creation should return UUID"
-
-# Test example: event list | where name == "authentication"
-let filtered = (event list | where name == "authentication")
-assert ($filtered | length) > 0 "Should find authentication events"
+# Solution
+use ../modules *  # Add at top of test
 ```
 
-This approach ensures documentation and code stay synchronized while building user confidence in the examples provided.
+### Assertion Syntax Error
+```nushell
+# Problem
+assert ($result | length) > 0 "message"  # Error: expected bool
+
+# Solution
+assert (($result | length) > 0) "message"  # Wrap in parentheses
+```
+
+### List Access Error
+```nushell
+# Problem
+assert ($result.field | str contains "text")  # Error: can't convert list
+
+# Solution
+assert ($result.field.0 | str contains "text")  # Access first element
+```
+
+### Nushell String Escaping
+```nushell
+# Problem
+let sql = $"INSERT INTO table (column) VALUES ('value')"  # Parse error
+
+# Solution
+let sql = $"INSERT INTO table \(column) VALUES \('value')"  # Escape parentheses
+```
+
+## Maintenance Tasks
+
+### Updating Migration Tool
+
+When `chuck-stack-nushell-psql-migration` is updated:
+
+1. **Get new commit hash**:
+   ```bash
+   cd chuck-stack-nushell-psql-migration
+   git log --format="%H" -1
+   ```
+
+2. **Update shell.nix**:
+   - Find `migrationUtilSrc` section
+   - Update `rev` with new commit hash
+   - Use placeholder SHA256: `sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=`
+
+3. **Get correct SHA256**:
+   ```bash
+   cd test
+   timeout 30 nix-shell --command "echo 'testing'" 2>&1 | grep "got:"
+   ```
+
+4. **Update with correct hash**:
+   - Replace placeholder with the "got:" value
+
+5. **Test update**:
+   ```bash
+   nix-shell --run "echo 'Update successful'"
+   ```
+
+### Migration Commands
+
+Current commands (via chuck-stack-nushell-psql-migration):
+```bash
+# From within test directory
+migrate status ./migrations
+migrate run ./migrations
+migrate add ./migrations "description"
+```
+
+### Role Switching
+
+For DDL operations:
+```bash
+export PGUSER=stk_superuser
+export STK_PG_ROLE=stk_superuser
+```
+
+Default role is `stk_login` with `stk_api_role`.
+
+## Document Maintenance Guidelines
+
+### Core Principles
+- **Clear and concise**: Remove redundancy, focus on essential information
+- **Logical flow**: Start with overview, progress to specifics, end with references
+- **Serve AI needs**: Provide concrete examples and templates that can be directly applied
+- **Avoid line numbers**: Use searchable string references (e.g., "see Parameters Record Pattern")
+- **Current patterns only**: Remove historical context and deprecated approaches
+- **Maintain TOC**: Update table of contents when adding or removing major sections
