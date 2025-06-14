@@ -266,7 +266,7 @@ For modules with line tables, add:
 - [ ] Add header-line commands if applicable
 - [ ] Write comprehensive help documentation
 - [ ] Create README.md focusing on concepts
-- [ ] Test all command variations
+- [ ] Test all command variations (see "Testing Requirements" in TESTING_NOTES.md)
 
 ## Documentation Standards
 
