@@ -25,6 +25,7 @@ CREATE TABLE private.stk_entity_type (
   is_revoked BOOLEAN GENERATED ALWAYS AS (revoked IS NOT NULL) STORED,
   is_default BOOLEAN NOT NULL DEFAULT false,
   type_enum private.stk_entity_type_enum NOT NULL,
+  record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT

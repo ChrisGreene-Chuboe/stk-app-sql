@@ -3,15 +3,10 @@
 
 # Module Constants
 const STK_SCHEMA = "api"
-const STK_PRIVATE_SCHEMA = "private"
 const STK_PROJECT_TABLE_NAME = "stk_project"
 const STK_PROJECT_LINE_TABLE_NAME = "stk_project_line"
-const STK_PROJECT_TYPE_TABLE_NAME = "stk_project_type"
-const STK_PROJECT_LINE_TYPE_TABLE_NAME = "stk_project_line_type"
-const STK_DEFAULT_LIMIT = 10
-const STK_PROJECT_COLUMNS = "name, description, is_template, is_valid"
-const STK_PROJECT_LINE_COLUMNS = "name, description, is_template, is_valid"  
-const STK_BASE_COLUMNS = "created, updated, is_revoked, uu, table_name"
+const STK_PROJECT_COLUMNS = [name, description, is_template, is_valid]
+const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid]
 
 # Create a new project with specified name and type
 #
@@ -44,7 +39,7 @@ export def "project new" [
         type_uu: (if ($type | is-empty) { 
             null 
         } else { 
-            psql resolve-type $STK_SCHEMA $STK_PROJECT_TYPE_TABLE_NAME $type
+            psql resolve-type $STK_SCHEMA $STK_PROJECT_TABLE_NAME $type
         })
         description: ($description | default null)
         parent_uu: ($parent | default null)
@@ -85,9 +80,9 @@ export def "project list" [
     --detail(-d)  # Include detailed type information for all projects
 ] {
     if $detail {
-        psql list-records-with-detail $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_TYPE_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+        psql list-records-with-detail $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS
     } else {
-        psql list-records $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+        psql list-records $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS
     }
 }
 
@@ -123,9 +118,9 @@ export def "project get" [
     }
     
     if $detail {
-        psql detail-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_TYPE_TABLE_NAME $uu
+        psql detail-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $uu
     } else {
-        psql get-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $STK_BASE_COLUMNS $uu
+        psql get-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $uu
     }
 }
 
@@ -174,7 +169,7 @@ export def "project revoke" [] {
 # Returns: uu, type_enum, name, description, is_default, created for all project types
 # Note: Uses the generic psql list-types command for consistency across chuck-stack
 export def "project types" [] {
-    psql list-types $STK_SCHEMA $STK_PROJECT_TYPE_TABLE_NAME
+    psql list-types $STK_SCHEMA $STK_PROJECT_TABLE_NAME
 }
 
 
@@ -215,7 +210,7 @@ export def "project line new" [
         type_uu: (if ($type | is-empty) { 
             null 
         } else { 
-            psql resolve-type $STK_SCHEMA $STK_PROJECT_LINE_TYPE_TABLE_NAME $type
+            psql resolve-type $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $type
         })
         description: ($description | default null)
         is_template: ($template | default false)
@@ -251,10 +246,7 @@ export def "project line list" [] {
         error make {msg: "Project UUID is required via piped input."}
     }
     
-    let table = $"($STK_SCHEMA).($STK_PROJECT_LINE_TABLE_NAME)"
-    let sql = $"SELECT ($STK_PROJECT_LINE_COLUMNS), ($STK_BASE_COLUMNS) FROM ($table) WHERE header_uu = '($project_uu)' AND is_revoked = false ORDER BY created DESC"
-    
-    psql exec $sql
+    psql list-line-records $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $project_uu
 }
 
 # Retrieve a specific project line by its UUID
@@ -286,9 +278,9 @@ export def "project line get" [
     }
     
     if $detail {
-        psql detail-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_TYPE_TABLE_NAME $target_uuid
+        psql detail-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $target_uuid
     } else {
-        psql get-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $STK_BASE_COLUMNS $target_uuid
+        psql get-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $target_uuid
     }
 }
 
@@ -348,6 +340,6 @@ export def "project line revoke" [] {
 # Returns: uu, type_enum, name, description, is_default, created for all project line types
 # Note: Uses the generic psql list-types command for consistency across chuck-stack
 export def "project line types" [] {
-    psql list-types $STK_SCHEMA $STK_PROJECT_LINE_TYPE_TABLE_NAME
+    psql list-types $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME
 }
 

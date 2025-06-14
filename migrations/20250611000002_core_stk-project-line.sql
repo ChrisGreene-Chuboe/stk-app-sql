@@ -20,7 +20,6 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default) VA
 CREATE TABLE private.stk_project_line_type (
   uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_name TEXT GENERATED ALWAYS AS ('stk_project_line_type') STORED,
-  stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(uu),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),

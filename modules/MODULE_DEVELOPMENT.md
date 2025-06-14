@@ -112,46 +112,59 @@ let result = $input | reduce -f {cache: {}, results: []} { |item, acc|
 - `module detail <uu>` - Show record with type information
 - Type resolution in creation commands
 
-**See**: `stk_item/mod.nu:164-166` and `stk_project/mod.nu:168-170` for examples.
+**See**: `item types` and `project types` commands for examples.
 
-### 6. **Enhanced Constants Pattern**
-**Updated**: Constants now include type table references and standardized base columns:
+### 6. **List-Based Column Definitions**
+**New Standard**: All column definitions must use nushell lists:
 
 ```nushell
+# Module Constants
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_module"
-const STK_TYPE_TABLE_NAME = "stk_module_type"
-const STK_LINE_TABLE_NAME = "stk_module_line"  # For header-line patterns
-const STK_BASE_COLUMNS = "created, updated, is_revoked, uu, table_name"
-const STK_MODULE_COLUMNS = "name, description, ..."  # Module-specific columns
+const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]  # List syntax, no quotes
 ```
 
-**Important**: All modules must now include `table_name` in their `STK_BASE_COLUMNS` constant to support cross-module operations like the `lines` command.
+**Key Changes**:
+- Column definitions changed from comma-separated strings to lists
+- Base columns are centralized (see `stk_psql/mod.nu` module constants)
+- Type table names are auto-derived using `{table}_type` convention
+- Minimal constants per module - only what's unique
 
-**Note**: Line type table names follow the predictable pattern and don't need separate constants (e.g., `stk_module_line` → `stk_module_line_type`).
+**Reference Implementation**: See `stk_item` module for clean single-table pattern.
 
-**See**: `stk_project/mod.nu:4-14` for complete constants example.
+### 7. **Simplified PSQL Function Signatures**
+**Updated**: PSQL functions no longer require base_columns parameter:
 
-### 7. **Bulk Operations Support**
+```nushell
+# Old pattern (removed)
+psql list-records $schema $table $specific_cols $base_cols $limit
+
+# New pattern
+psql list-records $schema $table $specific_cols
+psql list-line-records $schema $table $specific_cols $header_uu  # header-line pattern
+```
+
+**Available Functions**: See `psql` commands in `stk_psql/mod.nu` for complete list.
+
+### 8. **Bulk Operations Support**
 **New Feature**: Commands can handle both single UUIDs and lists where appropriate.
 
-**See**: `stk_project/mod.nu:296-313` for bulk revoke implementation.
+**See**: `project line revoke` command in `stk_project` module for bulk implementation.
 
 ## Implementation Patterns
 
 ### Basic Module (Single Table)
-**Reference**: `stk_item/mod.nu` - Clean example of evolved single-table patterns.
+**Reference**: `stk_item` module - Clean example with minimal constants and list-based columns.
 
 **Key Commands**:
 - `item new` - Parameters record creation
-- `item list` - Generic listing  
-- `item get` - Standard retrieval
+- `item list` - Generic listing with `--detail` option
+- `item get` - Standard retrieval with `--detail` option
 - `item revoke` - Pipeline-only soft delete
-- `item detail` - Record with type
 - `item types` - Type listing
 
 ### Header-Line Module (Related Tables)
-**Reference**: `stk_project/mod.nu` - Complete header-line implementation.
+**Reference**: `stk_project` module - Complete header-line implementation using `psql list-line-records`.
 
 **Key Commands**:
 - `project new` - Header creation

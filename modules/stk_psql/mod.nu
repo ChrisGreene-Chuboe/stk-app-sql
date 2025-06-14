@@ -5,6 +5,12 @@
 const STK_SCHEMA = "api"
 const STK_PRIVATE_SCHEMA = "private"
 
+# Chuck-stack standard column definitions
+export const STK_BASE_COLUMNS = [created, created_by_uu, updated, updated_by_uu, is_revoked, uu, table_name]
+export const STK_REVOKED_COLUMNS = [revoked, is_revoked]
+export const STK_PROCESSED_COLUMNS = [processed, is_processed]
+export const STK_TYPE_COLUMNS = [name, description, search_key, type_enum, is_revoked, is_default, record_json, uu]
+
 # Helper function to convert PostgreSQL boolean values (t/f) to nushell booleans
 def "into bool ext" [] {
     match $in {
@@ -54,21 +60,45 @@ export def "psql exec" [
 # Used by module-specific list commands to reduce code duplication.
 #
 # Examples:
-#   psql list-records "api" "stk_event" "uu, created, updated, is_revoked" "name, record_json" 10
-#   psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $STK_DEFAULT_LIMIT
+#   psql list-records "api" "stk_event" [name, record_json] $STK_BASE_COLUMNS 10
+#   psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
 #
 # Returns: All specified columns from the table, newest records first
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql list-records" [
     schema: string          # Database schema (e.g., "api")
     table_name: string      # Table name (e.g., "stk_event") 
-    base_columns: string    # Base columns (e.g., "uu, created, updated, is_revoked")
-    specific_columns: string # Module-specific columns (e.g., "name, record_json")
+    specific_columns: list  # Module-specific columns (e.g., [name, record_json])
     limit: int = 10         # Maximum number of records to return
 ] {
     let table = $"($schema).($table_name)"
-    let columns = $"($base_columns), ($specific_columns)"
+    let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
     psql exec $"SELECT ($columns) FROM ($table) ORDER BY created DESC LIMIT ($limit)"
+}
+
+# Generic list line records filtered by header UUID
+#
+# Executes a SELECT query for line records belonging to a specific header record.
+# This supports the common ERP pattern where line items belong to header records
+# (e.g., project_line -> project, invoice_line -> invoice, order_line -> order).
+# Returns records ordered by created DESC with configurable limit.
+#
+# Examples:
+#   psql list-line-records "api" "stk_project_line" [name, description] $project_uu
+#   psql list-line-records $STK_SCHEMA $STK_LINE_TABLE_NAME $STK_LINE_COLUMNS $header_uu 20
+#
+# Returns: All specified columns plus base columns for lines belonging to the header
+# Note: Filters out revoked records (is_revoked = false)
+export def "psql list-line-records" [
+    schema: string          # Database schema (e.g., "api")
+    line_table_name: string # Line table name (e.g., "stk_project_line")
+    specific_columns: list  # Module-specific columns (e.g., [name, description])
+    header_uu: string       # UUID of the header record to filter by
+    limit: int = 10         # Maximum number of records to return
+] {
+    let table = $"($schema).($line_table_name)"
+    let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
+    psql exec $"SELECT ($columns) FROM ($table) WHERE header_uu = '($header_uu)' AND is_revoked = false ORDER BY created DESC LIMIT ($limit)"
 }
 
 # Generic get single record by UUID from a table
@@ -78,20 +108,19 @@ export def "psql list-records" [
 # Used by module-specific get commands to reduce code duplication.
 #
 # Examples:
-#   psql get-record "api" "stk_event" "uu, created, updated, is_revoked" "name, record_json" $uuid
-#   psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BASE_COLUMNS $STK_EVENT_COLUMNS $uu
+#   psql get-record "api" "stk_event" [name, record_json] $uuid
+#   psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $uu
 #
 # Returns: Single record with all specified columns, or empty if UUID not found
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql get-record" [
     schema: string          # Database schema (e.g., "api")
     table_name: string      # Table name (e.g., "stk_event")
-    base_columns: string    # Base columns (e.g., "uu, created, updated, is_revoked")
-    specific_columns: string # Module-specific columns (e.g., "name, record_json")
+    specific_columns: list  # Module-specific columns (e.g., [name, record_json])
     uu: string              # UUID of the record to retrieve
 ] {
     let table = $"($schema).($table_name)"
-    let columns = $"($base_columns), ($specific_columns)"
+    let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
     psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
 }
 
@@ -295,17 +324,17 @@ export def "psql new-line-record" [
 # Use this to see valid type options before creating new records with specific types.
 #
 # Examples:
-#   psql list-types "api" "stk_item_type"
-#   psql list-types "api" "stk_request_type"
-#   psql list-types $STK_SCHEMA $STK_TYPE_TABLE_NAME
+#   psql list-types "api" "stk_item"
+#   psql list-types "api" "stk_request"
+#   psql list-types $STK_SCHEMA $STK_TABLE_NAME
 #
 # Returns: uu, type_enum, name, description, is_default, created for all active types
 # Note: Shows types ordered by type_enum for consistent display
 export def "psql list-types" [
     schema: string          # Database schema (e.g., "api")
-    type_table_name: string # Type table name (e.g., "stk_item_type")
+    table_name: string      # Table name (e.g., "stk_item")
 ] {
-    let table = $"($schema).($type_table_name)"
+    let table = $"($schema).($table_name)_type"
     let sql = $"
         SELECT uu, type_enum, name, description, is_default, created
         FROM ($table)
@@ -322,17 +351,18 @@ export def "psql list-types" [
 # Use this when you need to convert user-friendly type names to database UUIDs.
 #
 # Examples:
-#   psql resolve-type "api" "stk_item_type" "PRODUCT-STOCKED"
-#   psql resolve-type "api" "stk_request_type" "INVESTIGATION" 
-#   psql resolve-type $STK_SCHEMA $STK_TYPE_TABLE_NAME $type_string
+#   psql resolve-type "api" "stk_item" "PRODUCT-STOCKED"
+#   psql resolve-type "api" "stk_request" "INVESTIGATION" 
+#   psql resolve-type $STK_SCHEMA $STK_TABLE_NAME $type_string
 #
 # Returns: UUID string for the specified type
 # Error: Command fails if type_enum doesn't exist in the type table
 export def "psql resolve-type" [
     schema: string          # Database schema (e.g., "api")
-    type_table_name: string # Type table name (e.g., "stk_item_type")
+    table_name: string      # Table name (e.g., "stk_item")
     type_enum: string       # Type enum value to resolve (e.g., "PRODUCT-STOCKED")
 ] {
+    let type_table_name = $"($table_name)_type"
     let type_result = (psql exec $"SELECT uu FROM ($schema).($type_table_name) WHERE type_enum = '($type_enum)' LIMIT 1")
     if ($type_result | is-empty) {
         error make {msg: $"Type '($type_enum)' not found in ($schema).($type_table_name)"}
@@ -348,29 +378,37 @@ export def "psql resolve-type" [
 # Used by module-specific list --detail commands to reduce code duplication.
 #
 # Examples:
-#   psql list-records-with-detail "api" "stk_item" "stk_item_type" "name, description, is_template, is_valid" "created, updated, is_revoked, uu" 10
-#   psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+#   psql list-records-with-detail "api" "stk_item" [name, description, is_template, is_valid] 10
+#   psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS
 #
 # Returns: All specified columns plus type_enum, type_name, type_description from joined type table
 # Note: Uses LEFT JOIN to include records without type assignments
 export def "psql list-records-with-detail" [
     schema: string           # Database schema (e.g., "api")
     table_name: string       # Table name (e.g., "stk_item") 
-    type_table_name: string  # Type table name (e.g., "stk_item_type")
-    specific_columns: string # Module-specific columns (e.g., "name, description, is_template, is_valid")
-    base_columns: string     # Base columns (e.g., "created, updated, is_revoked, uu")
+    specific_columns: list   # Module-specific columns (e.g., [name, description, is_template, is_valid])
     limit: int = 10          # Maximum number of records to return
 ] {
     let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($type_table_name)"
-    # Split columns to prefix with table aliases properly
-    let specific_cols = $specific_columns | split row "," | each {|col| $"i.($col | str trim)"} | str join ", "
-    let base_cols = $base_columns | split row "," | each {|col| $"i.($col | str trim)"} | str join ", "
+    let type_table = $"($schema).($table_name)_type"
+    # Prefix columns with table aliases properly
+    let specific_cols = $specific_columns | each {|col| $"i.($col)"} | str join ", "
+    let base_cols = $STK_BASE_COLUMNS | each {|col| $"i.($col)"} | str join ", "
+    
+    # Build type columns with 'type_' prefix dynamically from STK_TYPE_COLUMNS
+    # Don't prefix if column already starts with 'type_'
+    let type_cols = $STK_TYPE_COLUMNS | each {|col| 
+        if ($col | str starts-with 'type_') {
+            $"t.($col) as ($col)"
+        } else {
+            $"t.($col) as type_($col)"
+        }
+    } | str join ", "
     
     let sql = $"
         SELECT 
             ($specific_cols), ($base_cols),
-            t.type_enum, t.name as type_name, t.description as type_description
+            ($type_cols)
         FROM ($table) i
         LEFT JOIN ($type_table) t ON i.type_uu = t.uu
         WHERE i.is_revoked = false
@@ -390,26 +428,35 @@ export def "psql list-records-with-detail" [
 # different table schemas across STK modules.
 #
 # Examples:
-#   psql detail-record "api" "stk_item" "stk_item_type" $uuid
-#   psql detail-record "api" "stk_request" "stk_request_type" $uuid
-#   psql detail-record $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $uu
+#   psql detail-record "api" "stk_item" $uuid
+#   psql detail-record "api" "stk_request" $uuid
+#   psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
 #
 # Returns: Complete record details with type_enum, type_name, and other joined information
 # Error: Returns empty result if UUID doesn't exist
 export def "psql detail-record" [
     schema: string              # Database schema (e.g., "api")
     table_name: string          # Main table name (e.g., "stk_item")
-    type_table_name: string     # Type table name (e.g., "stk_item_type")
     uu: string                  # UUID of the record to get details for
 ] {
     let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($type_table_name)"
+    let type_table = $"($schema).($table_name)_type"
+    
+    # Build type columns with 'type_' prefix dynamically from STK_TYPE_COLUMNS
+    # Don't prefix if column already starts with 'type_'
+    let type_cols = $STK_TYPE_COLUMNS | each {|col| 
+        if ($col | str starts-with 'type_') {
+            $"t.($col) as ($col)"
+        } else {
+            $"t.($col) as type_($col)"
+        }
+    } | str join ", "
     
     # Use SELECT * to avoid hardcoding column names that may not exist across all tables
     let sql = $"
         SELECT 
             i.*,
-            t.type_enum, t.name as type_name, t.description as type_description
+            ($type_cols)
         FROM ($table) i
         LEFT JOIN ($type_table) t ON i.type_uu = t.uu
         WHERE i.uu = '($uu)'

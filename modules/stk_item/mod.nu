@@ -3,13 +3,8 @@
 
 # Module Constants
 const STK_SCHEMA = "api"
-const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_item"
-const STK_TYPE_TABLE_NAME = "stk_item_type"
-const STK_REQUEST_TABLE_NAME = "stk_request"
-const STK_DEFAULT_LIMIT = 10
-const STK_ITEM_COLUMNS = "name, description, is_template, is_valid"
-const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
+const STK_ITEM_COLUMNS = [name, description, is_template, is_valid]
 
 # Note: Type resolution is now handled by the generic psql resolve-type command
 
@@ -42,7 +37,7 @@ export def "item new" [
         type_uu: (if ($type | is-empty) { 
             null 
         } else { 
-            psql resolve-type $STK_SCHEMA $STK_TYPE_TABLE_NAME $type
+            psql resolve-type $STK_SCHEMA $STK_TABLE_NAME $type
         })
         description: ($description | default null)
         entity_uu: ($entity_uu | default null)
@@ -78,9 +73,9 @@ export def "item list" [
     --detail(-d)  # Include detailed type information for all items
 ] {
     if $detail {
-        psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+        psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS
     } else {
-        psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+        psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS
     }
 }
 
@@ -114,9 +109,9 @@ export def "item get" [
     }
     
     if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $uu
+        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
     } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $STK_BASE_COLUMNS $uu
+        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $uu
     }
 }
 
@@ -165,5 +160,5 @@ export def "item revoke" [] {
 # Returns: uu, type_enum, name, description, is_default, created for all item types
 # Note: Uses the generic psql list-types command for consistency across chuck-stack
 export def "item types" [] {
-    psql list-types $STK_SCHEMA $STK_TYPE_TABLE_NAME
+    psql list-types $STK_SCHEMA $STK_TABLE_NAME
 }

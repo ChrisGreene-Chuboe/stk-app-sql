@@ -3,11 +3,8 @@
 
 # Module Constants
 const STK_SCHEMA = "api"
-const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_request"
-const STK_DEFAULT_LIMIT = 10
-const STK_TODO_COLUMNS = "name, description, table_name_uu_json"
-const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
+const STK_TODO_COLUMNS = [name, description, table_name_uu_json]
 
 # Private helper to detect if a string looks like a UUID
 def is_uuid_like [
@@ -98,7 +95,7 @@ export def "todo list" [
     --parent(-p): string         # Show only items under this parent list name
 ] {
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
-    let columns = $"($STK_TODO_COLUMNS), ($STK_BASE_COLUMNS)"
+    let columns = ($STK_TODO_COLUMNS | append [created, updated, is_revoked, uu] | str join ", ")
     let revoked_filter = if $all { "" } else { " AND is_revoked = false" }
 
     if ($parent | is-not-empty) {

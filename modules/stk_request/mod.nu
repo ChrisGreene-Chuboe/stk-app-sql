@@ -3,12 +3,8 @@
 
 # Module Constants
 const STK_SCHEMA = "api"
-const STK_PRIVATE_SCHEMA = "private"
 const STK_TABLE_NAME = "stk_request"
-const STK_TYPE_TABLE_NAME = "stk_request_type"
-const STK_DEFAULT_LIMIT = 10
-const STK_REQUEST_COLUMNS = "name, description, table_name_uu_json, is_processed"
-const STK_BASE_COLUMNS = "created, updated, is_revoked, uu"
+const STK_REQUEST_COLUMNS = [name, description, table_name_uu_json, is_processed]
 
 # Create a new request with optional attachment to another record
 #
@@ -80,9 +76,9 @@ export def "request list" [
     --detail(-d)  # Include detailed type information for all requests
 ] {
     if $detail {
-        psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+        psql list-records-with-detail $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS
     } else {
-        psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $STK_DEFAULT_LIMIT
+        psql list-records $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS
     }
 }
 
@@ -117,9 +113,9 @@ export def "request get" [
     }
     
     if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $STK_TYPE_TABLE_NAME $uu
+        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
     } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $STK_BASE_COLUMNS $uu
+        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $uu
     }
 }
 
@@ -189,5 +185,5 @@ export def "request revoke" [] {
 # Returns: uu, type_enum, name, description, is_default, created for all request types
 # Note: Uses the generic psql list-types command for consistency across chuck-stack
 export def "request types" [] {
-    psql list-types $STK_SCHEMA $STK_TYPE_TABLE_NAME
+    psql list-types $STK_SCHEMA $STK_TABLE_NAME
 }
