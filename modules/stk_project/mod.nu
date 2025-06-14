@@ -246,15 +246,23 @@ export def "project line new" [
 #   $project_uuid | project line list | elaborate | get type_uu_resolved  # See line type details
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
-# Note: Shows all non-revoked lines for the specified project
-export def "project line list" [] {
+# Note: By default shows only active lines, use --all to include revoked
+export def "project line list" [
+    --all(-a)  # Include revoked project lines
+] {
     let project_uu = $in
     
     if ($project_uu | is-empty) {
         error make {msg: "Project UUID is required via piped input."}
     }
     
-    psql list-line-records $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $STK_PROJECT_LINE_COLUMNS $project_uu
+    # Build arguments array
+    let args = [$STK_SCHEMA, $STK_PROJECT_LINE_TABLE_NAME, $project_uu] | append $STK_PROJECT_LINE_COLUMNS
+    
+    # Add --all flag if needed
+    let args = if $all { $args | append "--all" } else { $args }
+    
+    psql list-line-records ...$args
 }
 
 # Retrieve a specific project line by its UUID

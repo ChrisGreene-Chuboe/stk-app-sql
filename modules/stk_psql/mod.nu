@@ -72,8 +72,7 @@ export def "psql exec" [
 # Returns: All specified columns from the table, newest records first
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql list-records" [
-    ...args: string         # Positional arguments: schema, table_name, column1, column2, ...
-    --all(-a)               # Include revoked records
+    ...args: string         # Positional arguments: schema, table_name, column1, column2, ... [, --all]
     --limit: int = 10       # Maximum number of records to return
 ] {
     # Check if --all flag is present in args
@@ -104,22 +103,41 @@ export def "psql list-records" [
 # (e.g., project_line -> project, invoice_line -> invoice, order_line -> order).
 # Returns records ordered by created DESC with configurable limit.
 #
-# Examples:
-#   psql list-line-records "api" "stk_project_line" [name, description] $project_uu
-#   psql list-line-records $STK_SCHEMA $STK_LINE_TABLE_NAME $STK_LINE_COLUMNS $header_uu 20
-#
 # Returns: All specified columns plus base columns for lines belonging to the header
-# Note: Filters out revoked records (is_revoked = false)
+# Note: By default filters out revoked records (use --all to include)
+#
+# Examples:
+#   psql list-line-records "api" "stk_project_line" "af3e-3434..." "name" "description"
+#   psql list-line-records "api" "stk_project_line" "af3e-3434..." "name" "description" --all
+#   
+# With spread operator:
+#   let args = ["api", "stk_project_line", $header_uu, "name", "description"]
+#   psql list-line-records ...$args
+#   psql list-line-records ...$args --all
 export def "psql list-line-records" [
-    schema: string          # Database schema (e.g., "api")
-    line_table_name: string # Line table name (e.g., "stk_project_line")
-    specific_columns: list  # Module-specific columns (e.g., [name, description])
-    header_uu: string       # UUID of the header record to filter by
-    limit: int = 10         # Maximum number of records to return
+    ...args: string         # Positional arguments: schema, line_table_name, header_uu, column1, column2, ... [, --all]
+    --limit: int = 10       # Maximum number of records to return
 ] {
+    # Check if --all flag is present in args
+    let has_all = ("--all" in $args)
+    
+    # Filter out any flags from the args to get only positional arguments
+    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
+    
+    # Validate minimum arguments
+    if ($positional_args | length) < 4 {
+        error make {msg: "Expected at least 4 arguments: schema, line_table_name, header_uu, and at least one column"}
+    }
+    
+    let schema = $positional_args.0
+    let line_table_name = $positional_args.1
+    let header_uu = $positional_args.2
+    let specific_columns = ($positional_args | skip 3)  # All remaining args are columns
+    
     let table = $"($schema).($line_table_name)"
     let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-    psql exec $"SELECT ($columns) FROM ($table) WHERE header_uu = '($header_uu)' AND is_revoked = false ORDER BY created DESC LIMIT ($limit)"
+    let revoked_clause = if $has_all { "" } else { " AND is_revoked = false" }
+    psql exec $"SELECT ($columns) FROM ($table) WHERE header_uu = '($header_uu)'($revoked_clause) ORDER BY created DESC LIMIT ($limit)"
 }
 
 # Generic get single record by UUID from a table
@@ -346,20 +364,38 @@ export def "psql new-line-record" [
 #
 # Examples:
 #   psql list-types "api" "stk_item"
-#   psql list-types "api" "stk_request"
-#   psql list-types $STK_SCHEMA $STK_TABLE_NAME
+#   psql list-types "api" "stk_request" --all
+#   
+# With spread operator:
+#   let args = ["api", "stk_item"]
+#   psql list-types ...$args
+#   psql list-types ...$args --all
 #
-# Returns: uu, type_enum, name, description, is_default, created for all active types
-# Note: Shows types ordered by type_enum for consistent display
+# Returns: uu, type_enum, name, description, is_default, created for types
+# Note: By default shows only active types, use --all to include revoked
 export def "psql list-types" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_item")
+    ...args: string         # Positional arguments: schema, table_name [, --all]
 ] {
+    # Check if --all flag is present in args
+    let has_all = ("--all" in $args)
+    
+    # Filter out any flags from the args to get only positional arguments
+    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
+    
+    # Validate arguments
+    if ($positional_args | length) != 2 {
+        error make {msg: "Expected exactly 2 arguments: schema and table_name"}
+    }
+    
+    let schema = $positional_args.0
+    let table_name = $positional_args.1
+    
     let table = $"($schema).($table_name)_type"
+    let where_clause = if $has_all { "" } else { "WHERE is_revoked = false" }
     let sql = $"
         SELECT uu, type_enum, name, description, is_default, created
         FROM ($table)
-        WHERE is_revoked = false
+        ($where_clause)
         ORDER BY type_enum
     "
     psql exec $sql
@@ -411,8 +447,7 @@ export def "psql resolve-type" [
 # Returns: All specified columns plus type_enum, type_name, type_description from joined type table
 # Note: Uses LEFT JOIN to include records without type assignments
 export def "psql list-records-with-detail" [
-    ...args: string          # Positional arguments: schema, table_name, column1, column2, ...
-    --all(-a)                # Include revoked records
+    ...args: string          # Positional arguments: schema, table_name, column1, column2, ... [, --all]
     --limit: int = 10        # Maximum number of records to return
 ] {
     # Check if --all flag is present in args
