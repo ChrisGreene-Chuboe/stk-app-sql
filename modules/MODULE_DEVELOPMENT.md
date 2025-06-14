@@ -93,7 +93,7 @@ let result = $input | reduce -f {cache: {}, results: []} { |item, acc|
 - `psql list-records` - Standard listing
 - `psql get-record` - Single record retrieval
 - `psql revoke-record` - Soft delete
-- `psql resolve-type` - Type enum to UUID conversion
+- `psql get-type-by-search-key` - Type lookup by search key
 - `psql list-types` - Type listing
 - `psql detail-record` - Record with type details
 

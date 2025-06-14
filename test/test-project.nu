@@ -66,7 +66,7 @@ assert ($simple_line.name.0 | str contains "User Authentication") "Name should m
 echo "✓ Basic project line creation verified"
 
 echo "=== Testing project line with description and type ==="
-let described_line = ($project_uuid | project line new "Database Design" --description "Complete database design" --type "TASK")
+let described_line = ($project_uuid | project line new "Database Design" --description "Complete database design" --type-search-key "TASK")
 assert ($described_line | columns | any {|col| $col == "uu"}) "Result should contain 'uu' field"
 assert ($described_line.uu | is-not-empty) "UUID field should not be empty"
 assert ($described_line | columns | any {|col| $col == "description"}) "Result should contain 'description' field"

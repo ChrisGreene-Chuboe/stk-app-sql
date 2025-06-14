@@ -401,32 +401,34 @@ export def "psql list-types" [
     psql exec $sql
 }
 
-# Generic type resolution - converts type enum to UUID
+# Generic type lookup by search key
 #
-# Resolves a type enum string to its corresponding UUID for any STK type table.
-# This provides a standard way to look up type UUIDs across all chuck-stack concepts.
-# Use this when you need to convert user-friendly type names to database UUIDs.
+# Looks up a type record by its search_key for any STK type table.
+# Search keys are unique identifiers that provide a stable way to reference types.
+# This is the preferred method for programmatic type resolution.
 #
 # Examples:
-#   psql resolve-type "api" "stk_item" "PRODUCT-STOCKED"
-#   psql resolve-type "api" "stk_request" "INVESTIGATION" 
-#   psql resolve-type $STK_SCHEMA $STK_TABLE_NAME $type_string
+#   psql get-type-by-search-key "api" "stk_item" "product-stocked"
+#   psql get-type-by-search-key "api" "stk_request" "investigation"
+#   psql get-type-by-search-key $STK_SCHEMA $STK_TABLE_NAME $search_key
 #
-# Returns: UUID string for the specified type
-# Error: Command fails if type_enum doesn't exist in the type table
-export def "psql resolve-type" [
+# Returns: Single type record with all columns or error if not found
+# Note: Returns only active (non-revoked) types
+export def "psql get-type-by-search-key" [
     schema: string          # Database schema (e.g., "api")
     table_name: string      # Table name (e.g., "stk_item")
-    type_enum: string       # Type enum value to resolve (e.g., "PRODUCT-STOCKED")
+    search_key: string      # Search key to look up
 ] {
-    let type_table_name = $"($table_name)_type"
-    let type_result = (psql exec $"SELECT uu FROM ($schema).($type_table_name) WHERE type_enum = '($type_enum)' LIMIT 1")
-    if ($type_result | is-empty) {
-        error make {msg: $"Type '($type_enum)' not found in ($schema).($type_table_name)"}
+    let type_table = $"($schema).($table_name)_type"
+    let result = (psql exec $"SELECT * FROM ($type_table) WHERE search_key = '($search_key)' AND is_revoked = false")
+    
+    if ($result | is-empty) {
+        error make {msg: $"Type with search_key '($search_key)' not found in ($type_table)"}
     } else {
-        $type_result | get uu.0
+        $result | first
     }
 }
+
 
 # Generic list records with detailed type information
 #

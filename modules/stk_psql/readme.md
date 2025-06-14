@@ -20,7 +20,7 @@ The module also provides generic commands for common database operations:
 - `psql revoke-record` - Soft delete pattern
 - `psql new-record` - Standard INSERT pattern
 - `psql list-types` - Show available types for any concept
-- `psql resolve-type` - Convert type enum to UUID
+- `psql get-type-by-search-key` - Look up type by search key
 - `psql detail-record` - Get record with type information
 
 ## Usage Examples

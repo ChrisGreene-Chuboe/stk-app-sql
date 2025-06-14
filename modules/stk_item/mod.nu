@@ -6,7 +6,6 @@ const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_item"
 const STK_ITEM_COLUMNS = [name, description, is_template, is_valid]
 
-# Note: Type resolution is now handled by the generic psql resolve-type command
 
 # Create a new item with specified name and type
 #
@@ -20,25 +19,34 @@ const STK_ITEM_COLUMNS = [name, description, is_template, is_valid]
 # Examples:
 #   item new "Laptop Computer"
 #   item new "Consulting Service" --description "Professional IT consulting"
-#   item new "Shipping Fee" --type "ACCOUNT" --description "Standard shipping charge"
-#   item new "Software License" --type "PRODUCT-NONSTOCKED"
+#   item new "Shipping Fee" --type-search-key "account" --description "Standard shipping charge"
+#   item new "Software License" --type-uu "123e4567-e89b-12d3-a456-426614174000"
 #
 # Returns: The UUID and name of the newly created item record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
 export def "item new" [
     name: string                    # The name of the item to create
-    --type(-t): string             # Item type: PRODUCT-STOCKED, PRODUCT-NONSTOCKED, ACCOUNT, SERVICE
+    --type-uu: string              # Type UUID (use 'item types' to find UUIDs)
+    --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the item
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
 ] {
+    # Validate that only one type parameter is provided
+    if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
+        error make {msg: "Specify either --type-uu or --type-search-key, not both"}
+    }
+    
+    # Resolve type if search key is provided
+    let resolved_type_uu = if ($type_search_key | is-not-empty) {
+        (psql get-type-by-search-key $STK_SCHEMA $STK_TABLE_NAME $type_search_key | get uu)
+    } else {
+        $type_uu
+    }
+    
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
-        type_uu: (if ($type | is-empty) { 
-            null 
-        } else { 
-            psql resolve-type $STK_SCHEMA $STK_TABLE_NAME $type
-        })
+        type_uu: ($resolved_type_uu | default null)
         description: ($description | default null)
         entity_uu: ($entity_uu | default null)
     }

@@ -44,7 +44,7 @@ assert ($described_item.description.0 | str contains "Professional IT consulting
 echo "✓ Item with description verified with UUID:" ($described_item.uu)
 
 echo "=== Testing item creation with specific type ==="
-let typed_item = (item new "Shipping Fee" --type "ACCOUNT" --description "Standard shipping charge")
+let typed_item = (item new "Shipping Fee" --type-search-key "ACCOUNT" --description "Standard shipping charge")
 
 echo "=== Verifying typed item creation ==="
 assert ($typed_item | columns | any {|col| $col == "uu"}) "Result should contain a 'uu' field"
@@ -129,7 +129,7 @@ assert ($example_item1 | columns | any {|col| $col == "uu"}) "Example item shoul
 echo "✓ Help example 1 verified"
 
 echo "=== Example: Create item with type and description ==="
-let example_item2 = (item new "Software License" --type "PRODUCT-NONSTOCKED")
+let example_item2 = (item new "Software License" --type-search-key "PRODUCT-NONSTOCKED")
 assert ($example_item2 | columns | any {|col| $col == "uu"}) "Example typed item should be created successfully"
 echo "✓ Help example 2 verified"
 

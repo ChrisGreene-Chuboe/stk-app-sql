@@ -20,27 +20,36 @@ const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid]
 # Examples:
 #   project new "Website Redesign"
 #   project new "CRM Development" --description "Internal CRM system development"
-#   project new "AI Research" --type "RESEARCH" --description "Research new AI technologies"
-#   project new "Server Maintenance" --type "MAINTENANCE" --parent $parent_project_uu
+#   project new "AI Research" --type-search-key "research" --description "Research new AI technologies"
+#   project new "Server Maintenance" --type-search-key "MAINTENANCE" --parent $parent_project_uu
 #
 # Returns: The UUID and name of the newly created project record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
 export def "project new" [
     name: string                    # The name of the project to create
-    --type(-t): string             # Project type: CLIENT, INTERNAL, RESEARCH, MAINTENANCE
+    --type-uu: string              # Type UUID (use 'project types' to find UUIDs)
+    --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the project
     --parent(-p): string           # Optional parent project UUID for sub-projects
     --template                     # Mark this project as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
 ] {
+    # Validate that only one type parameter is provided
+    if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
+        error make {msg: "Specify either --type-uu or --type-search-key, not both"}
+    }
+    
+    # Resolve type if search key is provided
+    let resolved_type_uu = if ($type_search_key | is-not-empty) {
+        (psql get-type-by-search-key $STK_SCHEMA $STK_PROJECT_TABLE_NAME $type_search_key | get uu)
+    } else {
+        $type_uu
+    }
+    
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
-        type_uu: (if ($type | is-empty) { 
-            null 
-        } else { 
-            psql resolve-type $STK_SCHEMA $STK_PROJECT_TABLE_NAME $type
-        })
+        type_uu: ($resolved_type_uu | default null)
         description: ($description | default null)
         parent_uu: ($parent | default null)
         is_template: ($template | default false)
@@ -193,15 +202,16 @@ export def "project types" [] {
 #
 # Examples:
 #   $project_uuid | project line new "User Auth Implementation"
-#   $project_uuid | project line new "Database Design" --description "Complete database design" --type "TASK"
-#   $project_uuid | project line new "Production Deployment" --type "MILESTONE" --description "Deploy to production server"
+#   $project_uuid | project line new "Database Design" --description "Complete database design" --type-search-key "TASK"
+#   $project_uuid | project line new "Production Deployment" --type-search-key "MILESTONE" --description "Deploy to production server"
 #   $project_uuid | project line new "Requirements Analysis" --template
 #
 # Returns: The UUID and name of the newly created project line record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
 export def "project line new" [
     name: string                    # The name of the project line
-    --type(-t): string             # Line type: TASK, MILESTONE, DELIVERABLE, RESOURCE
+    --type-uu: string              # Type UUID (use 'project line types' to find UUIDs)
+    --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the line
     --template                     # Mark this line as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
@@ -212,14 +222,22 @@ export def "project line new" [
         error make {msg: "Project UUID is required via piped input."}
     }
     
+    # Validate that only one type parameter is provided
+    if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
+        error make {msg: "Specify either --type-uu or --type-search-key, not both"}
+    }
+    
+    # Resolve type if search key is provided
+    let resolved_type_uu = if ($type_search_key | is-not-empty) {
+        (psql get-type-by-search-key $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $type_search_key | get uu)
+    } else {
+        $type_uu
+    }
+    
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
-        type_uu: (if ($type | is-empty) { 
-            null 
-        } else { 
-            psql resolve-type $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $type
-        })
+        type_uu: ($resolved_type_uu | default null)
         description: ($description | default null)
         is_template: ($template | default false)
         entity_uu: ($entity_uu | default null)
