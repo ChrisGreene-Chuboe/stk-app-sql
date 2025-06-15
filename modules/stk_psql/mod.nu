@@ -577,13 +577,21 @@ export def "psql detail-record" [
 # messages when lookups fail.
 #
 # Examples:
-#   event list | elaborate
-#   todo list | elaborate | select name todo_uu_resolved.name
-#   request list | where status == "OPEN" | elaborate
+#   event list | elaborate                      # Default columns: name, description, search_key
+#   event list | elaborate --all                # All columns from resolved records  
+#   todo list | elaborate name created          # Select specific columns
+#   request list | where status == "OPEN" | elaborate type_enum name
+#
+# Parameters:
+# - ...columns: Specific columns to include in resolved records (optional)
+# - --all: Include all columns from resolved records (overrides column selection)
 #
 # Returns: Original table with additional _resolved columns for each UUID reference
-# Note: Resolution happens dynamically by calling each module's get command
-export def elaborate [] {
+# Note: Resolution happens dynamically by querying the referenced tables directly
+export def elaborate [
+    ...columns: string  # Specific columns to include in resolved records
+    --all               # Include all columns from resolved records
+] {
     let input_table = $in
     
     # Return empty if input is empty
@@ -606,8 +614,18 @@ export def elaborate [] {
                     # Use psql get-record directly instead of module commands
                     # This avoids dynamic command execution issues
                     try {
+                        # Build SELECT clause based on user input
+                        let select_clause = if $all {
+                            "*"
+                        } else if ($columns | is-empty) {
+                            # Default columns when none specified (same as lines command)
+                            "name, description, search_key"
+                        } else {
+                            $columns | str join ", "
+                        }
+                        
                         # Query the table directly using psql
-                        let query = $"SELECT * FROM api.($ref.table_name) WHERE uu = '($ref.uu)'"
+                        let query = $"SELECT ($select_clause) FROM api.($ref.table_name) WHERE uu = '($ref.uu)'"
                         let records = (psql exec $query)
                         if ($records | is-empty) {
                             {error: $"Record not found: ($ref.table_name)/($ref.uu)"}
@@ -642,8 +660,18 @@ export def elaborate [] {
                     if ($ref != null) and ($ref.table_name? != null) and ($ref.table_name != "") and ($ref.uu? != null) and ($ref.uu != "") {
                         # Use psql to query the table directly
                         try {
+                            # Build SELECT clause based on user input
+                            let select_clause = if $all {
+                                "*"
+                            } else if ($columns | is-empty) {
+                                # Default columns when none specified (same as lines command)
+                                "name, description, search_key"
+                            } else {
+                                $columns | str join ", "
+                            }
+                            
                             # Query the table directly using psql
-                            let query = $"SELECT * FROM api.($ref.table_name) WHERE uu = '($ref.uu)'"
+                            let query = $"SELECT ($select_clause) FROM api.($ref.table_name) WHERE uu = '($ref.uu)'"
                             let records = (psql exec $query)
                             if ($records | is-empty) {
                                 {error: $"Record not found: ($ref.table_name)/($ref.uu)"}

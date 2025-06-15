@@ -40,10 +40,10 @@ let first_event_resolved = ($events.table_name_uu_json_resolved.0)
 echo "First event resolved data:"
 echo $first_event_resolved
 
-# Verify the resolved record has expected fields
+# Verify the resolved record has expected fields (default columns: name, description, search_key)
 assert ($first_event_resolved.name? != null) "Resolved item should have name"
 assert ($first_event_resolved.description? != null) "Resolved item should have description"
-assert ($first_event_resolved.uu? != null) "Resolved item should have uu"
+# Note: uu is no longer in default columns, and search_key may not exist in all tables
 
 echo "=== Testing elaborate with xxx_uu columns ==="
 
@@ -86,6 +86,42 @@ let elaborated_cols = (event list | elaborate | columns)
 
 for col in $original_cols {
     assert ($col in $elaborated_cols) $"Original column ($col) should be preserved"
+}
+
+echo "=== Testing elaborate with column selection ==="
+
+# Test default columns (no arguments)
+let default_elaborate = (event list | elaborate)
+let default_resolved = ($default_elaborate.table_name_uu_json_resolved.0)
+if $default_resolved != null {
+    let default_cols = ($default_resolved | columns)
+    echo $"Default elaborate columns: ($default_cols)"
+    # Should have the default columns (same as lines command)
+    assert ("name" in $default_cols) "Default should include name"
+    assert ("description" in $default_cols) "Default should include description"
+    # Only check for search_key if it exists in the table
+    # Note: Not all tables have search_key column
+}
+
+# Test specific column selection
+let specific_elaborate = (event list | elaborate name type_uu)
+let specific_resolved = ($specific_elaborate.table_name_uu_json_resolved.0)
+if $specific_resolved != null {
+    let specific_cols = ($specific_resolved | columns)
+    echo $"Specific elaborate columns: ($specific_cols)"
+    assert ($specific_cols == ["name", "type_uu"]) "Should have only requested columns"
+}
+
+# Test --all flag
+let all_elaborate = (event list | elaborate --all)
+let all_resolved = ($all_elaborate.table_name_uu_json_resolved.0)
+if $all_resolved != null {
+    let all_cols = ($all_resolved | columns)
+    echo $"All elaborate columns count: ($all_cols | length)"
+    # Should have many more columns than default
+    assert (($all_cols | length) > 5) "Should have many columns with --all"
+    assert ("table_name" in $all_cols) "Should include table_name with --all"
+    assert ("is_revoked" in $all_cols) "Should include is_revoked with --all"
 }
 
 echo "=== All tests completed successfully ==="

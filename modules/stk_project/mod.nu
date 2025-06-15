@@ -94,6 +94,11 @@ export def "project new" [
 # Create a useful alias:
 #   def pl [] { project list | lines | select name description lines }  # Concise project view with lines
 #
+# Using elaborate to resolve foreign key references:
+#   project list | elaborate                                          # Resolve with default columns
+#   project list | elaborate name psql_user                          # Show who created each project
+#   project list | elaborate --all | select name created_by_uu_resolved.psql_user  # Creator usernames
+#
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
 # Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent projects - use direct SQL for larger queries

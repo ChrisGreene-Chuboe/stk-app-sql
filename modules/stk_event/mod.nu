@@ -73,6 +73,11 @@ export def ".append event" [
 #   event list | where is_revoked == false
 #   event list | select name created | table
 #
+# Using elaborate to resolve foreign key references:
+#   event list | elaborate                                               # Resolve with default columns
+#   event list | elaborate name table_name                               # Show referenced table names
+#   event list | elaborate --all | select name table_name_uu_json_resolved.name  # Show referenced record names
+#
 # Returns: name, description, table_name_uu_json, record_json, created, updated, is_revoked, uu
 # Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent events - use direct SQL for larger queries

@@ -69,6 +69,11 @@ export def ".append request" [
 #   request list | where is_processed == false
 #   request list | select name description created | table
 #
+# Using elaborate to resolve foreign key references:
+#   request list | elaborate                                              # Resolve with default columns
+#   request list | elaborate name table_name                              # Show referenced table names
+#   request list | elaborate --all | select name table_name_uu_json_resolved.name  # Show referenced record names
+#
 # Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu
 # Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent requests - use direct SQL for larger queries
