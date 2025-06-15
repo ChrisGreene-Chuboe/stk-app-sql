@@ -91,6 +91,9 @@ export def "project new" [
 #   project list | lines | where {|p| ($p.lines | length) > 5}  # Projects with more than 5 lines
 #   project list | lines | get lines.0 | flatten  # Get all line items from all projects
 #
+# Create a useful alias:
+#   def pl [] { project list | lines | select name description lines }  # Concise project view with lines
+#
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
 # Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent projects - use direct SQL for larger queries

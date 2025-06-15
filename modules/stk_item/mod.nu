@@ -74,6 +74,9 @@ export def "item new" [
 #   item list | where is_revoked == false
 #   item list | select name description | table
 #
+# Create a useful alias:
+#   def il [] { item list | select name description search_key }  # Concise item view
+#
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
 # Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
 # Note: Only shows the 10 most recent items - use direct SQL for larger queries

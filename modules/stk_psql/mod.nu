@@ -687,20 +687,35 @@ def table-exists [table_name: string] {
 # - Automatically detects if a table has an associated '_line' table
 # - Fetches all related line records using the header_uu foreign key
 # - Adds a 'lines' column containing the full line records
+# - Allows column selection with default to [name, description, search_key] when available
 #
-# Example:
-# > project list | lines
-# Returns project records with a 'lines' column containing all stk_project_line records
+# Note: Column selection is built-in to simplify working with nested arrays
+# Compare: project list | lines | update lines {|it| $it.lines | select name}
+# With:    project list | lines name        # This is much better!
+#
+# Examples:
+# > project list | lines                    # Default columns: name, description, search_key
+# > project list | lines --all              # All columns (select *)
+# > project list | lines name type_uu       # Specific columns
+# > todo list | lines name description created  # Custom column selection
+#
+# Parameters:
+# - ...columns: Specific columns to include in line records (optional)
+# - --all: Include all columns from line records (overrides column selection)
 #
 # Returns:
 # - Original table with an additional 'lines' column
 # - The 'lines' column contains an array of line records or null if no line table exists
+# - Line records include only requested columns (or defaults when applicable)
 #
 # Error handling:
 # - Returns null if no line table exists for the given table_name
 # - Returns empty array if line table exists but no lines are found
 # - Returns error object if database query fails
-export def lines [] {
+export def lines [
+    ...columns: string  # Specific columns to include in line records
+    --all               # Include all columns (select *)
+] {
     let input = $in
     
     # Return empty if no input
@@ -736,11 +751,33 @@ export def lines [] {
         if $line_table_exists {
             # Line table exists, fetch the actual lines
             try {
-                let lines_query = $"SELECT * FROM api.($line_table_name) WHERE header_uu = '($record.uu)' ORDER BY created"
+                # Build SELECT clause based on user input
+                let select_clause = if ($columns | is-empty) {
+                    "*"
+                } else {
+                    $columns | str join ", "
+                }
+                
+                let lines_query = $"SELECT ($select_clause) FROM api.($line_table_name) WHERE header_uu = '($record.uu)' ORDER BY created"
                 let lines_data = (psql exec $lines_query)
                 
+                # If no columns specified and not --all, filter to default columns
+                let final_data = if (not $all) and ($columns | is-empty) and (not ($lines_data | is-empty)) {
+                    let available_columns = ($lines_data | columns)
+                    let default_cols = ["name", "description", "search_key"]
+                    let cols_to_keep = $default_cols | where { |col| $col in $available_columns }
+                    
+                    if ($cols_to_keep | is-empty) {
+                        $lines_data
+                    } else {
+                        $lines_data | select ...$cols_to_keep
+                    }
+                } else {
+                    $lines_data
+                }
+                
                 # Add lines column with fetched data
-                $record | insert lines $lines_data
+                $record | insert lines $final_data
             } catch {
                 # Error occurred, return error object
                 $record | insert lines { error: $"Failed to fetch lines from ($line_table_name): ($in)" }
