@@ -73,7 +73,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION private.get_table_name_uu_json(UUID) IS 
-'Searches all chuck-stack tables to find which table contains the given UUID. Returns formatted table_name_uu_json object ready for use in service tables like stk_request and stk_attribute_tag. Returns error in JSON if UUID not found.';
+'Searches all chuck-stack tables to find which table contains the given UUID. Returns formatted table_name_uu_json object ready for use in service tables like stk_request and stk_tag. Returns error in JSON if UUID not found.';
 
 -- Create API wrapper function for public access
 CREATE OR REPLACE FUNCTION api.get_table_name_uu_json(target_uu UUID)
@@ -85,7 +85,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION api.get_table_name_uu_json(UUID) IS 
-'Public API wrapper for UUID table lookup. Searches all chuck-stack tables to find which table contains the given UUID. Returns formatted table_name_uu_json object ready for use in service tables like stk_request and stk_attribute_tag.';
+'Public API wrapper for UUID table lookup. Searches all chuck-stack tables to find which table contains the given UUID. Returns formatted table_name_uu_json object ready for use in service tables like stk_request and stk_tag.';
 
 -- Test function with a known UUID (if any exist)
 -- SELECT api.get_table_name_uu_json('00000000-0000-0000-0000-000000000000'::uuid);

@@ -20,7 +20,7 @@ Run existing tests:
 cd test
 nix-shell --run "./suite/test-simple.nu"
 nix-shell --run "./suite/test-project.nu"
-nix-shell --run "./suite/test-all.nu"
+nix-shell --run "cd suite && ./test-all.nu"
 ```
 
 Create new test:
@@ -208,7 +208,7 @@ nix-shell --run "./suite/test-new.nu" 2>&1 | tail -50
 #### Efficient Multi-Test
 ```bash
 # Run all with filtered output
-nix-shell --run "./suite/test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
+nix-shell --run "cd suite && ./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 ```
 
 ### Debugging Tests
