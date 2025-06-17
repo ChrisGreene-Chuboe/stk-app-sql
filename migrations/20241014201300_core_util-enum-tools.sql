@@ -7,6 +7,7 @@ CREATE TABLE private.enum_comment (
     enum_value TEXT NOT NULL,
     comment TEXT,
     is_default BOOLEAN NOT NULL DEFAULT false,
+    record_json JSONB,
     created TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by_uu UUID, -- allow null and no fk because created so early
     updated TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -24,7 +25,8 @@ SELECT
     t.typname AS enum_name,
     e.enumlabel AS enum_value,
     ec.comment,
-    coalesce(ec.is_default,false) as is_default
+    coalesce(ec.is_default,false) as is_default,
+    ec.record_json
 FROM pg_type t
 JOIN pg_enum e ON t.oid = e.enumtypid
 JOIN pg_namespace n ON n.oid = t.typnamespace

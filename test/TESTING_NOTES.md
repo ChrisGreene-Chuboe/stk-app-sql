@@ -211,6 +211,30 @@ nix-shell --run "./suite/test-new.nu" 2>&1 | tail -50
 nix-shell --run "cd suite && ./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 ```
 
+### Debugging Migration Failures
+
+Since migrations run automatically when entering nix-shell, migration errors will prevent test execution. To debug:
+
+```bash
+# Quick check for migration errors
+nix-shell --run "echo 'Migration check'" 2>&1 | grep -i error
+
+# See detailed migration output (last 50 lines)
+nix-shell --run "echo 'Migration check'" 2>&1 | tail -50
+
+# Find specific migration that failed
+nix-shell --run "echo 'Migration check'" 2>&1 | grep -B5 -A5 "error"
+
+# Check migration status manually
+nix-shell --run "migrate status ./migrations" 2>&1
+```
+
+Common migration error patterns:
+- **Syntax errors**: Check for missing semicolons or parentheses
+- **Dependency errors**: Ensure referenced tables/types exist
+- **Permission errors**: Verify correct role is set in migration header
+- **Enum errors**: Check enum values are properly quoted
+
 ### Debugging Tests
 
 When tests fail, use targeted output:

@@ -49,6 +49,8 @@ DECLARE
 BEGIN
 
     -- find all sub-partition tables so that we can exclude them - we only want to add triggers the primary tables
+    -- Using inheritance approach here because we need to collect ALL partition children into an array
+    -- for bulk exclusion. For single-table checks, using relispartition = true is simpler.
     SELECT coalesce(array_agg(child.relname::TEXT),ARRAY[]::text[])
     INTO table_partition_child_v
     FROM pg_inherits

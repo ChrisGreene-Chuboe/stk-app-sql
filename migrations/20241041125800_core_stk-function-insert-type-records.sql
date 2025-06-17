@@ -34,9 +34,10 @@ BEGIN
                 name,
                 description,
                 type_enum,
-                is_default
+                is_default,
+                record_json
             ) VALUES (
-                $1, $2, $3, $4::%s, $5
+                $1, $2, $3, $4::%s, $5, $6
             ) ON CONFLICT (search_key) DO NOTHING',
             type_table_name_v,
             enum_type_v
@@ -45,7 +46,8 @@ BEGIN
             enum_value_record_v.enum_value,
             enum_value_record_v.comment,
             enum_value_record_v.enum_value,
-            enum_value_record_v.is_default;
+            enum_value_record_v.is_default,
+            COALESCE(enum_value_record_v.record_json, '{}'::jsonb);
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;

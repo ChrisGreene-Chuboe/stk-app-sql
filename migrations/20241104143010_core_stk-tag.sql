@@ -16,6 +16,7 @@ CREATE TYPE private.stk_tag_type_enum AS ENUM (
     'INTEREST_AREA',
     'ATTACHMENT',
     'LOCATION',
+    'ADDRESS',
     'DATE_START',
     'DATE_END',
     'DATE_RANGE',
@@ -26,9 +27,23 @@ CREATE TYPE private.stk_tag_type_enum AS ENUM (
 );
 COMMENT ON TYPE private.stk_tag_type_enum IS 'Enum used in code to automate and validate tag types.';
 
-INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default) VALUES
-('stk_tag_type_enum', 'NONE', 'General purpose with no automation or validation', true),
-('stk_tag_type_enum', 'COLUMN', 'Column attributes with no automation or validation', false)
+INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, record_json) VALUES
+('stk_tag_type_enum', 'NONE', 'General purpose with no automation or validation', true, NULL),
+('stk_tag_type_enum', 'COLUMN', 'Column attributes with no automation or validation', false, NULL),
+('stk_tag_type_enum', 'ADDRESS', 'Physical or mailing address information including street, city, postal code', false, 
+    '{
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+            "address1": {"type": "string"},
+            "address2": {"type": "string"},
+            "city": {"type": "string"},
+            "state": {"type": "string"},
+            "postal": {"type": "string"},
+            "country": {"type": "string"}
+        },
+        "required": ["address1", "city", "postal"]
+    }'::jsonb)
 ;
 
 CREATE TABLE private.stk_tag_type (
@@ -59,17 +74,9 @@ SELECT private.stk_table_type_create('stk_tag_type');
 ---- type_section end ----
 
 ---- primary_section start ----
--- primary table
--- this table is needed to support both (1) partitioning and (2) being able to maintain a single primary key and single foreign key references
 CREATE TABLE private.stk_tag (
-  uu UUID PRIMARY KEY DEFAULT gen_random_uuid()
-);
-
--- partition table
-CREATE TABLE private.stk_tag_part (
-  uu UUID NOT NULL REFERENCES private.stk_tag(uu),
+  uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   table_name TEXT generated always AS ('stk_tag') stored,
-  stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(uu),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -85,36 +92,12 @@ CREATE TABLE private.stk_tag_part (
   is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  description TEXT,
-  primary key (uu, type_uu)
-) PARTITION BY LIST (type_uu);
-COMMENT ON TABLE private.stk_tag_part IS 'Holds tag records';
+  description TEXT
+);
+COMMENT ON TABLE private.stk_tag IS 'Holds tag records that can be attached to any table to provide flexible metadata and attributes';
 
--- first partitioned table to hold the actual data -- others can be created later
-CREATE TABLE private.stk_tag_part_default PARTITION OF private.stk_tag_part DEFAULT;
-
-
-CREATE VIEW api.stk_tag AS
-SELECT stkp.* -- note all values reside in and are pulled from the stk_tag_part table (not the primary stk_tag table)
-FROM private.stk_tag stk
-JOIN private.stk_tag_part stkp on stk.uu = stkp.uu
-;
-COMMENT ON VIEW api.stk_tag IS 'Holds tag records';
-
-CREATE TRIGGER t00010_generic_partition_insert
-    INSTEAD OF INSERT ON api.stk_tag
-    FOR EACH ROW
-    EXECUTE FUNCTION private.t00010_generic_partition_insert();
-
-CREATE TRIGGER t00020_generic_partition_update
-    INSTEAD OF UPDATE ON api.stk_tag
-    FOR EACH ROW
-    EXECUTE FUNCTION private.t00020_generic_partition_update();
-
-CREATE TRIGGER t00030_generic_partition_delete
-    INSTEAD OF DELETE ON api.stk_tag
-    FOR EACH ROW
-    EXECUTE FUNCTION private.t00030_generic_partition_delete();
+CREATE VIEW api.stk_tag AS SELECT * FROM private.stk_tag;
+COMMENT ON VIEW api.stk_tag IS 'Holds tag records that can be attached to any table to provide flexible metadata and attributes';
 ---- primary_section end ----
 
 -- create triggers for newly created tables
