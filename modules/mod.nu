@@ -20,3 +20,6 @@ export use stk_item *
 
 # Project management with hierarchical structure and line items
 export use stk_project *
+
+# Tag system for flexible metadata attachment with JSON Schema validation
+export use stk_tag *

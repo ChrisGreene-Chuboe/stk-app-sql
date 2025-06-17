@@ -218,9 +218,11 @@ export def "psql revoke-record" [
     schema: string          # Database schema (e.g., "api")
     table_name: string      # Table name (e.g., "stk_event")
     uu: string              # UUID of the record to revoke
+    returning_columns: list = [uu, name, revoked, is_revoked]  # Columns to return (default includes name)
 ] {
     let table = $"($schema).($table_name)"
-    psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING uu, name, revoked, is_revoked"
+    let returning_str = ($returning_columns | str join ", ")
+    psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING ($returning_str)"
 }
 
 # Generic process record by UUID in a table
@@ -443,6 +445,74 @@ export def "psql get-type-by-search-key" [
     
     if ($result | is-empty) {
         error make {msg: $"Type with search_key '($search_key)' not found in ($type_table)"}
+    } else {
+        $result | first
+    }
+}
+
+
+# Flexible type lookup by search_key or name
+#
+# Looks up a type record using either search_key or name field.
+# Automatically detects if the type table has a name column and
+# searches the appropriate field based on what's provided.
+# Always filters out revoked records.
+#
+# Examples:
+#   psql get-type "api" "stk_item" --search-key "RETAIL"
+#   psql get-type "api" "stk_project" --name "Client Project"
+#   psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_key
+#
+# Returns: Type record if found
+# Error: If type not found or if name used on table without name column
+export def "psql get-type" [
+    schema: string          # Database schema (e.g., "api")
+    table_name: string      # Table name (e.g., "stk_item")
+    --search-key: string    # Search by search_key field
+    --name: string          # Search by name field (if column exists)
+] {
+    let type_table = $"($table_name)_type"
+    
+    # Ensure exactly one search parameter is provided
+    if (($search_key | is-empty) and ($name | is-empty)) {
+        error make {msg: "Must provide either --search-key or --name"}
+    }
+    
+    if (($search_key | is-not-empty) and ($name | is-not-empty)) {
+        error make {msg: "Provide only one of --search-key or --name, not both"}
+    }
+    
+    # Check if name column exists if --name was provided
+    if ($name | is-not-empty) {
+        let has_name = (
+            psql exec $"SELECT EXISTS \(
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_schema = '($schema)' 
+                AND table_name = '($type_table)' 
+                AND column_name = 'name'
+            ) as has_name" 
+            | get has_name.0
+        )
+        
+        if not $has_name {
+            error make {msg: $"Type table ($schema).($type_table) does not have a 'name' column. Use --search-key instead."}
+        }
+    }
+    
+    # Build WHERE clause
+    let where_clause = if ($search_key | is-not-empty) {
+        $"search_key = '($search_key)'"
+    } else {
+        $"name = '($name)'"
+    }
+    
+    # Execute query
+    let result = (psql exec $"SELECT * FROM ($schema).($type_table) WHERE ($where_clause) AND is_revoked = false")
+    
+    if ($result | is-empty) {
+        let field = if ($search_key | is-not-empty) { "search_key" } else { "name" }
+        let value = if ($search_key | is-not-empty) { $search_key } else { $name }
+        error make {msg: $"Type with ($field) '($value)' not found in ($schema).($type_table)"}
     } else {
         $result | first
     }

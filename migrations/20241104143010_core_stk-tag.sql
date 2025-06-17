@@ -91,7 +91,6 @@ CREATE TABLE private.stk_tag (
   processed TIMESTAMPTZ,
   is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
   description TEXT
 );
 COMMENT ON TABLE private.stk_tag IS 'Holds tag records that can be attached to any table to provide flexible metadata and attributes';
