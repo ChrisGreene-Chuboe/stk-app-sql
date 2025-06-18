@@ -130,4 +130,51 @@ assert ($detailed_request | columns | any {|col| $col == "type_enum"}) "Detailed
 assert ($detailed_request | columns | any {|col| $col == "type_name"}) "Detailed request should contain 'type_name' field"
 echo "✓ Request get --detail verified with type:" ($detailed_request.type_enum.0)
 
+echo "=== Testing request creation with JSON data ==="
+let json_request = (.append request "feature-request" --json '{"priority": "medium", "component": "ui", "estimated_effort": "2 weeks"}' --description "Add dark mode support")
+assert ($json_request | columns | any {|col| $col == "uu"}) "JSON request creation should return UUID"
+assert ($json_request.uu | is-not-empty) "JSON request UUID should not be empty"
+echo "✓ Request with JSON created, UUID:" ($json_request.uu)
+
+echo "=== Verifying request's record_json field ==="
+let json_request_detail = ($json_request.uu.0 | request get)
+assert (($json_request_detail | length) == 1) "Should retrieve exactly one request"
+assert ($json_request_detail | columns | any {|col| $col == "record_json"}) "Request should have record_json column"
+let stored_json = ($json_request_detail.record_json.0)
+assert ($stored_json | columns | any {|col| $col == "priority"}) "JSON should contain priority field"
+assert ($stored_json | columns | any {|col| $col == "component"}) "JSON should contain component field"
+assert ($stored_json | columns | any {|col| $col == "estimated_effort"}) "JSON should contain estimated_effort field"
+assert ($stored_json.priority == "medium") "Priority should be medium"
+assert ($stored_json.component == "ui") "Component should be ui"
+assert ($stored_json.estimated_effort == "2 weeks") "Estimated effort should be 2 weeks"
+echo "✓ JSON data verified: record_json contains structured data"
+
+echo "=== Testing request creation without JSON (default behavior) ==="
+let no_json_request = (.append request "simple-request" --description "Request without JSON metadata")
+let no_json_detail = ($no_json_request.uu.0 | request get)
+assert ($no_json_detail.record_json.0 == {}) "record_json should be empty object when no JSON provided"
+echo "✓ Default behavior verified: no JSON parameter results in empty JSON object"
+
+echo "=== Testing request with attachment and JSON ==="
+let test_item = (item new "Test Product")
+let item_uuid = ($test_item.uu.0)
+let attached_json_request = ($item_uuid | .append request "inventory-check" --json '{"warehouse": "west", "urgency": "high", "quantity_threshold": 100}' --description "Check inventory levels")
+assert ($attached_json_request | columns | any {|col| $col == "uu"}) "Attached JSON request should return UUID"
+let attached_detail = ($attached_json_request.uu.0 | request get)
+assert ($attached_detail.table_name_uu_json.0 != {}) "Should have attachment data"
+assert ($attached_detail.record_json.0.warehouse == "west") "Warehouse should be west"
+assert ($attached_detail.record_json.0.urgency == "high") "Urgency should be high"
+echo "✓ Request with attachment and JSON verified"
+
+echo "=== Testing complex nested JSON for request ==="
+let complex_json = '{"workflow": {"steps": ["review", "approve", "implement"], "approvers": ["manager", "director"]}, "metadata": {"created_by": "system", "tags": ["urgent", "compliance", "audit"]}, "deadline": "2024-12-31"}'
+let complex_request = (.append request "compliance-audit" --json $complex_json --description "Annual compliance audit request")
+let complex_detail = ($complex_request.uu.0 | request get)
+let complex_stored = ($complex_detail.record_json.0)
+assert (($complex_stored.workflow.steps | length) == 3) "Should have 3 workflow steps"
+assert ($complex_stored.workflow.approvers.1 == "director") "Second approver should be director"
+assert (($complex_stored.metadata.tags | length) == 3) "Should have 3 tags"
+assert ($complex_stored.deadline == "2024-12-31") "Deadline should be 2024-12-31"
+echo "✓ Complex nested JSON structure verified"
+
 echo "=== All tests completed successfully ==="

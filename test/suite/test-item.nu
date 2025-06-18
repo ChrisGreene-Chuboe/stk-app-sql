@@ -151,4 +151,38 @@ assert ($detailed_list | columns | any {|col| $col == "type_enum"}) "Detailed li
 assert ($detailed_list | columns | any {|col| $col == "type_name"}) "Detailed list should contain 'type_name' field"
 echo "✓ Item list --detail verified"
 
+echo "=== Testing item creation with JSON data ==="
+let json_item = (item new "Premium Service Package" --json '{"features": ["24/7 support", "priority access", "dedicated account manager"], "sla": "99.9%"}' --description "Premium tier service")
+assert ($json_item | columns | any {|col| $col == "uu"}) "JSON item creation should return UUID"
+assert ($json_item.uu | is-not-empty) "JSON item UUID should not be empty"
+echo "✓ Item with JSON created, UUID:" ($json_item.uu)
+
+echo "=== Verifying item's record_json field ==="
+let json_item_detail = ($json_item.uu.0 | item get)
+assert (($json_item_detail | length) == 1) "Should retrieve exactly one item"
+assert ($json_item_detail | columns | any {|col| $col == "record_json"}) "Item should have record_json column"
+let stored_json = ($json_item_detail.record_json.0)
+assert ($stored_json | columns | any {|col| $col == "features"}) "JSON should contain features field"
+assert ($stored_json | columns | any {|col| $col == "sla"}) "JSON should contain sla field"
+assert (($stored_json.features | length) == 3) "Features array should have 3 items"
+assert ($stored_json.sla == "99.9%") "SLA should be 99.9%"
+echo "✓ JSON data verified: record_json contains structured data"
+
+echo "=== Testing item creation without JSON (default behavior) ==="
+let no_json_item = (item new "Basic Service" --description "Standard service offering")
+let no_json_detail = ($no_json_item.uu.0 | item get)
+assert ($no_json_detail.record_json.0 == {}) "record_json should be empty object when no JSON provided"
+echo "✓ Default behavior verified: no JSON parameter results in empty JSON object"
+
+echo "=== Testing item creation with complex JSON ==="
+let complex_json = '{"pricing": {"monthly": 99.99, "annual": 999.99, "currency": "USD"}, "availability": {"regions": ["US", "EU", "APAC"], "uptime_guarantee": 0.999}}'
+let complex_item = (item new "Enterprise Solution" --json $complex_json --type-search-key "SERVICE")
+let complex_detail = ($complex_item.uu.0 | item get)
+let complex_stored = ($complex_detail.record_json.0)
+assert ($complex_stored.pricing.monthly == 99.99) "Monthly pricing should be 99.99"
+assert ($complex_stored.pricing.currency == "USD") "Currency should be USD"
+assert (($complex_stored.availability.regions | length) == 3) "Should have 3 regions"
+assert ($complex_stored.availability.uptime_guarantee == 0.999) "Uptime guarantee should be 0.999"
+echo "✓ Complex JSON structure verified"
+
 echo "=== All tests completed successfully ==="

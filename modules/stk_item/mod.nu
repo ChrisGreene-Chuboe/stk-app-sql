@@ -4,7 +4,7 @@
 # Module Constants
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_item"
-const STK_ITEM_COLUMNS = [name, description, is_template, is_valid]
+const STK_ITEM_COLUMNS = [name, description, is_template, is_valid, record_json]
 
 
 # Create a new item with specified name and type
@@ -21,6 +21,7 @@ const STK_ITEM_COLUMNS = [name, description, is_template, is_valid]
 #   item new "Consulting Service" --description "Professional IT consulting"
 #   item new "Shipping Fee" --type-search-key "account" --description "Standard shipping charge"
 #   item new "Software License" --type-uu "123e4567-e89b-12d3-a456-426614174000"
+#   item new "Premium Service" --json '{"features": ["24/7 support", "priority access"]}'
 #
 # Returns: The UUID and name of the newly created item record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
@@ -30,6 +31,7 @@ export def "item new" [
     --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the item
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
+    --json(-j): string             # Optional JSON data to store in record_json field
 ] {
     # Validate that only one type parameter is provided
     if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
@@ -43,12 +45,20 @@ export def "item new" [
         $type_uu
     }
     
+    # Handle json parameter
+    let record_json = if ($json | is-empty) { 
+        {}  # Empty object
+    } else { 
+        ($json | from json)  # Parse JSON string
+    }
+    
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
         type_uu: ($resolved_type_uu | default null)
         description: ($description | default null)
         stk_entity_uu: ($entity_uu | default null)
+        record_json: ($record_json | to json)  # Convert back to JSON string for psql new-record
     }
     
     # Single call with all parameters - no more cascading logic

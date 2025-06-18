@@ -5,8 +5,8 @@
 const STK_SCHEMA = "api"
 const STK_PROJECT_TABLE_NAME = "stk_project"
 const STK_PROJECT_LINE_TABLE_NAME = "stk_project_line"
-const STK_PROJECT_COLUMNS = [name, description, is_template, is_valid]
-const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid]
+const STK_PROJECT_COLUMNS = [name, description, is_template, is_valid, record_json]
+const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid, record_json]
 
 # Create a new project with specified name and type
 #
@@ -23,6 +23,7 @@ const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid]
 #   project new "CRM Development" --description "Internal CRM system development"
 #   project new "AI Research" --type-search-key "research" --description "Research new AI technologies"
 #   "12345678-1234-5678-9012-123456789abc" | project new "Sub-project Name"
+#   project new "Data Migration" --json '{"priority": "high", "estimated_hours": 120}'
 #
 # Returns: The UUID and name of the newly created project record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
@@ -33,6 +34,7 @@ export def "project new" [
     --description(-d): string      # Optional description of the project
     --template                     # Mark this project as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
+    --json(-j): string             # Optional JSON data to store in record_json field
 ] {
     # Validate that only one type parameter is provided
     if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
@@ -55,6 +57,13 @@ export def "project new" [
         $type_uu
     }
     
+    # Handle json parameter
+    let record_json = if ($json | is-empty) { 
+        {}  # Empty object
+    } else { 
+        ($json | from json)  # Parse JSON string
+    }
+    
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
@@ -63,6 +72,7 @@ export def "project new" [
         parent_uu: ($parent_uuid | default null)
         is_template: ($template | default false)
         stk_entity_uu: ($entity_uu | default null)
+        record_json: ($record_json | to json)  # Convert back to JSON string for psql new-record
     }
     
     # Single call with all parameters - no more cascading logic
@@ -222,6 +232,7 @@ export def "project types" [] {
 #   $project_uuid | project line new "Database Design" --description "Complete database design" --type-search-key "TASK"
 #   $project_uuid | project line new "Production Deployment" --type-search-key "MILESTONE" --description "Deploy to production server"
 #   $project_uuid | project line new "Requirements Analysis" --template
+#   $project_uuid | project line new "API Integration" --json '{"estimated_hours": 40, "priority": "high"}'
 #
 # Returns: The UUID and name of the newly created project line record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
@@ -232,6 +243,7 @@ export def "project line new" [
     --description(-d): string      # Optional description of the line
     --template                     # Mark this line as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
+    --json(-j): string             # Optional JSON data to store in record_json field
 ] {
     let project_uu = $in
     
@@ -251,6 +263,13 @@ export def "project line new" [
         $type_uu
     }
     
+    # Handle json parameter
+    let record_json = if ($json | is-empty) { 
+        {}  # Empty object
+    } else { 
+        ($json | from json)  # Parse JSON string
+    }
+    
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
@@ -258,6 +277,7 @@ export def "project line new" [
         description: ($description | default null)
         is_template: ($template | default false)
         stk_entity_uu: ($entity_uu | default null)
+        record_json: ($record_json | to json)  # Convert back to JSON string for psql new-record
     }
     
     # Single call with all parameters - no more cascading logic

@@ -243,4 +243,59 @@ assert ($line_names | any {|n| $n == "Task 1"}) "Should have Task 1"
 assert ($line_names | any {|n| $n == "Task 2"}) "Should have Task 2"
 echo "✓ Lines data fetched successfully"
 
+echo "=== Testing project creation with JSON data ==="
+let json_project = (project new "Data Migration Project" --json '{"priority": "high", "estimated_hours": 120, "tech_stack": ["PostgreSQL", "Python", "Nushell"]}' --description "Complex data migration")
+assert ($json_project | columns | any {|col| $col == "uu"}) "JSON project creation should return UUID"
+assert ($json_project.uu | is-not-empty) "JSON project UUID should not be empty"
+echo "✓ Project with JSON created, UUID:" ($json_project.uu)
+
+echo "=== Verifying project's record_json field ==="
+let json_project_detail = ($json_project.uu.0 | project get)
+assert (($json_project_detail | length) == 1) "Should retrieve exactly one project"
+assert ($json_project_detail | columns | any {|col| $col == "record_json"}) "Project should have record_json column"
+let stored_json = ($json_project_detail.record_json.0)
+assert ($stored_json | columns | any {|col| $col == "priority"}) "JSON should contain priority field"
+assert ($stored_json | columns | any {|col| $col == "estimated_hours"}) "JSON should contain estimated_hours field"
+assert ($stored_json | columns | any {|col| $col == "tech_stack"}) "JSON should contain tech_stack field"
+assert ($stored_json.priority == "high") "Priority should be high"
+assert ($stored_json.estimated_hours == 120) "Estimated hours should be 120"
+assert (($stored_json.tech_stack | length) == 3) "Tech stack should have 3 items"
+echo "✓ JSON data verified: record_json contains structured data"
+
+echo "=== Testing project creation without JSON (default behavior) ==="
+let no_json_project = (project new "Simple Project" --description "Project without JSON metadata")
+let no_json_detail = ($no_json_project.uu.0 | project get)
+assert ($no_json_detail.record_json.0 == {}) "record_json should be empty object when no JSON provided"
+echo "✓ Default behavior verified: no JSON parameter results in empty JSON object"
+
+echo "=== Testing project line creation with JSON data ==="
+let json_line_project = (project new "Project for JSON Lines")
+let json_line_uuid = ($json_line_project.uu.0)
+let json_line = ($json_line_uuid | project line new "API Integration" --json '{"estimated_hours": 40, "priority": "high", "dependencies": ["auth-system", "database-layer"]}' --description "REST API integration task")
+assert ($json_line | columns | any {|col| $col == "uu"}) "JSON line creation should return UUID"
+assert ($json_line.uu | is-not-empty) "JSON line UUID should not be empty"
+echo "✓ Project line with JSON created"
+
+echo "=== Verifying project line's record_json field ==="
+let json_line_detail = ($json_line.uu.0 | project line get)
+assert (($json_line_detail | length) == 1) "Should retrieve exactly one project line"
+assert ($json_line_detail | columns | any {|col| $col == "record_json"}) "Project line should have record_json column"
+let line_stored_json = ($json_line_detail.record_json.0)
+assert ($line_stored_json.estimated_hours == 40) "Line estimated hours should be 40"
+assert ($line_stored_json.priority == "high") "Line priority should be high"
+assert (($line_stored_json.dependencies | length) == 2) "Line should have 2 dependencies"
+echo "✓ Project line JSON data verified"
+
+echo "=== Testing complex nested JSON for project ==="
+let complex_json = '{"budget": {"initial": 50000, "allocated": 35000, "currency": "USD"}, "team": {"size": 5, "roles": ["PM", "Dev", "QA", "UX", "DevOps"]}, "milestones": [{"name": "Phase 1", "date": "2024-03-01"}, {"name": "Phase 2", "date": "2024-06-01"}]}'
+let complex_project = (project new "Enterprise Project" --json $complex_json --type-search-key "CLIENT")
+let complex_detail = ($complex_project.uu.0 | project get)
+let complex_stored = ($complex_detail.record_json.0)
+assert ($complex_stored.budget.initial == 50000) "Initial budget should be 50000"
+assert ($complex_stored.budget.currency == "USD") "Currency should be USD"
+assert ($complex_stored.team.size == 5) "Team size should be 5"
+assert (($complex_stored.milestones | length) == 2) "Should have 2 milestones"
+assert ($complex_stored.milestones.0.name == "Phase 1") "First milestone should be Phase 1"
+echo "✓ Complex nested JSON structure verified"
+
 echo "=== All tests completed successfully ==="

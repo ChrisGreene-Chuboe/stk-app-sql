@@ -8,6 +8,7 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
 - [Testing Philosophy](#testing-philosophy)
 - [Test Environment](#test-environment)
 - [Writing Tests](#writing-tests)
+- [Testing JSON Parameters](#testing-json-parameters)
 - [Running Tests](#running-tests)
 - [Common Issues](#common-issues)
 - [Maintenance Tasks](#maintenance-tasks)
@@ -174,6 +175,116 @@ assert ($invalid_result.exit_code != 0) "Should fail with wrong table UUID"
 assert ($invalid_result.stderr | str contains "Invalid parent UUID") "Should show validation error"
 ```
 
+## Testing JSON Parameters
+
+For modules with `record_json` columns, comprehensive testing of the `--json` parameter is required.
+
+### Basic JSON Test Pattern
+
+```nushell
+echo "=== Testing item creation with JSON data ==="
+let json_item = (item new "Premium Service" --json '{"features": ["24/7 support", "priority access"], "sla": "99.9%"}')
+assert ($json_item | columns | any {|col| $col == "uu"}) "JSON item creation should return UUID"
+assert ($json_item.uu | is-not-empty) "JSON item UUID should not be empty"
+echo "✓ Item with JSON created, UUID:" ($json_item.uu)
+
+# Verify the stored JSON
+let json_detail = ($json_item.uu.0 | item get)
+assert ($json_detail | columns | any {|col| $col == "record_json"}) "Item should have record_json column"
+let stored_json = ($json_detail.record_json.0)
+assert (($stored_json.features | length) == 2) "Features should have 2 items"
+assert ($stored_json.sla == "99.9%") "SLA should be 99.9%"
+echo "✓ JSON data verified"
+```
+
+### Required Test Cases
+
+#### 1. Valid JSON Storage
+Test various JSON structures:
+```nushell
+# Simple key-value
+let simple = (module new "Test" --json '{"key": "value"}')
+
+# Nested objects
+let nested = (module new "Test" --json '{"parent": {"child": "value"}}')
+
+# Arrays
+let arrays = (module new "Test" --json '{"items": [1, 2, 3]}')
+
+# Mixed types
+let mixed = (module new "Test" --json '{"text": "hello", "number": 42, "bool": true}')
+```
+
+#### 2. Default Behavior (No JSON)
+```nushell
+echo "=== Testing creation without JSON (default behavior) ==="
+let no_json_item = (item new "Basic Service")
+let no_json_detail = ($no_json_item.uu.0 | item get)
+assert ($no_json_detail.record_json.0 == {}) "record_json should be empty object when no JSON provided"
+echo "✓ Default behavior verified"
+```
+
+#### 3. Complex Nested JSON
+```nushell
+let complex_json = '{
+  "pricing": {"monthly": 99.99, "annual": 999.99, "currency": "USD"},
+  "availability": {"regions": ["US", "EU", "APAC"], "uptime": 0.999},
+  "features": [
+    {"name": "API Access", "limit": 1000},
+    {"name": "Support", "tier": "premium"}
+  ]
+}'
+let complex_item = (item new "Enterprise Solution" --json $complex_json)
+```
+
+#### 4. JSON with Attachments
+For modules supporting both attachments and JSON:
+```nushell
+# Create parent record
+let parent = (project new "Parent Project")
+let parent_uuid = ($parent.uu.0)
+
+# Attach with JSON
+let attached = ($parent_uuid | .append request "task" --json '{"priority": "high", "deadline": "2024-12-31"}')
+
+# Verify both work together
+let detail = ($attached.uu.0 | request get)
+assert ($detail.table_name_uu_json.0 != {}) "Should have attachment"
+assert ($detail.record_json.0.priority == "high") "Should have JSON data"
+```
+
+### Special Cases
+
+#### Tables Using Other Tables (e.g., todo using stk_request)
+```nushell
+# For todo module which uses stk_request table
+let json_todo = (todo add "Planning" --json '{"due_date": "2024-12-31"}')
+
+# Must query the underlying table directly
+let todo_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($json_todo.uu.0)'" | get 0)
+assert ($todo_detail.record_json.due_date == "2024-12-31") "JSON should be stored in stk_request"
+```
+
+#### Empty JSON Object
+```nushell
+# Test explicit empty JSON
+let empty_json = (module new "Empty" --json '{}')
+let detail = ($empty_json.uu.0 | module get)
+assert ($detail.record_json.0 == {}) "Explicit empty JSON should be stored as empty object"
+```
+
+### JSON Test Checklist
+
+For each module with `--json` parameter:
+- [ ] Test simple JSON object
+- [ ] Test nested JSON structure
+- [ ] Test JSON with arrays
+- [ ] Test without --json parameter (default to {})
+- [ ] Test complex real-world JSON example
+- [ ] Test JSON with other parameters (attachments, types, etc.)
+- [ ] Verify stored JSON matches input
+- [ ] Test edge cases (empty object, special characters)
+
 ## Running Tests
 
 ### Claude Code Requirements
@@ -310,6 +421,19 @@ let sql = $"INSERT INTO table (column) VALUES ('value')"  # Parse error
 
 # Solution
 let sql = $"INSERT INTO table \(column) VALUES \('value')"  # Escape parentheses
+```
+
+### JSON Parameter Issues
+```nushell
+# Problem
+let result = (module new "Test" --json {key: "value"})  # Error: expects string
+
+# Solution
+let result = (module new "Test" --json '{"key": "value"}')  # Pass as JSON string
+
+# For complex JSON, use variables
+let json_data = '{"complex": {"nested": "data"}}'
+let result = (module new "Test" --json $json_data)
 ```
 
 ## Maintenance Tasks

@@ -30,12 +30,14 @@ def is_uuid_like [
 #   todo add "Clean garage" --parent "123e4567-e89b-12d3-a456-426614174000"  # Add by UUID
 #   $parent_todo_uuid | todo add "Mow lawn"  # Pipe parent UUID, specify task name
 #   todo add "Buy groceries"  # Creates standalone todo item
+#   todo add "Project planning" --json '{"due_date": "2024-12-31", "priority": "high"}'
 #
 # Returns: The UUID of the newly created todo record
 # Error: Command fails if parent name/UUID doesn't exist or todo_name not provided
 export def "todo add" [
     todo_name: string            # The name of the todo (required)
     --parent(-p): string         # Name or UUID of parent todo list (optional if piped)
+    --json(-j): string           # Optional JSON data to store in record_json field
 ] {
     # Validate required todo name
     if ($todo_name | is-empty) {
@@ -65,10 +67,18 @@ export def "todo add" [
             $parent_lookup | get uu.0
         }
         # Use .append request to create child todo
-        .append request $todo_name --description $todo_name --attach $parent_uuid
+        if ($json | is-empty) {
+            .append request $todo_name --description $todo_name --attach $parent_uuid
+        } else {
+            .append request $todo_name --description $todo_name --attach $parent_uuid --json $json
+        }
     } else {
         # Create top-level todo list using .append request
-        .append request $todo_name --description $todo_name
+        if ($json | is-empty) {
+            .append request $todo_name --description $todo_name
+        } else {
+            .append request $todo_name --description $todo_name --json $json
+        }
     }
 }
 

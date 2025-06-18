@@ -4,7 +4,7 @@
 # Module Constants
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_request"
-const STK_REQUEST_COLUMNS = [name, description, table_name_uu_json, is_processed]
+const STK_REQUEST_COLUMNS = [name, description, table_name_uu_json, is_processed, record_json]
 
 # Create a new request with optional attachment to another record
 #
@@ -21,6 +21,7 @@ const STK_REQUEST_COLUMNS = [name, description, table_name_uu_json, is_processed
 #   "12345678-1234-5678-9012-123456789abc" | .append request "bug-fix" --description "Fix critical bug"
 #   .append request "profile-update" --description "Update user profile" --attach $user_uuid
 #   request list | get uu.0 | .append request "follow-up" --description "Follow up on this request"
+#   .append request "feature-request" --json '{"priority": "medium", "component": "ui"}'
 #
 # Returns: The UUID of the newly created request record
 # Note: When a UUID is provided (via pipe or --attach), table_name_uu_json is auto-populated
@@ -28,6 +29,7 @@ export def ".append request" [
     name: string                    # The name/topic of the request (used for categorization and filtering)
     --description(-d): string = ""  # Description of the request (optional)
     --attach(-a): string           # UUID of record to attach this request to (alternative to piped input)
+    --json(-j): string             # Optional JSON data to store in record_json field
 ] {
     let piped_uuid = $in
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
@@ -39,13 +41,16 @@ export def ".append request" [
         $piped_uuid
     }
     
+    # Handle json parameter
+    let record_json = if ($json | is-empty) { "'{}'" } else { $"'($json)'" }
+    
     if ($attach_uuid | is-empty) {
         # Standalone request - no attachment
-        let sql = $"INSERT INTO ($table) \(name, description) VALUES \('($name)', '($description)') RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     } else {
         # Request with attachment - auto-populate table_name_uu_json
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach_uuid)')) RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach_uuid)'), ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     }
 }

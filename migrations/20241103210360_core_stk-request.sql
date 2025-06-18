@@ -55,6 +55,7 @@ CREATE TABLE private.stk_request (
   type_uu UUID NOT NULL REFERENCES private.stk_request_type(uu),
   processed TIMESTAMPTZ,
   is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
+  record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT

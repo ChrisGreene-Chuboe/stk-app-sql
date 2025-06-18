@@ -169,4 +169,52 @@ let final_all = (todo list --all)
 assert (($final_all | length) > ($final_active | length)) "All todos should include more than just active"
 echo "✓ Final all todos verified:" ($final_all | length) "total items"
 
+echo "=== Testing todo creation with JSON data ==="
+let json_todo_list = (todo add "Project Planning" --json '{"due_date": "2024-12-31", "priority": "high", "tags": ["quarterly", "strategic"]}')
+assert ($json_todo_list | columns | any {|col| $col == "uu"}) "JSON todo creation should return UUID"
+assert ($json_todo_list.uu | is-not-empty) "JSON todo UUID should not be empty"
+echo "✓ Todo list with JSON created, UUID:" ($json_todo_list.uu)
+
+echo "=== Verifying todo's record_json field ==="
+# Need to use request get since todo uses stk_request table
+let json_todo_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($json_todo_list.uu.0)'" | get 0)
+assert ($json_todo_detail | columns | any {|col| $col == "record_json"}) "Todo should have record_json column"
+let stored_json = ($json_todo_detail.record_json)
+assert ($stored_json | columns | any {|col| $col == "due_date"}) "JSON should contain due_date field"
+assert ($stored_json | columns | any {|col| $col == "priority"}) "JSON should contain priority field"
+assert ($stored_json | columns | any {|col| $col == "tags"}) "JSON should contain tags field"
+assert ($stored_json.due_date == "2024-12-31") "Due date should be 2024-12-31"
+assert ($stored_json.priority == "high") "Priority should be high"
+assert (($stored_json.tags | length) == 2) "Tags should have 2 items"
+echo "✓ JSON data verified: record_json contains structured data"
+
+echo "=== Testing todo item with JSON and parent ==="
+let json_item = (todo add "Design mockups" --parent "Project Planning" --json '{"assigned_to": "design_team", "tools": ["figma", "sketch"], "hours_estimate": 16}')
+assert ($json_item | columns | any {|col| $col == "uu"}) "JSON todo item creation should return UUID"
+# Verify the JSON data
+let json_item_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($json_item.uu.0)'" | get 0)
+let item_stored = ($json_item_detail.record_json)
+assert ($item_stored.assigned_to == "design_team") "Assigned to should be design_team"
+assert (($item_stored.tools | length) == 2) "Should have 2 tools"
+assert ($item_stored.hours_estimate == 16) "Hours estimate should be 16"
+echo "✓ Todo item with JSON and parent verified"
+
+echo "=== Testing todo creation without JSON (default behavior) ==="
+let no_json_todo = (todo add "Simple Task")
+let no_json_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($no_json_todo.uu.0)'" | get 0)
+assert ($no_json_detail.record_json == {}) "record_json should be empty object when no JSON provided"
+echo "✓ Default behavior verified: no JSON parameter results in empty JSON object"
+
+echo "=== Testing complex nested JSON for todo ==="
+let complex_json = '{"schedule": {"start": "2024-01-01", "end": "2024-03-31", "milestones": ["phase1", "phase2", "launch"]}, "resources": {"budget": 50000, "team_size": 5}, "risks": [{"type": "technical", "severity": "medium"}, {"type": "timeline", "severity": "high"}]}'
+let complex_todo = (todo add "Q1 Initiative" --json $complex_json)
+let complex_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($complex_todo.uu.0)'" | get 0)
+let complex_stored = ($complex_detail.record_json)
+assert ($complex_stored.schedule.start == "2024-01-01") "Start date should be 2024-01-01"
+assert (($complex_stored.schedule.milestones | length) == 3) "Should have 3 milestones"
+assert ($complex_stored.resources.budget == 50000) "Budget should be 50000"
+assert (($complex_stored.risks | length) == 2) "Should have 2 risks"
+assert ($complex_stored.risks.1.severity == "high") "Second risk severity should be high"
+echo "✓ Complex nested JSON structure verified"
+
 echo "=== All tests completed successfully ==="

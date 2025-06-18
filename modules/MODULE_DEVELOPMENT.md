@@ -34,6 +34,8 @@ To create a new module:
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_module"
 const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
+# Add record_json if table has this column:
+# const STK_MODULE_COLUMNS = [name, description, is_template, is_valid, record_json]
 
 # Commands: new, list, get, revoke, types
 ```
@@ -112,6 +114,8 @@ All modules use standardized commands from `stk_psql`:
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_module"  
 const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
+# Add record_json if table has this column:
+# const STK_MODULE_COLUMNS = [name, description, is_template, is_valid, record_json]
 ```
 
 Note: Base columns (created, updated, uu, etc.) are handled by psql commands.
@@ -155,7 +159,38 @@ let parent_uuid = if ($piped_uuid | is-not-empty) {
 }
 ```
 
-### 8. Dynamic Command Building
+### 8. JSON Parameter Pattern
+
+For tables with `record_json` column, provide structured metadata storage:
+
+```nushell
+# Parameter definition in creation commands
+--json(-j): string  # Optional JSON data to store in record_json field
+
+# Standard handling pattern
+let record_json = if ($json | is-empty) { 
+    {}  # Empty object (default behavior)
+} else { 
+    ($json | from json)  # Parse JSON string
+}
+
+# Include in parameters record
+let params = {
+    name: $name
+    type_uu: ($resolved_type_uu | default null)
+    description: ($description | default null)
+    # ... other fields ...
+    record_json: ($record_json | to json)  # Convert back to JSON string for psql
+}
+```
+
+**Key principles:**
+- Parameter name is always `--json` (not --metadata or other variants)
+- Default to empty object `{}` when not provided
+- Parse on input, stringify for database
+- Available for all creation commands (.append, new, add)
+
+### 9. Dynamic Command Building
 Optional flags are passed via args array to enable clean command composition:
 
 ```nushell
@@ -181,6 +216,8 @@ This pattern avoids nested if/else blocks when combining optional parameters.
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_module"
 const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
+# Add record_json if table has this column:
+# const STK_MODULE_COLUMNS = [name, description, is_template, is_valid, record_json]
 ```
 
 ### Step 2: Implement Core Commands
@@ -194,12 +231,20 @@ export def "module new" [
     --description(-d): string
     --template
     --entity-uu(-e): string
+    --json(-j): string       # Optional JSON data (if table has record_json column)
 ] {
     # Type resolution
     let resolved_type_uu = if ($type_search_key | is-not-empty) {
         (psql get-type-by-search-key $STK_SCHEMA $STK_TABLE_NAME $type_search_key | get uu)
     } else {
         $type_uu
+    }
+    
+    # Handle JSON parameter (if table has record_json column)
+    let record_json = if ($json | is-empty) { 
+        {}  # Empty object
+    } else { 
+        ($json | from json)  # Parse JSON string
     }
     
     # Build parameters
@@ -209,6 +254,7 @@ export def "module new" [
         description: ($description | default null)
         is_template: ($template | default false)
         entity_uu: ($entity_uu | default null)
+        # record_json: ($record_json | to json)  # Add if table has record_json column
     }
     
     psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
@@ -282,7 +328,10 @@ For modules with line tables, add:
 ## Module Development Checklist
 
 - [ ] Define module constants (schema, table, columns)
+- [ ] Check if table has `record_json` column
+- [ ] If yes, include `record_json` in column constants
 - [ ] Implement `new` command with parameters record
+- [ ] If table has `record_json`, add `--json` parameter to creation commands
 - [ ] Implement `list` command with --detail and --all flags
 - [ ] Implement `get` command with pipeline UUID input
 - [ ] Implement `revoke` command with pipeline UUID input
@@ -291,6 +340,7 @@ For modules with line tables, add:
 - [ ] Write comprehensive help documentation
 - [ ] Create README.md focusing on concepts
 - [ ] Test all command variations (see "Testing Requirements" in TESTING_NOTES.md)
+- [ ] Test JSON functionality: valid JSON, invalid JSON, empty/missing JSON
 
 ## Documentation Standards
 
@@ -311,10 +361,13 @@ Focus on:
 
 ## Reference Implementations
 
-- **`stk_item`** - Clean single-table module
-- **`stk_project`** - Complete header-line pattern
+- **`stk_item`** - Clean single-table module with `--json` parameter
+- **`stk_project`** - Complete header-line pattern with `--json` for both header and lines
 - **`stk_psql`** - Generic command implementations
-- **`stk_event`** - Specialized attachment patterns
+- **`stk_event`** - Specialized attachment patterns with `--json` parameter
+- **`stk_tag`** - Advanced `--json` usage with schema validation
+- **`stk_request`** - Simple `--json` implementation
+- **`stk_todo`** - `--json` parameter using underlying `stk_request` table
 
 ## Appendix: Common Pitfalls
 

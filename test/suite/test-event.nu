@@ -80,45 +80,45 @@ assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "P
 assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked event should be marked as revoked"
 echo "✓ Event revoke with piped UUID verified"
 
-echo "=== Testing metadata functionality ==="
+echo "=== Testing json functionality ==="
 
-# Test event creation with metadata
-let metadata_result = (.append event "system-error" --description "Critical system failure detected" --metadata '{"urgency": "high", "component": "database", "user_id": 123}')
-assert ($metadata_result | columns | any {|col| $col == "uu"}) "Metadata event creation should return UUID"
-assert ($metadata_result.uu | is-not-empty) "Metadata event UUID should not be empty"
-echo "✓ Event with metadata created, UUID:" ($metadata_result.uu)
+# Test event creation with json
+let json_result = (.append event "system-error" --description "Critical system failure detected" --json '{"urgency": "high", "component": "database", "user_id": 123}')
+assert ($json_result | columns | any {|col| $col == "uu"}) "JSON event creation should return UUID"
+assert ($json_result.uu | is-not-empty) "JSON event UUID should not be empty"
+echo "✓ Event with JSON created, UUID:" ($json_result.uu)
 
 echo "=== Verifying description field contains text content ==="
-let metadata_event = ($metadata_result.uu.0 | event get)
-assert (($metadata_event | length) == 1) "Should retrieve exactly one metadata event"
-assert ($metadata_event.description.0 == "Critical system failure detected") "Description should contain the piped text content"
+let json_event = ($json_result.uu.0 | event get)
+assert (($json_event | length) == 1) "Should retrieve exactly one JSON event"
+assert ($json_event.description.0 == "Critical system failure detected") "Description should contain the piped text content"
 echo "✓ Description field verified: contains text content directly"
 
-echo "=== Verifying record_json contains metadata ==="
-let event_json = ($metadata_event.record_json.0)
-assert ($event_json | columns | any {|col| $col == "urgency"}) "Metadata should contain urgency field"
-assert ($event_json | columns | any {|col| $col == "component"}) "Metadata should contain component field"
-assert ($event_json | columns | any {|col| $col == "user_id"}) "Metadata should contain user_id field"
+echo "=== Verifying record_json contains JSON data ==="
+let event_json = ($json_event.record_json.0)
+assert ($event_json | columns | any {|col| $col == "urgency"}) "JSON should contain urgency field"
+assert ($event_json | columns | any {|col| $col == "component"}) "JSON should contain component field"
+assert ($event_json | columns | any {|col| $col == "user_id"}) "JSON should contain user_id field"
 assert ($event_json.urgency == "high") "Urgency should be 'high'"
 assert ($event_json.component == "database") "Component should be 'database'"
 assert ($event_json.user_id == 123) "User ID should be 123"
-echo "✓ Metadata verified: record_json contains structured data"
+echo "✓ JSON verified: record_json contains structured data"
 
-echo "=== Testing event without metadata (default behavior) ==="
-let no_meta_result = (.append event "basic-test" --description "Simple event without metadata")
-let no_meta_event = ($no_meta_result.uu.0 | event get)
-assert ($no_meta_event.description.0 == "Simple event without metadata") "Description should contain text content"
-assert ($no_meta_event.record_json.0 == {}) "record_json should be empty object when no metadata provided"
-echo "✓ Default behavior verified: empty metadata results in empty JSON object"
+echo "=== Testing event without JSON (default behavior) ==="
+let no_json_result = (.append event "basic-test" --description "Simple event without JSON")
+let no_json_event = ($no_json_result.uu.0 | event get)
+assert ($no_json_event.description.0 == "Simple event without JSON") "Description should contain text content"
+assert ($no_json_event.record_json.0 == {}) "record_json should be empty object when no JSON provided"
+echo "✓ Default behavior verified: no JSON parameter results in empty JSON object"
 
-echo "=== Testing help example with metadata ==="
-let auth_meta_result = (.append event "authentication" --description "User John logged in from mobile app" --metadata '{"user_id": 456, "ip": "192.168.1.100", "device": "mobile"}')
-let auth_meta_event = ($auth_meta_result.uu.0 | event get)
-assert ($auth_meta_event.description.0 == "User John logged in from mobile app") "Auth description should match input"
-assert ($auth_meta_event.record_json.0.user_id == 456) "Auth metadata should contain user_id"
-assert ($auth_meta_event.record_json.0.ip == "192.168.1.100") "Auth metadata should contain IP address"
-assert ($auth_meta_event.record_json.0.device == "mobile") "Auth metadata should contain device info"
-echo "✓ Help example with metadata verified"
+echo "=== Testing help example with JSON ==="
+let auth_json_result = (.append event "authentication" --description "User John logged in from mobile app" --json '{"user_id": 456, "ip": "192.168.1.100", "device": "mobile"}')
+let auth_json_event = ($auth_json_result.uu.0 | event get)
+assert ($auth_json_event.description.0 == "User John logged in from mobile app") "Auth description should match input"
+assert ($auth_json_event.record_json.0.user_id == 456) "Auth JSON should contain user_id"
+assert ($auth_json_event.record_json.0.ip == "192.168.1.100") "Auth JSON should contain IP address"
+assert ($auth_json_event.record_json.0.device == "mobile") "Auth JSON should contain device info"
+echo "✓ Help example with JSON verified"
 
 echo "=== Testing event types command ==="
 let types_result = (event types)

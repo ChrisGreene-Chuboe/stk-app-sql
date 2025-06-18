@@ -11,7 +11,7 @@ const STK_EVENT_COLUMNS = [name, description, table_name_uu_json, record_json]
 # This is the primary way to create events in the chuck-stack system.
 # You can either pipe in a UUID to attach to, or provide it via --attach.
 # The UUID identifies the parent record this event should be linked to.
-# Use --description to provide event details and --metadata for structured data.
+# Use --description to provide event details and --json for structured data.
 #
 # Accepts piped input:
 #   string - UUID of record to attach this event to (optional)
@@ -21,14 +21,14 @@ const STK_EVENT_COLUMNS = [name, description, table_name_uu_json, record_json]
 #   "12345678-1234-5678-9012-123456789abc" | .append event "bug-fix" --description "System error occurred"
 #   .append event "system-backup" --description "Database backup completed" --attach $backup_uuid
 #   event list | get uu.0 | .append event "follow-up" --description "Follow up on this event"
-#   .append event "system-error" --description "Critical system failure" --metadata '{"urgency": "high", "component": "database"}'
+#   .append event "system-error" --description "Critical system failure" --json '{"urgency": "high", "component": "database"}'
 #
 # Returns: The UUID of the newly created event record
 # Note: When a UUID is provided (via pipe or --attach), table_name_uu_json is auto-populated
 export def ".append event" [
     name: string                    # The name/topic of the event (used for categorization and filtering)
     --description(-d): string = ""  # Description of the event (optional)
-    --metadata(-m): string          # Optional JSON metadata to store in record_json field
+    --json(-j): string              # Optional JSON data to store in record_json field
     --attach(-a): string           # UUID of record to attach this event to (alternative to piped input)
 ] {
     let piped_uuid = $in
@@ -41,16 +41,16 @@ export def ".append event" [
         $piped_uuid
     }
     
-    # Handle metadata parameter
-    let metadata_json = if ($metadata | is-empty) { "'{}'" } else { $"'($metadata)'" }
+    # Handle json parameter
+    let record_json = if ($json | is-empty) { "'{}'" } else { $"'($json)'" }
     
     if ($attach_uuid | is-empty) {
         # Standalone event - no attachment
-        let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', ($metadata_json)::jsonb) RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     } else {
         # Event with attachment - auto-populate table_name_uu_json
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach_uuid)'), ($metadata_json)::jsonb) RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach_uuid)'), ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     }
 }
