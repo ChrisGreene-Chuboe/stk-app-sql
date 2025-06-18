@@ -62,18 +62,19 @@ export def ".append tag" [
         }
     }
     
-    # Resolve type UUID based on the parameter provided
-    let resolved_type_uu = if ($type_uu | is-not-empty) {
-        $type_uu
+    # Resolve type record based on the parameter provided
+    let type_record = if ($type_uu | is-not-empty) {
+        # Fetch the type record by UUID
+        psql exec $"SELECT * FROM api.stk_tag_type WHERE uu = '($type_uu)'" | get 0
     } else if ($type_search_key | is-not-empty) {
         # Use flexible psql command to resolve type by search_key
-        let type_record = (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key)
-        $type_record.uu
+        psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key
     } else {
         # Use flexible psql command to resolve type by name
-        let type_record = (psql get-type $STK_SCHEMA $STK_TABLE_NAME --name $type_name)
-        $type_record.uu
+        psql get-type $STK_SCHEMA $STK_TABLE_NAME --name $type_name
     }
+    
+    let resolved_type_uu = $type_record.uu
     
     # Handle JSON parameter
     let record_json = if ($json | is-empty) { 
@@ -99,11 +100,12 @@ export def ".append tag" [
         record_json: ($record_json | to json)  # Convert back to JSON string for psql new-record
     }
     
-    # Only include search_key if explicitly provided
+    # Use provided search_key or default to type's search_key
     let params = if ($search_key | is-not-empty) {
         $base_params | insert search_key $search_key
     } else {
-        $base_params
+        # Use the type's search_key as default
+        $base_params | insert search_key $type_record.search_key
     }
     
     # Use generic psql command to create the record
