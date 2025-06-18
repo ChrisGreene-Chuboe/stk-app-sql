@@ -888,3 +888,101 @@ export def lines [
     
     $result
 }
+
+# Add a 'tags' column to records, fetching associated stk_tag records
+#
+# This command enriches piped records with a 'tags' column containing
+# their associated tag records from the stk_tag table. Tags in chuck-stack
+# provide flexible metadata that can be attached to any record.
+#
+# The command uses the table_name_uu_json pattern to find tags:
+# - Each tag has a table_name_uu_json field linking it to a record
+# - Tags are fetched using: {"table_name": "xxx", "uu": "yyy"}
+#
+# Column selection follows the same pattern as the 'lines' command:
+# - Default: returns common columns (search_key, description, type_uu, record_json)
+# - --all flag: returns all columns from tag records
+# - Custom columns: specify exact columns to return
+#
+# Requirements:
+# - Input records must have 'table_name' and 'uu' columns
+# - Tags are ordered by created timestamp
+#
+# Examples:
+# # Default columns
+# project list | tags
+#
+# # All tag columns
+# project list | tags --all
+#
+# # Specific columns
+# project list | tags search_key record_json created
+#
+# # Multiple tables can be tagged
+# person list | tags | where { |p| ($p.tags | length) > 0 }
+#
+# Returns:
+# - Original records with added 'tags' column
+# - Tags column contains array of tag records (may be empty)
+# - Returns error object in tags column if query fails
+export def tags [
+    ...columns: string  # Specific columns to include in tag records
+    --all               # Include all columns (select *)
+] {
+    let input = $in
+    
+    # Return empty if no input
+    if ($input | is-empty) {
+        return []
+    }
+    
+    # Process each record
+    let result = $input | each { |record|
+        # Check if record has required columns
+        if 'table_name' not-in ($record | columns) or 'uu' not-in ($record | columns) {
+            return $record | insert tags null
+        }
+        
+        let table_name = $record.table_name
+        let record_uu = $record.uu
+        
+        try {
+            # Build the table_name_uu_json value for searching
+            let table_name_uu_json = {table_name: $table_name, uu: $record_uu} | to json
+            
+            # Build SELECT clause based on user input
+            let select_clause = if ($columns | is-empty) {
+                "*"
+            } else {
+                $columns | str join ", "
+            }
+            
+            # Query for tags associated with this record
+            let tags_query = $"SELECT ($select_clause) FROM api.stk_tag WHERE table_name_uu_json = '($table_name_uu_json)' AND is_valid = true ORDER BY created"
+            let tags_data = (psql exec $tags_query)
+            
+            # If no columns specified and not --all, filter to default columns
+            let final_data = if (not $all) and ($columns | is-empty) and (not ($tags_data | is-empty)) {
+                let available_columns = ($tags_data | columns)
+                let default_cols = ["search_key", "description", "type_uu", "record_json"]
+                let cols_to_keep = $default_cols | where { |col| $col in $available_columns }
+                
+                if ($cols_to_keep | is-empty) {
+                    $tags_data
+                } else {
+                    $tags_data | select ...$cols_to_keep
+                }
+            } else {
+                $tags_data
+            }
+            
+            # Add tags column with fetched data
+            $record | insert tags $final_data
+        } catch {
+            # Error occurred, return error object
+            $record | insert tags { error: $"Failed to fetch tags for ($table_name):($record_uu): ($in)" }
+        }
+    }
+    
+    $result
+}
