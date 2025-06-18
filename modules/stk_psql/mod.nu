@@ -900,7 +900,7 @@ export def lines [
 # - Tags are fetched using: {"table_name": "xxx", "uu": "yyy"}
 #
 # Column selection follows the same pattern as the 'lines' command:
-# - Default: returns common columns (search_key, description, type_uu, record_json)
+# - Default: returns common columns (record_json, search_key, description, type_uu)
 # - --all flag: returns all columns from tag records
 # - Custom columns: specify exact columns to return
 #
@@ -964,7 +964,7 @@ export def tags [
             # If no columns specified and not --all, filter to default columns
             let final_data = if (not $all) and ($columns | is-empty) and (not ($tags_data | is-empty)) {
                 let available_columns = ($tags_data | columns)
-                let default_cols = ["search_key", "description", "type_uu", "record_json"]
+                let default_cols = ["record_json", "search_key", "description", "type_uu"]
                 let cols_to_keep = $default_cols | where { |col| $col in $available_columns }
                 
                 if ($cols_to_keep | is-empty) {
