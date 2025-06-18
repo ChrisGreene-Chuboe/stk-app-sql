@@ -55,7 +55,7 @@ export def "psql exec" [
         }
         let bool_cols = $result 
             | columns 
-            | where {|x| ($x | str starts-with 'is_')}
+            | where {|x| ($x | str starts-with 'is_') or ($x | str starts-with 'has_')}
         if ($bool_cols | is-not-empty) {
             for col in $bool_cols {
                 $result = $result | update $col { into bool ext }
@@ -392,7 +392,7 @@ export def "psql new-line-record" [
 #   psql list-types ...$args
 #   psql list-types ...$args --all
 #
-# Returns: uu, type_enum, name, description, is_default, created for types
+# Returns: uu, type_enum, name, description, record_json, is_default, created for types
 # Note: By default shows only active types, use --all to include revoked
 export def "psql list-types" [
     ...args: string         # Positional arguments: schema, table_name [, --all]
@@ -414,7 +414,7 @@ export def "psql list-types" [
     let table = $"($schema).($table_name)_type"
     let where_clause = if $has_all { "" } else { "WHERE is_revoked = false" }
     let sql = $"
-        SELECT uu, type_enum, name, description, is_default, created
+        SELECT uu, type_enum, name, description, record_json, is_default, created
         FROM ($table)
         ($where_clause)
         ORDER BY type_enum
