@@ -422,33 +422,6 @@ export def "psql list-types" [
     psql exec $sql
 }
 
-# Generic type lookup by search key
-#
-# Looks up a type record by its search_key for any STK type table.
-# Search keys are unique identifiers that provide a stable way to reference types.
-# This is the preferred method for programmatic type resolution.
-#
-# Examples:
-#   psql get-type-by-search-key "api" "stk_item" "product-stocked"
-#   psql get-type-by-search-key "api" "stk_request" "investigation"
-#   psql get-type-by-search-key $STK_SCHEMA $STK_TABLE_NAME $search_key
-#
-# Returns: Single type record with all columns or error if not found
-# Note: Returns only active (non-revoked) types
-export def "psql get-type-by-search-key" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_item")
-    search_key: string      # Search key to look up
-] {
-    let type_table = $"($schema).($table_name)_type"
-    let result = (psql exec $"SELECT * FROM ($type_table) WHERE search_key = '($search_key)' AND is_revoked = false")
-    
-    if ($result | is-empty) {
-        error make {msg: $"Type with search_key '($search_key)' not found in ($type_table)"}
-    } else {
-        $result | first
-    }
-}
 
 
 # Flexible type lookup by search_key or name

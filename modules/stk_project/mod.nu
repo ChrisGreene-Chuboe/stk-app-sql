@@ -52,7 +52,7 @@ export def "project new" [
     
     # Resolve type if search key is provided
     let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type-by-search-key $STK_SCHEMA $STK_PROJECT_TABLE_NAME $type_search_key | get uu)
+        (psql get-type $STK_SCHEMA $STK_PROJECT_TABLE_NAME --search-key $type_search_key | get uu)
     } else {
         $type_uu
     }
@@ -258,7 +258,7 @@ export def "project line new" [
     
     # Resolve type if search key is provided
     let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type-by-search-key $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $type_search_key | get uu)
+        (psql get-type $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME --search-key $type_search_key | get uu)
     } else {
         $type_uu
     }

@@ -106,7 +106,7 @@ All modules use standardized commands from `stk_psql`:
 - `psql detail-record` - Get with type information
 - `psql revoke-record` - Soft delete
 - `psql list-types` - List available types
-- `psql get-type-by-search-key` - Resolve type by key
+- `psql get-type` - Resolve type by key or name
 
 ### 4. Module Constants
 
@@ -235,7 +235,7 @@ export def "module new" [
 ] {
     # Type resolution
     let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type-by-search-key $STK_SCHEMA $STK_TABLE_NAME $type_search_key | get uu)
+        (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key | get uu)
     } else {
         $type_uu
     }
