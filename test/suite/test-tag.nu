@@ -143,16 +143,28 @@ assert ($revoked_in_all.is_revoked.0 == true) "Tag should show as revoked in --a
 echo "✓ Tag revoke functionality verified"
 
 echo "=== Testing error cases ==="
-# NOTE: Due to psql error handling limitations (see projects/psql-test-error.md),
-# we cannot currently test error cases that involve psql commands failing.
-# These tests are commented out until psql error handling is improved.
+# Now that psql error handling is fixed, we can test error cases
 
-# # Test missing UUID
-# # Test missing type parameter  
-# # Test multiple type parameters
-# # Test invalid type
+# Test invalid column in tags command
+# The tags command gracefully handles errors by returning an error object
+let result_with_error = (project list | where name == "Tag Test Project" | tags invalid_column_name)
+let tags_result = ($result_with_error | get tags.0)
 
-echo "✓ Error cases skipped (psql error handling limitation)"
+# Verify that an error was caught and handled
+assert ($tags_result | describe | str contains "record") "Tags should contain error record"
+assert ("error" in ($tags_result | columns)) "Should have error field"
+assert (($tags_result.error | str length) > 0) "Should have error message"
+
+# Test tagging with invalid type
+let invalid_type_result = (try {
+    $project_uuid | .append tag --type-search-key "INVALID_TYPE_THAT_DOES_NOT_EXIST"
+    false
+} catch {
+    true
+})
+assert $invalid_type_result "Should fail with invalid type"
+
+echo "✓ Error cases verified"
 
 echo "=== Testing edge cases ==="
 # Create tag without search_key (should use UUID)

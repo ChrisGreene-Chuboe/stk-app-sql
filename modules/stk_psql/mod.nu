@@ -37,8 +37,18 @@ export def "psql exec" [
     }
     
     with-env {PSQLRC: $env.STK_PSQLRC_NU} {
-        mut result = []
-        $result = echo $query | psql | from csv --no-infer
+        # Execute psql command and capture complete output
+        let psql_result = (do { ^echo $query | ^psql } | complete)
+        
+        # Check for errors  
+        if $psql_result.exit_code != 0 {
+            error make {
+                msg: $"PostgreSQL error: ($psql_result.stderr)"
+            }
+        }
+        
+        # Process successful result
+        mut result = $psql_result.stdout | from csv --no-infer
         let date_cols = $result 
             | columns 
             | where {|x| ($x == 'created') or ($x == 'updated') or ($x | str starts-with 'date_')}

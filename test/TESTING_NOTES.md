@@ -11,6 +11,14 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
 - [Testing JSON Parameters](#testing-json-parameters)
 - [Running Tests](#running-tests)
 - [Common Issues](#common-issues)
+  - [Permission Denied](#permission-denied)
+  - [Module Not Found](#module-not-found)
+  - [NULL Values Returned as Strings](#null-values-returned-as-strings)
+  - [Assertion Syntax Error](#assertion-syntax-error)
+  - [List Access Error](#list-access-error)
+  - [Nushell String Escaping](#nushell-string-escaping)
+  - [JSON Parameter Issues](#json-parameter-issues)
+  - [Test Output Not Visible (print vs echo)](#test-output-not-visible-print-vs-echo)
 - [Maintenance Tasks](#maintenance-tasks)
 - [Document Maintenance Guidelines](#document-maintenance-guidelines)
 
@@ -97,21 +105,22 @@ SELECT private.get_table_name_uu_json('uuid-here'::uuid);
 ```nushell
 #!/usr/bin/env nu
 
-echo "=== Testing module functionality ==="
+# === Testing module functionality ===
 
 # Import modules and assertions
 use ../modules *
 use std/assert
 
 # Test basic functionality
-echo "=== Testing basic command ==="
+# === Testing basic command ===
 let result = (command parameters)
 
 # Verify with assertions
 assert (($result | length) > 0) "Should return results"
 assert ($result.field.0 | str contains "expected") "Field should match"
 
-echo "=== All tests completed successfully ==="
+# Return success message for test harness (don't use print here)
+"=== All tests completed successfully ==="
 ```
 
 ### Key Patterns
@@ -137,9 +146,10 @@ assert ($result.field.0 == "value") "Field should match"
 ```
 
 #### 4. Standard Output
-End all tests with:
+End all tests by returning the success string (not printing):
 ```nushell
-echo "=== All tests completed successfully ==="
+# Return this string as the last expression (no print/echo)
+"=== All tests completed successfully ==="
 ```
 
 ### Testing Patterns
@@ -434,6 +444,47 @@ let result = (module new "Test" --json '{"key": "value"}')  # Pass as JSON strin
 # For complex JSON, use variables
 let json_data = '{"complex": {"nested": "data"}}'
 let result = (module new "Test" --json $json_data)
+```
+
+### Test Output Not Visible (print vs echo)
+```nushell
+# Problem
+echo "Test is running..."  # Nothing appears when test runs
+echo $"Result: ($value)"   # Only final return value is shown
+
+# Explanation
+In nushell, only the last expression is returned when a script runs.
+The `echo` command returns its string, which won't be displayed unless
+it's the final expression. This makes debugging tests difficult.
+
+# Solution for debugging
+print "Test is running..."  # Use print for debug output to stderr
+print $"Result: ($value)"   # This will always be visible
+
+# Normal test pattern (without debug output)
+#!/usr/bin/env nu
+use ../modules *
+use std/assert
+
+# === Testing Feature X ===
+let result = (some command)
+assert ($result.field == "expected") "Should match expected value"
+
+# Final expression for test harness
+"=== All tests completed successfully ==="
+
+# When debugging is needed
+#!/usr/bin/env nu
+use ../modules *
+use std/assert
+
+# === Testing Feature X ===
+let result = (some command)
+print $"DEBUG: Result is ($result)"  # Temporary debug output
+assert ($result.field == "expected") "Should match expected value"
+
+# Final expression for test harness
+"=== All tests completed successfully ==="
 ```
 
 ## Maintenance Tasks

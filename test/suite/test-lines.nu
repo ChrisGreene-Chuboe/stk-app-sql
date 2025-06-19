@@ -116,4 +116,15 @@ assert ($single_with_lines | columns | any {|col| $col == "lines"}) "Should have
 assert (($single_with_lines | get lines.0 | length) == 3) "Should have 3 lines"
 echo "✓ Single record handling verified (wrap in list)"
 
+echo "=== Test 9: Error handling - invalid column ==="
+# The lines command gracefully handles errors by returning an error object
+let result_with_error = (project list | where name == "Lines Column Test Project" | lines name fake_column)
+let lines_result = ($result_with_error | get lines.0)
+
+# Verify that an error was caught and handled
+assert ($lines_result | describe | str contains "record") "Lines should contain error record"
+assert ("error" in ($lines_result | columns)) "Should have error field"
+assert (($lines_result.error | str length) > 0) "Should have error message"
+echo "✓ Lines command handles errors gracefully"
+
 echo "=== All tests completed successfully ==="
