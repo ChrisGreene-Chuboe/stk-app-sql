@@ -434,6 +434,7 @@ Focus on:
 ### Nushell Syntax
 - **Escape parentheses in SQL**: `$"SELECT COUNT\(*) FROM table"`  
 - **No mutable captures in closures**: Use immutable variables or reduce pattern
+- **Variable declarations**: Use `let` for immutable, `mut` for mutable (NOT `let mut`)
 
 ### Design Guidelines
 - **Pipeline-only UUIDs**: Never accept UUID as optional parameter

@@ -1,79 +1,74 @@
-# STK Todo List Module
+# STK Todo Module
 
-The chuck-stack todo list system provides a hierarchical way to organize and track tasks through completion. Todo lists manage active work - from simple flat lists to complex nested project structures with unlimited depth.
+The chuck-stack todo module provides a hierarchical task management system built on the `stk_request` table. It enables creation of todo lists with nested items, tracking work from inception to completion.
 
 ## Conceptual Overview
 
-**Parent-Child Hierarchy**: Todo lists use the `stk_request` table's `parent_uu` column to create hierarchical relationships. Parent records become list names, while child records become individual todo items.
+The todo module demonstrates chuck-stack's approach to domain-specific functionality:
 
-**Unlimited Depth**: The recursive nature allows for complex nested structures - a project can contain sub-projects, which contain tasks, which contain subtasks. The system prevents circular references while maintaining this flexibility.
-
-**Built on Requests**: Todo lists leverage the full power of the chuck-stack request system, inheriting features like soft deletion, entity ownership, and the complete audit trail.
+- **Hierarchical Structure**: Uses `table_name_uu_json` to create parent-child relationships between todos
+- **Request Foundation**: Leverages the full power of the chuck-stack request system
+- **Soft Deletion**: Completed todos are revoked, not deleted, maintaining audit trails
+- **Type Safety**: Uses the TODO type from `stk_request_type_enum` for proper categorization
 
 ## Integration with Chuck-Stack
 
-Todo lists integrate with the broader chuck-stack ecosystem:
+Todo lists integrate seamlessly with chuck-stack patterns:
 
-- **Request Foundation**: Built on `stk_request` table architecture for consistency and power
-- **Entity Ownership**: Todo lists belong to specific `stk_entity` records for multi-tenant data isolation
-- **Revocation Model**: Uses chuck-stack's `is_revoked` pattern - non-revoked items are active todos, revoked items are done
-- **Convention Compliance**: Follows all chuck-stack [postgres conventions](../../chuckstack.github.io/src-ls/postgres-convention/) for consistency
+- **Pipeline Philosophy**: All UUID operations follow the pipeline-only pattern
+- **Generic Commands**: Uses `psql` commands for all database operations
+- **Entity Ownership**: Inherits multi-tenant isolation from `stk_request`
+- **Convention Compliance**: Follows all [postgres conventions](../../chuckstack.github.io/src-ls/postgres-convention/)
 
 ## Available Commands
 
-This module provides commands optimized for todo list workflows:
+The todo module provides standard chuck-stack commands:
 
 ```nu
-todo list           # Browse todo lists and items
-todo add            # Add new lists or items
-todo revoke         # Mark items as done (revoked)
-todo restore        # Reopen items (un-revoke)
+todo new        # Create new todo items
+todo list       # Browse todos with optional filters
+todo get        # Retrieve specific todo details
+todo revoke     # Mark todos as completed
+todo types      # List available request types
 ```
 
-**For complete usage details, examples, and best practices, use the built-in help:**
+**For detailed usage, examples, and parameters, use the built-in help:**
 
 ```nu
+todo new --help
 todo list --help
-todo add --help
+todo get --help
 todo revoke --help
-todo restore --help
+todo types --help
 ```
 
-## Quick Start
+## Quick Start Pattern
 
 ```nu
 # Import the module
 use modules *
 
-# Create a new todo list
-todo add "Weekend Projects"
+# Create a top-level todo list
+todo new "Weekend Projects" --description "Tasks for the weekend"
 
-# Add items to the list (by parent name)
-todo add "Fix garden fence" --parent "Weekend Projects"
-todo add "Clean garage" --parent "Weekend Projects"
+# Add items to the list using pipeline
+todo list | where name == "Weekend Projects" | get uu.0 | todo new "Fix garden fence"
 
-# Add items using parent UUID
-todo add "Organize shed" --parent "123e4567-e89b-12d3-a456-426614174000"
+# View todos
+todo list                    # All active todos
+todo list --detail           # Include type information
+todo list --all              # Include completed todos
 
-# Pipe in a task name
-"Mow lawn" | todo add --parent "Weekend Projects"
+# Mark as done
+todo list | where name == "Fix garden fence" | get uu.0 | todo revoke
 
-# View your lists and items
-todo list
-
-# Mark an item as done
-todo revoke "Clean garage"
-
-# Reopen an item if needed
-todo restore "Clean garage"
-
-# Get detailed help for any command
-todo add --help
+# Get detailed help
+todo new --help
 ```
 
 ## Learn More
 
-- [Chuck-Stack Postgres Conventions](../../chuckstack.github.io/src-ls/postgres-convention/)
-- [Column Conventions](../../chuckstack.github.io/src-ls/postgres-convention/column-convention.md) - Understanding parent_uu and is_revoked patterns
-- [Sample Table Convention](../../chuckstack.github.io/src-ls/postgres-convention/sample-table-convention.md) - How requests follow chuck-stack patterns
-- [STK Request Module](../stk_request/readme.md) - Understanding the underlying request architecture
+- [Module Development Standards](../MODULE_DEVELOPMENT.md) - Chuck-stack module patterns
+- [STK Request Module](../stk_request/) - Understanding the underlying table
+- [Pipeline Patterns](../../chuckstack.github.io/src-ls/postgres-convention/nushell.md) - Nushell integration
+- [STK Event Module](../stk_event/) - Canonical example of module structure
