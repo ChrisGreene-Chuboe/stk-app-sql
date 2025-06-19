@@ -71,7 +71,7 @@ in pkgs.mkShell {
     pkgs.nushell
     pkgs.postgrest
     pkgs.bat
-    #pkgs.aichat
+    pkgs.aichat
     #pkgs.git
     startTest
     stopTest

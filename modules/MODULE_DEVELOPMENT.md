@@ -6,6 +6,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
 
 - [Quick Start](#quick-start)
 - [Module Structure](#module-structure)
+- [Module Categories](#module-categories)
 - [Database Schema Context](#database-schema-context)
 - [Core Patterns](#core-patterns)
 - [Implementation Guide](#implementation-guide)
@@ -46,6 +47,38 @@ stk_module/
 ├── mod.nu      # Module implementation
 └── README.md   # Conceptual documentation
 ```
+
+## Module Categories
+
+Chuck-stack modules fall into three primary categories:
+
+### 1. Database Table Modules
+Most chuck-stack modules expose database tables and follow standard CRUD patterns:
+- **Pattern**: Implement new, list, get, revoke, and optionally types commands
+- **Constants**: STK_SCHEMA, STK_TABLE_NAME, STK_[TABLE]_COLUMNS
+- **Implementation**: Follow [Core Patterns](#core-patterns) and [Implementation Guide](#implementation-guide)
+- **Examples**: See [Database Table Modules](#database-table-modules-1) in Reference Implementations
+
+### 2. System Wrapper Modules  
+Utility modules that wrap external commands and system tools:
+- **Pattern**: Provide nushell-friendly interfaces to external tools
+- **Constants**: Tool-specific (e.g., STK_AI_TOOL, STK_DEFAULT_MODEL)
+- **Key Considerations**:
+  - Error handling for external command failures
+  - Use `complete` pattern for external commands
+  - Provide clear documentation about prerequisites
+- **Examples**: See [System Wrapper Modules](#system-wrapper-modules-1) in Reference Implementations
+
+### 3. Domain Wrapper Modules
+Modules that provide specialized interfaces to existing tables:
+- **Pattern**: Add domain-specific commands while delegating to base modules
+- **Constants**: Reference wrapped table (STK_TABLE_NAME points to wrapped table)
+- **Key Considerations**:
+  - Use `.append` pattern for attachments (see [Pattern 7](#7-parent-child-pattern))
+  - Delegate to base module's generic commands
+- **Examples**: See [Domain Wrapper Modules](#domain-wrapper-modules-1) in Reference Implementations
+
+Choose your module category before proceeding with implementation patterns below.
 
 ## Database Schema Context
 
@@ -327,6 +360,9 @@ For modules with line tables, add:
 
 ## Module Development Checklist
 
+Choose the appropriate checklist based on your module category:
+
+### For Database Table Modules:
 - [ ] Define module constants (schema, table, columns)
 - [ ] Check if table has `record_json` column
 - [ ] If yes, include `record_json` in column constants
@@ -341,6 +377,23 @@ For modules with line tables, add:
 - [ ] Create README.md focusing on concepts
 - [ ] Test all command variations (see "Testing Requirements" in TESTING_NOTES.md)
 - [ ] Test JSON functionality: valid JSON, invalid JSON, empty/missing JSON
+
+### For System Wrapper Modules:
+- [ ] Define tool-specific constants
+- [ ] Implement error handling for external commands
+- [ ] Document prerequisites and installation requirements
+- [ ] Use `complete` pattern for external command execution
+- [ ] Write comprehensive help documentation
+- [ ] Create README.md explaining tool integration
+- [ ] Test with and without external tool available
+
+### For Domain Wrapper Modules:
+- [ ] Define constants referencing wrapped table
+- [ ] Implement domain-specific commands using `.append` or similar patterns
+- [ ] Delegate to base module commands appropriately
+- [ ] Write comprehensive help documentation
+- [ ] Create conceptual README
+- [ ] Test integration with base module
 
 ## Documentation Standards
 
@@ -361,13 +414,20 @@ Focus on:
 
 ## Reference Implementations
 
+### Database Table Modules
 - **`stk_item`** - Clean single-table module with `--json` parameter
 - **`stk_project`** - Complete header-line pattern with `--json` for both header and lines
-- **`stk_psql`** - Generic command implementations
 - **`stk_event`** - Specialized attachment patterns with `--json` parameter
 - **`stk_tag`** - Advanced `--json` usage with schema validation
 - **`stk_request`** - Simple `--json` implementation
-- **`stk_todo`** - `--json` parameter using underlying `stk_request` table
+
+### System Wrapper Modules
+- **`stk_psql`** - PostgreSQL command wrapper with structured output parsing
+- **`stk_ai`** - AI tool wrapper for text transformation
+
+### Domain Wrapper Modules
+- **`stk_todo`** - Wraps `stk_request` table for todo list functionality
+- **`stk_address`** - Wraps `stk_tag` table with AI-powered address parsing
 
 ## Appendix: Common Pitfalls
 

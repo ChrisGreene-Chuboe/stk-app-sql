@@ -23,3 +23,9 @@ export use stk_project *
 
 # Tag system for flexible metadata attachment with JSON Schema validation
 export use stk_tag *
+
+# AI-powered text transformation utilities for chuck-stack
+export use stk_ai *
+
+# Address management with AI-powered natural language processing
+export use stk_address *
