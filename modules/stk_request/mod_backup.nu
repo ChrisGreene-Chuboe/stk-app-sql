@@ -1,9 +1,6 @@
 # STK Request Module
 # This module provides commands for working with stk_request table
 
-# Import utility functions
-use ../stk_utility *
-
 # Module Constants
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_request"
@@ -12,21 +9,18 @@ const STK_REQUEST_COLUMNS = [name, description, table_name_uu_json, is_processed
 # Create a new request with optional attachment to another record
 #
 # This is the primary way to create requests in the chuck-stack system.
-# You can pipe in a UUID string, a single record, or a table to attach to.
-# The --attach parameter accepts only string UUIDs.
+# You can either pipe in a UUID to attach to, or provide it via --attach.
+# The UUID identifies the parent record this request should be linked to.
 # Use --description to provide request details.
 #
 # Accepts piped input:
-#   string - UUID of record to attach this request to
-#   record - Single record containing 'uu' field
-#   table  - Table where first row contains 'uu' field
+#   string - UUID of record to attach this request to (optional)
 #
 # Examples:
 #   .append request "quarterly-review" --description "Review quarterly reports"
 #   "12345678-1234-5678-9012-123456789abc" | .append request "bug-fix" --description "Fix critical bug"
-#   project list | get 0 | .append request "update" --description "Update project"
-#   project list | where name == "test" | .append request "review" --description "Review this project"
 #   .append request "profile-update" --description "Update user profile" --attach $user_uuid
+#   request list | get uu.0 | .append request "follow-up" --description "Follow up on this request"
 #   .append request "feature-request" --json '{"priority": "medium", "component": "ui"}'
 #
 # Returns: The UUID of the newly created request record

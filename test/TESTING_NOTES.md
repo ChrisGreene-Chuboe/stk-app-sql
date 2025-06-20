@@ -137,13 +137,46 @@ use ../modules *    # Access module commands (test files are in suite/)
 use std/assert      # Enable assertions
 ```
 
-#### 3. Assertion Syntax
+#### 3. Assertion Syntax - CRITICAL PATTERN
+**GOLDEN RULE: Always wrap the entire condition in parentheses!**
+
 ```nushell
-# Wrap comparisons in parentheses
+# ✅ CORRECT - condition wrapped in parentheses
 assert (($result | length) > 0) "Error message"
+assert (($result.field == "value")) "Field should match"
+assert ((($result | describe) == "record")) "Should be a record"
+assert (("uu" in ($record | columns))) "Should have uu field"
+
+# ❌ WRONG - will cause "extra positional argument" error
+assert ($result | length) > 0 "Error message"  # FAILS!
+assert $result.field == "value" "Field should match"  # FAILS!
+assert ($result | describe) == "record" "Should be record"  # FAILS!
+```
+
+**Why this happens**: Nushell's parser needs parentheses to distinguish the boolean condition from the error message string. Without parentheses, it can't tell where the condition ends.
+
+**Common patterns that need parentheses**:
+```nushell
+# Comparisons
+assert (($value == "expected")) "message"
+assert (($count > 0)) "message"
+assert (($status != "failed")) "message"
+
+# Pipeline operations
+assert (($list | length) > 0) "message"
+assert (($data | describe) == "table") "message"
+assert (($result | is-empty)) "message"
+
+# String operations
+assert (($text | str contains "substring")) "message"
+assert (($path | str starts-with "/tmp")) "message"
+
+# List/record checks
+assert (("field" in $columns)) "message"
+assert (($list | any {|x| $x > 10})) "message"
 
 # Access list elements with .0
-assert ($result.field.0 == "value") "Field should match"
+assert (($result.field.0 == "value")) "Field should match"
 ```
 
 #### 4. Standard Output
