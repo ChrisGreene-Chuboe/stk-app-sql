@@ -37,14 +37,21 @@ export def ".append request" [
     --attach(-a): string           # UUID of record to attach this request to (alternative to piped input)
     --json(-j): string             # Optional JSON data to store in record_json field
 ] {
-    let piped_uuid = $in
+    let piped_input = $in
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
-    # Determine which UUID to use - piped input takes precedence over --attach
-    let attach_uuid = if ($piped_uuid | is-empty) {
+    # Normalize piped input to get UUID
+    let attach_uuid = if ($piped_input | is-empty) {
+        # No piped input, use --attach parameter
         $attach
     } else {
-        $piped_uuid
+        # Normalize piped input and get first row's UUID
+        let normalized = ($piped_input | normalize-uuid-input)
+        if ($normalized | is-empty) {
+            null
+        } else {
+            $normalized.0.uu?
+        }
     }
     
     # Handle json parameter
