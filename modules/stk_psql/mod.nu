@@ -94,8 +94,10 @@ export def "psql exec" [
 # Returns: All specified columns from the table, newest records first
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql list-records" [
-    ...args: string         # Positional arguments: schema, table_name, column1, column2, ... [, --all]
-    --limit: int = 10       # Maximum number of records to return
+    ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all]
+    --limit: int = 10               # Maximum number of records to return
+    --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
+    --detail                        # Include type information (type_enum, type_name, type_description)
 ] {
     # Check if --all flag is present in args
     let has_all = ("--all" in $args)
@@ -113,9 +115,38 @@ export def "psql list-records" [
     let specific_columns = ($positional_args | skip 2)  # All remaining args are columns
     
     let table = $"($schema).($table_name)"
-    let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-    let where_clause = if $has_all { "" } else { " WHERE is_revoked = false" }
-    psql exec $"SELECT ($columns) FROM ($table)($where_clause) ORDER BY created DESC LIMIT ($limit)"
+    let type_table = $"($schema).($table_name)_type"
+    
+    # If enum filtering is requested, use JOIN logic
+    if ($enum | length) > 0 {
+        # Build enum filter
+        let enum_list = $enum | str join "', '"
+        
+        # Build column selection
+        let record_cols = ($specific_columns | each {|col| $"r.($col)"} | str join ", ")
+        let base_cols = ($STK_BASE_COLUMNS | each {|col| $"r.($col)"} | str join ", ")
+        let type_cols = if $detail { ", t.type_enum, t.name as type_name, t.description as type_description" } else { "" }
+        
+        # Build WHERE clause
+        let enum_filter = $"t.type_enum IN \('($enum_list)')"
+        let revoked_filter = if not $has_all { " AND r.is_revoked = false" } else { "" }
+        
+        let sql = $"
+            SELECT ($record_cols), ($base_cols)($type_cols)
+            FROM ($table) r
+            JOIN ($type_table) t ON r.type_uu = t.uu
+            WHERE ($enum_filter)($revoked_filter)
+            ORDER BY r.created DESC
+            LIMIT ($limit)
+        "
+        
+        psql exec $sql
+    } else {
+        # Original simple query (no enum filtering)
+        let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
+        let where_clause = if $has_all { "" } else { " WHERE is_revoked = false" }
+        psql exec $"SELECT ($columns) FROM ($table)($where_clause) ORDER BY created DESC LIMIT ($limit)"
+    }
 }
 
 # Generic list line records filtered by header UUID
@@ -175,14 +206,39 @@ export def "psql list-line-records" [
 # Returns: Single record with all specified columns, or empty if UUID not found
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql get-record" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_event")
-    specific_columns: list  # Module-specific columns (e.g., [name, record_json])
-    uu: string              # UUID of the record to retrieve
+    schema: string                # Database schema (e.g., "api")
+    table_name: string            # Table name (e.g., "stk_event")
+    specific_columns: list        # Module-specific columns (e.g., [name, record_json])
+    uu: string                    # UUID of the record to retrieve
+    --enum: list<string> = []     # Type enum constraint(s) to validate against (optional)
+    --detail                      # Include type information
 ] {
     let table = $"($schema).($table_name)"
-    let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-    psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
+    let type_table = $"($schema).($table_name)_type"
+    
+    # If enum filtering is requested, use JOIN logic
+    if ($enum | length) > 0 {
+        # Build enum filter
+        let enum_list = $enum | str join "', '"
+        
+        # Build column selection
+        let record_cols = ($specific_columns | each {|col| $"r.($col)"} | str join ", ")
+        let base_cols = ($STK_BASE_COLUMNS | each {|col| $"r.($col)"} | str join ", ")
+        let type_cols = if $detail { ", t.type_enum, t.name as type_name, t.description as type_description" } else { "" }
+        
+        let sql = $"
+            SELECT ($record_cols), ($base_cols)($type_cols)
+            FROM ($table) r
+            JOIN ($type_table) t ON r.type_uu = t.uu
+            WHERE r.uu = '($uu)' AND t.type_enum IN \('($enum_list)')
+        "
+        
+        psql exec $sql
+    } else {
+        # Original simple query (no enum filtering)
+        let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
+        psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
+    }
 }
 
 
@@ -225,12 +281,35 @@ export def "psql validate-uuid-table" [
 # Returns: uu, name, revoked timestamp, and is_revoked status for the revoked record
 # Error: Command fails if UUID doesn't exist or record is already revoked
 export def "psql revoke-record" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_event")
-    uu: string              # UUID of the record to revoke
+    schema: string                # Database schema (e.g., "api")
+    table_name: string            # Table name (e.g., "stk_event")
+    uu: string                    # UUID of the record to revoke
     returning_columns: list = [uu, name, revoked, is_revoked]  # Columns to return (default includes name)
+    --enum: list<string> = []     # Type enum constraint(s) to validate against (optional)
 ] {
     let table = $"($schema).($table_name)"
+    let type_table = $"($schema).($table_name)_type"
+    
+    # If enum filtering is requested, validate first
+    if ($enum | length) > 0 {
+        # Build enum filter
+        let enum_list = $enum | str join "', '"
+        
+        # Verify record exists with matching enum and not already revoked
+        let check_sql = $"
+            SELECT r.uu 
+            FROM ($table) r
+            JOIN ($type_table) t ON r.type_uu = t.uu
+            WHERE r.uu = '($uu)' 
+            AND t.type_enum IN \('($enum_list)')
+            AND r.is_revoked = false"
+        
+        let check_result = psql exec $check_sql
+        if ($check_result | is-empty) {
+            error make { msg: $"Record not found, already revoked, or type_enum not in [($enum_list)]" }
+        }
+    }
+    
     let returning_str = ($returning_columns | str join ", ")
     psql exec $"UPDATE ($table) SET revoked = now\() WHERE uu = '($uu)' RETURNING ($returning_str)"
 }
@@ -281,21 +360,73 @@ export def "psql process-record" [
 # Returns: All provided columns plus STK_BASE_COLUMNS (mandatory columns)
 # Error: Command fails if database constraints are violated
 export def "psql new-record" [
-    schema: string      # Database schema (e.g., "api")
-    table_name: string  # Table name (e.g., "stk_item")
-    params: record      # Parameters record with column values to insert
+    schema: string                # Database schema (e.g., "api")
+    table_name: string            # Table name (e.g., "stk_item")
+    params: record                # Parameters record with column values to insert
+    --enum: list<string> = []     # Type enum constraint(s) for the record (optional)
+    --type-name: string           # Specific type name within the enum (optional)
 ] {
+    let parent_uuid = $in
     let table = $"($schema).($table_name)"
+    let type_table = $"($schema).($table_name)_type"
     
     # Validate params is not empty
     if ($params | is-empty) {
         error make {msg: "Parameters record cannot be empty"}
     }
     
+    mut full_params = $params
+    
+    # If enum is specified, handle type assignment
+    if ($enum | length) > 0 {
+        # Build enum filter
+        let enum_list = $enum | str join "', '"
+        
+        # Find appropriate type_uu
+        let type_uu = if ($type_name | is-not-empty) {
+            # Find specific type by name
+            let specific_type = psql exec $"SELECT uu FROM ($type_table) WHERE type_enum IN \('($enum_list)') AND name = '($type_name)' AND is_revoked = false LIMIT 1"
+            if ($specific_type | is-empty) {
+                error make { msg: $"Type '($type_name)' not found with type_enum in [($enum_list)]" }
+            }
+            $specific_type | get uu.0
+        } else {
+            # Find default type
+            let default_type = psql exec $"SELECT uu FROM ($type_table) WHERE type_enum IN \('($enum_list)') AND is_default = true AND is_revoked = false LIMIT 1"
+            if ($default_type | is-empty) {
+                # Fall back to any type
+                let any_type = psql exec $"SELECT uu FROM ($type_table) WHERE type_enum IN \('($enum_list)') AND is_revoked = false LIMIT 1"
+                if ($any_type | is-empty) {
+                    error make { msg: $"No type found with type_enum in [($enum_list)]" }
+                }
+                $any_type | get uu.0
+            } else {
+                $default_type | get uu.0
+            }
+        }
+        
+        # Add type_uu to params
+        $full_params = ($full_params | merge {type_uu: $type_uu})
+        
+        # Handle parent UUID if provided via pipe
+        if ($parent_uuid | is-not-empty) {
+            # Validate parent has matching enum
+            let parent_check = psql exec $"SELECT r.uu FROM ($table) r JOIN ($type_table) t ON r.type_uu = t.uu WHERE r.uu = '($parent_uuid)' AND t.type_enum IN \('($enum_list)') AND r.is_revoked = false"
+            if ($parent_check | is-empty) {
+                error make { msg: $"Parent UUID must be an active record with type_enum in [($enum_list)]" }
+            }
+            
+            # Get table_name_uu_json for the parent
+            let table_name_uu_json = psql exec $"SELECT ($schema).get_table_name_uu_json\('($parent_uuid)') AS result" | get result.0
+            $full_params = ($full_params | merge {table_name_uu_json: $table_name_uu_json})
+        }
+    }
+    
     # Build columns and values from params dynamically
-    let columns = ($params | columns)
+    let final_params = $full_params  # Create immutable copy for closure
+    let columns = ($final_params | columns)
     let values = ($columns | each {|col|
-        let val = ($params | get $col)
+        let val = ($final_params | get $col)
         if ($val == null) {
             "NULL"
         } else if ($val | describe) == "bool" {
@@ -406,7 +537,8 @@ export def "psql new-line-record" [
 # Returns: uu, type_enum, search_key, name, description, record_json, is_default, created for types
 # Note: By default shows only active types, use --all to include revoked
 export def "psql list-types" [
-    ...args: string         # Positional arguments: schema, table_name [, --all]
+    ...args: string                 # Positional arguments: schema, table_name [, --all]
+    --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
 ] {
     # Check if --all flag is present in args
     let has_all = ("--all" in $args)
@@ -423,12 +555,30 @@ export def "psql list-types" [
     let table_name = $positional_args.1
     
     let table = $"($schema).($table_name)_type"
-    let where_clause = if $has_all { "" } else { "WHERE is_revoked = false" }
+    
+    # Build WHERE clause
+    let enum_filter = if ($enum | length) > 0 {
+        let enum_list = $enum | str join "', '"
+        $"type_enum IN \('($enum_list)')"
+    } else {
+        ""
+    }
+    
+    let revoked_filter = if not $has_all { "is_revoked = false" } else { "" }
+    
+    # Combine filters
+    let where_parts = [$enum_filter, $revoked_filter] | where {|it| $it | is-not-empty}
+    let where_clause = if ($where_parts | length) > 0 {
+        $"WHERE ($where_parts | str join ' AND ')"
+    } else {
+        ""
+    }
+    
     let sql = $"
         SELECT uu, type_enum, search_key, name, description, record_json, is_default, created
         FROM ($table)
         ($where_clause)
-        ORDER BY type_enum
+        ORDER BY type_enum, name
     "
     psql exec $sql
 }
@@ -969,284 +1119,4 @@ export def tags [
     }
     
     $result
-}
-# Enum-aware list records from a table
-#
-# Lists records filtered by type_enum constraint(s). This is the preferred method
-# for modules that work with specific type enums (e.g., TODO, TIMESHEET).
-# Automatically joins with the type table to enable enum filtering.
-#
-# Examples:
-#   # List all TODO records
-#   psql list-records-enum "api" "stk_request" [name, description] --enum ["TODO"]
-#   
-#   # Include completed records
-#   psql list-records-enum "api" "stk_request" $columns --enum ["TODO"] --all
-#   
-#   # List with detailed type information
-#   psql list-records-enum "api" "stk_request" $columns --enum ["TODO"] --detail
-#
-# Returns: Records filtered by enum with requested columns
-export def "psql list-records-enum" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_request")
-    specific_columns: list  # Module-specific columns to return
-    --enum: list<string>    # Type enum constraint(s) to filter by
-    --detail                # Include type information (type_enum, type_name, type_description)
-    --all                   # Include revoked records
-    --limit: int = 10       # Maximum number of records to return
-] {
-    let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($table_name)_type"
-    
-    # Build enum filter
-    let enum_list = $enum | str join "', '"
-    
-    # Build column selection
-    let record_cols = ($specific_columns | each {|col| $"r.($col)"} | str join ", ")
-    let base_cols = ($STK_BASE_COLUMNS | each {|col| $"r.($col)"} | str join ", ")
-    let type_cols = if $detail { ", t.type_enum, t.name as type_name, t.description as type_description" } else { "" }
-    
-    # Build WHERE clause
-    let enum_filter = $"t.type_enum IN \('($enum_list)')"
-    let revoked_filter = if not $all { " AND r.is_revoked = false" } else { "" }
-    
-    let sql = $"
-        SELECT ($record_cols), ($base_cols)($type_cols)
-        FROM ($table) r
-        JOIN ($type_table) t ON r.type_uu = t.uu
-        WHERE ($enum_filter)($revoked_filter)
-        ORDER BY r.created DESC
-        LIMIT ($limit)
-    "
-    
-    psql exec $sql
-}
-
-# Enum-aware get single record by UUID
-#
-# Retrieves a record by UUID with enum validation. Ensures the record
-# has a type matching the specified enum constraint(s).
-#
-# Examples:
-#   # Get TODO record
-#   $uuid | psql get-record-enum "api" "stk_request" [name, description] --enum ["TODO"]
-#   
-#   # Get with type details
-#   $uuid | psql get-record-enum "api" "stk_request" $columns --enum ["TODO"] --detail
-#
-# Accepts piped input:
-#   string - The UUID of the record to retrieve (required via pipe)
-#
-# Returns: Single record if found and matches enum
-# Error: If UUID not found or doesn't match enum constraint
-export def "psql get-record-enum" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_request")
-    specific_columns: list  # Module-specific columns to return
-    --enum: list<string>    # Type enum constraint(s) to validate against
-    --detail                # Include type information
-] {
-    let uu = $in
-    
-    if ($uu | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
-    
-    let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($table_name)_type"
-    
-    # Build enum filter
-    let enum_list = $enum | str join "', '"
-    
-    # Verify record exists with matching enum
-    let check_sql = $"
-        SELECT r.uu 
-        FROM ($table) r
-        JOIN ($type_table) t ON r.type_uu = t.uu
-        WHERE r.uu = '($uu)' AND t.type_enum IN \('($enum_list)')"
-    
-    let check_result = psql exec $check_sql
-    if ($check_result | is-empty) {
-        error make { msg: $"Record not found or type_enum not in [($enum_list)]" }
-    }
-    
-    # Get the record
-    if $detail {
-        psql detail-record $schema $table_name $uu
-    } else {
-        psql get-record $schema $table_name $specific_columns $uu
-    }
-}
-
-# Enum-aware revoke record
-#
-# Revokes a record after validating it matches the enum constraint(s).
-# This ensures modules only operate on records within their domain.
-#
-# Examples:
-#   # Revoke TODO record
-#   $uuid | psql revoke-record-enum "api" "stk_request" --enum ["TODO"]
-#
-# Accepts piped input:
-#   string - The UUID of the record to revoke (required via pipe)
-#
-# Returns: Revoked record information
-# Error: If UUID not found, already revoked, or doesn't match enum
-export def "psql revoke-record-enum" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_request")
-    --enum: list<string>    # Type enum constraint(s) to validate against
-] {
-    let uu = $in
-    
-    if ($uu | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
-    
-    let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($table_name)_type"
-    
-    # Build enum filter
-    let enum_list = $enum | str join "', '"
-    
-    # Verify record exists with matching enum and not already revoked
-    let check_sql = $"
-        SELECT r.uu 
-        FROM ($table) r
-        JOIN ($type_table) t ON r.type_uu = t.uu
-        WHERE r.uu = '($uu)' 
-        AND t.type_enum IN \('($enum_list)')
-        AND r.is_revoked = false"
-    
-    let check_result = psql exec $check_sql
-    if ($check_result | is-empty) {
-        error make { msg: $"Record not found, already revoked, or type_enum not in [($enum_list)]" }
-    }
-    
-    # Revoke the record
-    psql revoke-record $schema $table_name $uu
-}
-
-# Enum-aware create new record
-#
-# Creates a new record with automatic type_uu assignment based on enum constraints.
-# This is the preferred method for modules that work with specific type enums.
-# Automatically finds the appropriate type record based on the enum array and
-# optional type name. Handles parent validation when UUID is piped.
-#
-# Type selection logic:
-# 1. If --type-name provided, finds type with that name and matching enum
-# 2. Otherwise, finds the default type (is_default = true) for the enum
-# 3. Falls back to any type matching the enum if no default exists
-#
-# Examples:
-#   # Create with default TODO type
-#   let params = {name: "Fix bug", description: "Critical issue"}
-#   psql new-record-enum "api" "stk_request" $params --enum ["TODO"]
-#   
-#   # Create with specific type
-#   let params = {name: "Fix bug", description: "Critical issue"}
-#   psql new-record-enum "api" "stk_request" $params --enum ["TODO"] --type-name "work-todo"
-#   
-#   # Create with parent attachment (via piped UUID)
-#   let params = {name: "Subtask"}
-#   $parent_uuid | psql new-record-enum "api" "stk_request" $params --enum ["TODO"]
-#
-# Accepts piped input:
-#   string - UUID of parent record to attach via table_name_uu_json (optional)
-#
-# Returns: Newly created record
-# Error: Fails if no type found matching enum, or parent validation fails
-export def "psql new-record-enum" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_request")
-    params: record          # Parameters record with column values
-    --enum: list<string>    # Type enum constraint(s) for the record
-    --type-name: string     # Specific type name within the enum (optional)
-] {
-    let parent_uuid = $in
-    let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($table_name)_type"
-    
-    # Build enum filter
-    let enum_list = $enum | str join "', '"
-    
-    # Find appropriate type_uu
-    let type_uu = if ($type_name | is-not-empty) {
-        # Find specific type by name
-        let specific_type = psql exec $"SELECT uu FROM ($type_table) WHERE type_enum IN \('($enum_list)') AND name = '($type_name)' AND is_revoked = false LIMIT 1"
-        if ($specific_type | is-empty) {
-            error make { msg: $"Type '($type_name)' not found with type_enum in [($enum_list)]" }
-        }
-        $specific_type | get uu.0
-    } else {
-        # Find default type
-        let default_type = psql exec $"SELECT uu FROM ($type_table) WHERE type_enum IN \('($enum_list)') AND is_default = true AND is_revoked = false LIMIT 1"
-        if ($default_type | is-empty) {
-            # Fall back to any type
-            let any_type = psql exec $"SELECT uu FROM ($type_table) WHERE type_enum IN \('($enum_list)') AND is_revoked = false LIMIT 1"
-            if ($any_type | is-empty) {
-                error make { msg: $"No type found with type_enum in [($enum_list)]" }
-            }
-            $any_type | get uu.0
-        } else {
-            $default_type | get uu.0
-        }
-    }
-    
-    # Add type_uu to params
-    mut full_params = ($params | merge {type_uu: $type_uu})
-    
-    # Handle parent UUID if provided
-    if ($parent_uuid | is-not-empty) {
-        # Validate parent has matching enum
-        let parent_check = psql exec $"SELECT r.uu FROM ($table) r JOIN ($type_table) t ON r.type_uu = t.uu WHERE r.uu = '($parent_uuid)' AND t.type_enum IN \('($enum_list)') AND r.is_revoked = false"
-        if ($parent_check | is-empty) {
-            error make { msg: $"Parent UUID must be an active record with type_enum in [($enum_list)]" }
-        }
-        
-        # Get table_name_uu_json for the parent
-        let table_name_uu_json = psql exec $"SELECT ($schema).get_table_name_uu_json\('($parent_uuid)') AS result" | get result.0
-        $full_params = ($full_params | merge {table_name_uu_json: $table_name_uu_json})
-    }
-    
-    # Use the original new-record with enhanced params
-    psql new-record $schema $table_name $full_params
-}
-
-# Enum-aware list types
-#
-# Lists types filtered by enum constraint(s). This is useful for modules
-# that need to show only their relevant type options.
-#
-# Examples:
-#   # List TODO types only
-#   psql list-types-enum "api" "stk_request" --enum ["TODO"]
-#   
-#   # Include revoked types
-#   psql list-types-enum "api" "stk_request" --enum ["TODO"] --all
-#
-# Returns: Type records filtered by enum
-export def "psql list-types-enum" [
-    schema: string          # Database schema (e.g., "api")
-    table_name: string      # Table name (e.g., "stk_request")
-    --enum: list<string>    # Type enum constraint(s) to filter by
-    --all                   # Include revoked types
-] {
-    let type_table = $"($schema).($table_name)_type"
-    
-    # Build enum filter
-    let enum_list = $enum | str join "', '"
-    let enum_filter = $"type_enum IN \('($enum_list)')"
-    let revoked_filter = if not $all { " AND is_revoked = false" } else { "" }
-    
-    let sql = $"
-        SELECT uu, type_enum, search_key, name, description, record_json, is_default, created
-        FROM ($type_table)
-        WHERE ($enum_filter)($revoked_filter)
-        ORDER BY type_enum, name
-    "
-    
-    psql exec $sql
 }

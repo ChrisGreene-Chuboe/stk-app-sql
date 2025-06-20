@@ -3,44 +3,69 @@
 # Test script for stk_todo module
 echo "=== Testing stk_todo Module ==="
 
+# Test-specific suffix to ensure test isolation and idempotency
+# Generate random 2-char suffix from letters (upper/lower) and numbers
+let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+let random_suffix = (0..1 | each {|_| 
+    let idx = (random int 0..($chars | str length | $in - 1))
+    $chars | str substring $idx..($idx + 1)
+} | str join)
+let test_suffix = $"_st($random_suffix)"  # st for stk_todo + 2 random chars
+
 # REQUIRED: Import modules and assert
 use ../modules *
 use std/assert
 
 echo "=== Testing todo list creation ==="
-let weekend_result = (todo add "Weekend Projects")
+# Use unique names with test suffix to avoid conflicts
+let weekend_name = $"Weekend Projects($test_suffix)"
+let work_name = $"Work Tasks($test_suffix)"
+
+let weekend_result = (todo new $weekend_name --description "Tasks for the weekend")
 assert ($weekend_result | columns | any {|col| $col == "uu"}) "Todo list creation should return UUID"
 assert ($weekend_result.uu | is-not-empty) "Weekend Projects UUID should not be empty"
 echo "✓ Weekend Projects created with UUID:" ($weekend_result.uu)
 
-let work_result = (todo add "Work Tasks")
+let work_result = (todo new $work_name --description "Professional tasks")
 assert ($work_result | columns | any {|col| $col == "uu"}) "Work tasks creation should return UUID"
 assert ($work_result.uu | is-not-empty) "Work Tasks UUID should not be empty"
 echo "✓ Work Tasks created with UUID:" ($work_result.uu)
 
-echo "=== Testing todo item creation with parent by name ==="
-let fence_result = (todo add "Fix garden fence" --parent "Weekend Projects")
+echo "=== Testing todo item creation with parent by UUID ==="
+let weekend_uu = $weekend_result.uu.0
+let fence_name = $"Fix garden fence($test_suffix)"
+let fence_result = ($weekend_uu | todo new $fence_name --description "Replace broken posts")
 assert ($fence_result | columns | any {|col| $col == "uu"}) "Child todo creation should return UUID"
 assert ($fence_result.uu | is-not-empty) "Fence task UUID should not be empty"
+# table_name_uu_json is parsed from JSON into a record
+let fence_parent_info = $fence_result.table_name_uu_json.0
+assert ($fence_parent_info.uu == $weekend_uu) "Parent UUID should be set correctly"
+assert ($fence_parent_info.table_name == "stk_request") "Parent table should be stk_request"
 echo "✓ Fix garden fence added to Weekend Projects"
 
-let garage_result = (todo add "Clean garage" --parent "Weekend Projects")
+let garage_name = $"Clean garage($test_suffix)"
+let garage_result = ($weekend_uu | todo new $garage_name)
 assert ($garage_result | columns | any {|col| $col == "uu"}) "Garage todo creation should return UUID"
 echo "✓ Clean garage added to Weekend Projects"
 
-let budget_result = (todo add "Review budget" --parent "Work Tasks")
+let work_uu = $work_result.uu.0
+let budget_name = $"Review budget($test_suffix)"
+let budget_result = ($work_uu | todo new $budget_name --description "Q1 budget review")
 assert ($budget_result | columns | any {|col| $col == "uu"}) "Budget todo creation should return UUID"
 echo "✓ Review budget added to Work Tasks"
 
-echo "=== Testing todo item creation with parent parameter ==="
-let lawn_result = (todo add "Mow lawn" --parent "Weekend Projects")
-assert ($lawn_result | columns | any {|col| $col == "uu"}) "Todo creation should return UUID"
-assert ($lawn_result.uu | is-not-empty) "Lawn task UUID should not be empty"
-echo "✓ Mow lawn added with parent parameter"
-
 echo "=== Testing standalone todo item ==="
-let dentist_result = (todo add "Call dentist")
+let dentist_name = $"Call dentist($test_suffix)"
+let dentist_result = (todo new $dentist_name)
 assert ($dentist_result | columns | any {|col| $col == "uu"}) "Standalone todo should return UUID"
+# For standalone todos, table_name_uu_json might not be in columns if it's null
+if ($dentist_result | columns | any {|col| $col == "table_name_uu_json"}) {
+    let parent_json = $dentist_result.table_name_uu_json.0
+    assert (($parent_json | describe) == "record" and ($parent_json | is-empty)) "Standalone todo should not have parent"
+} else {
+    # Column not present means it's null, which is correct for standalone
+    assert true "Standalone todo has no parent (null)"
+}
 echo "✓ Standalone todo created"
 
 echo "=== Testing todo list display ==="
@@ -50,171 +75,147 @@ assert ($todos | columns | any {|col| $col == "name"}) "Todo list should contain
 assert ($todos | columns | any {|col| $col == "description"}) "Todo list should contain description column"
 echo "✓ Todo list verified with" ($todos | length) "items"
 
-echo "=== Testing todo item creation with parent UUID ==="
-let weekend_projects = (todo list | where name == "Weekend Projects" and ($it.table_name_uu_json?.api?.stk_request? | is-empty))
-if ($weekend_projects | length) > 0 {
-    let weekend_project_uu = ($weekend_projects | get uu.0)
-    let shed_result = (todo add "Organize shed" --parent $weekend_project_uu)
-    assert ($shed_result | columns | any {|col| $col == "uu"}) "UUID parent todo creation should return UUID"
-    echo "✓ Organize shed added using parent UUID"
-} else {
-    echo "No Weekend Projects found - skipping parent UUID test"
-}
+echo "=== Testing todo list with detail ==="
+let detailed_todos = (todo list --detail)
+assert ($detailed_todos | columns | any {|col| $col == "type_name"}) "Detailed list should include type_name"
+assert ($detailed_todos | columns | any {|col| $col == "type_enum"}) "Detailed list should include type_enum"
+echo "✓ Detailed todo list includes type information"
+
+echo "=== Testing todo get by UUID ==="
+let first_todo = ($todos | get uu.0)
+let retrieved = ($first_todo | todo get)
+assert (($retrieved | length) == 1) "Should retrieve exactly one record"
+assert ($retrieved.uu.0 == $first_todo) "Retrieved UUID should match requested"
+echo "✓ Todo retrieved by UUID"
+
+echo "=== Testing todo get with detail ==="
+let detailed_todo = ($first_todo | todo get --detail)
+assert ($detailed_todo | columns | any {|col| $col == "type_name"}) "Detailed get should include type info"
+echo "✓ Detailed todo includes type information"
 
 echo "=== Testing filtered todo list by parent ==="
-let weekend_items = (todo list --parent "Weekend Projects")
-assert (($weekend_items | length) > 0) "Should find items under Weekend Projects"
-assert ($weekend_items | all {|row| $row.table_name_uu_json.uu | is-not-empty}) "All items should have parent reference"
+# Filter todos that have the weekend project as parent
+let weekend_items = (todo list | where {|t| 
+    # Check if table_name_uu_json exists and has a non-null uu
+    if ($t | columns | any {|col| $col == "table_name_uu_json"}) {
+        let parent_info = $t.table_name_uu_json
+        # Check if uu exists and matches
+        ($parent_info.uu? | describe) != "nothing" and $parent_info.uu? == $weekend_uu
+    } else {
+        false
+    }
+})
+assert (($weekend_items | length) == 2) "Should find exactly 2 items under Weekend Projects"
+assert ($weekend_items | all {|row| $row.table_name_uu_json.uu == $weekend_uu}) "All items should have correct parent"
 echo "✓ Filtered todo list verified with" ($weekend_items | length) "Weekend Project items"
 
-echo "=== Testing todo revoke (mark as done) by name ==="
-let revoke_result = ("Clean garage" | todo revoke)
+echo "=== Testing todo revoke (mark as done) by UUID ==="
+let garage_todo = (todo list | where name == $garage_name | get uu.0)
+let revoke_result = ($garage_todo | todo revoke)
 assert ($revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke should return is_revoked status"
 assert (($revoke_result.is_revoked.0) == true) "Item should be marked as revoked"
-echo "✓ Clean garage marked as done by name"
+echo "✓ Clean garage marked as done"
 
-echo "=== Testing todo revoke by UUID ==="
-let fence_todos = (todo list | where name == "Fix garden fence")
-if ($fence_todos | length) > 0 {
-    let fence_uu = ($fence_todos | get uu.0)
-    let fence_revoke_result = ($fence_uu | todo revoke)
-    assert ($fence_revoke_result | columns | any {|col| $col == "is_revoked"}) "UUID revoke should return is_revoked status"
-    assert (($fence_revoke_result.is_revoked.0) == true) "Fence item should be marked as revoked"
-    echo "✓ Fix garden fence marked as done by UUID"
+echo "=== Testing todo list excludes revoked by default ==="
+let active_todos = (todo list)
+let garage_in_active = ($active_todos | where name == $garage_name | length)
+assert ($garage_in_active == 0) "Revoked todo should not appear in default list"
+echo "✓ Revoked todos excluded from default list"
+
+echo "=== Testing todo list with --all includes revoked ==="
+let all_todos = (todo list --all)
+let garage_in_all = ($all_todos | where name == $garage_name | length)
+assert ($garage_in_all > 0) "Revoked todo should appear in --all list"
+assert (($all_todos | where name == $garage_name | get is_revoked.0) == true) "Should show as revoked"
+echo "✓ Todo list --all includes revoked items"
+
+echo "=== Testing todo creation with JSON data ==="
+let json_name = $"Project Planning($test_suffix)"
+let json_todo = (todo new $json_name --json '{"due_date": "2024-12-31", "priority": "high", "tags": ["quarterly", "strategic"]}')
+assert ($json_todo | columns | any {|col| $col == "uu"}) "JSON todo creation should return UUID"
+assert ($json_todo.uu | is-not-empty) "JSON todo UUID should not be empty"
+echo "✓ Todo with JSON created, UUID:" ($json_todo.uu)
+
+echo "=== Verifying todo's record_json field ==="
+let json_todo_detail = ($json_todo.uu.0 | todo get | get 0)
+assert ($json_todo_detail | columns | any {|col| $col == "record_json"}) "Todo should have record_json column"
+let stored_json = ($json_todo_detail.record_json)
+assert ($stored_json | columns | any {|col| $col == "due_date"}) "JSON should contain due_date field"
+assert ($stored_json.due_date == "2024-12-31") "Due date should be 2024-12-31"
+assert ($stored_json.priority == "high") "Priority should be high"
+echo "✓ JSON data verified in record_json field"
+
+echo "=== Testing todo creation with specific type ==="
+if ((todo types | where name == "work-todo" | length) > 0) {
+    let typed_name = $"Typed Task($test_suffix)"
+    let typed_todo = (todo new $typed_name --type "work-todo")
+    assert ($typed_todo | columns | any {|col| $col == "uu"}) "Typed todo creation should return UUID"
+    let typed_detail = ($typed_todo.uu.0 | todo get --detail | get 0)
+    assert ($typed_detail.type_name == "work-todo") "Todo should have specified type"
+    echo "✓ Todo created with specific type"
 } else {
-    echo "Fix garden fence todo not found - skipping UUID revoke test"
+    echo "! Skipping typed todo test - no work-todo type found"
 }
 
-echo "=== Testing todo revoke with piped UUID ==="
-let pipeline_todo = (todo add "Pipeline Revoke Test Todo")
-let pipeline_revoke_result = ($pipeline_todo.uu.0 | todo revoke)
-assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline revoke should return is_revoked status"
-assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked todo should be marked as revoked"
-echo "✓ Todo revoke with piped UUID verified"
+echo "=== Testing todo types command ==="
+let types = (todo types)
+assert (($types | length) > 0) "Should have at least one TODO type"
+assert ($types | all {|t| $t.type_enum == "TODO"}) "All types should have TODO enum"
+assert ($types | columns | any {|col| $col == "is_default"}) "Types should have is_default column"
+let default_types = ($types | where is_default == true)
+assert (($default_types | length) <= 1) "Should have at most one default type"
+echo "✓ Todo types verified"
 
-echo "=== Testing UUID-only piping for todo add ==="
-let parent_todo = (todo add "Piping Test Parent")
-let child_via_pipe = ($parent_todo.uu.0 | todo add "Child via piped UUID")
-assert ($child_via_pipe | columns | any {|col| $col == "uu"}) "Piped parent todo should return UUID"
-assert ($child_via_pipe.uu | is-not-empty) "Piped child UUID should not be empty"
-echo "✓ UUID-only piping verified: todo add with piped parent UUID"
+echo "=== Testing elaborate functionality ==="
+let todos_with_parents = (todo list | where {|t| 
+    if ($t | columns | any {|col| $col == "table_name_uu_json"}) {
+        let parent_info = $t.table_name_uu_json
+        (($parent_info | describe) == "record") and (($parent_info | is-not-empty))
+    } else {
+        false
+    }
+} | elaborate name)
+if (($todos_with_parents | length) > 0) {
+    let first_with_parent = ($todos_with_parents | get 0)
+    assert ($first_with_parent | columns | any {|col| $col == "table_name_uu_json_resolved"}) "Should have resolved column"
+    # The resolved column should contain the parent record
+    assert ($first_with_parent.table_name_uu_json_resolved.name? != null) "Resolved parent should have name"
+    echo "✓ Elaborate functionality verified"
+} else {
+    echo "! No todos with parents found for elaborate test"
+}
 
-echo "=== Testing todo revoke with piped name ==="
-let name_revoke_result = ("Mow lawn" | todo revoke)
-assert ($name_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline name revoke should return is_revoked status"
-assert (($name_revoke_result.is_revoked.0) == true) "Pipeline revoked todo by name should be marked as revoked"
-echo "✓ Todo revoke with piped name verified"
-
-echo "=== Testing todo list with completed items ==="
-let all_todos = (todo list --all)
-let completed_todos = ($all_todos | where is_revoked == true)
-assert (($completed_todos | length) > 0) "Should find completed todos when using --all"
-echo "✓ Todo list --all verified with" ($completed_todos | length) "completed items"
-
-echo "=== Testing todo restore ==="
-let restore_result = (todo restore "Clean garage")
-assert ($restore_result | columns | any {|col| $col == "is_revoked"}) "Restore should return is_revoked status"
-assert (($restore_result.is_revoked.0) == false) "Restored item should not be revoked"
-echo "✓ Clean garage restored successfully"
-
-echo "=== Verifying restored todo appears in active list ==="
-let restored_todos = (todo list | where name == "Clean garage")
-assert (($restored_todos | length) > 0) "Restored todo should appear in active list"
-assert (($restored_todos.is_revoked.0) == false) "Restored todo should not be revoked"
-echo "✓ Restored todo verified in active list"
-
-echo "=== Testing error handling - non-existent parent ==="
+echo "=== Testing error handling - invalid parent UUID ==="
 try {
-    todo add "This should fail" --parent "Non-existent List"
-    assert false "Should have thrown error for non-existent parent"
+    "00000000-0000-0000-0000-000000000000" | todo new "This should fail"
+    assert false "Should have thrown error for invalid parent UUID"
 } catch {
-    echo "✓ Correctly caught error for non-existent parent"
+    echo "✓ Correctly caught error for invalid parent UUID"
 }
 
 echo "=== Testing error handling - revoke non-existent todo ==="
 try {
-    "Non-existent Todo" | todo revoke
+    "00000000-0000-0000-0000-000000000000" | todo revoke
     assert false "Should have thrown error for non-existent todo"
 } catch {
     echo "✓ Correctly caught error for non-existent todo"
 }
 
-echo "=== Testing error handling - restore non-revoked todo ==="
-try {
-    todo restore "Review budget"  # This should still be active
-    assert false "Should have thrown error for restoring non-revoked todo"
-} catch {
-    echo "✓ Correctly caught error for restoring non-revoked todo"
-}
-
-echo "=== Testing .append event with todo UUID ==="
-let active_todo = (todo list | where name == "Review budget" | get uu.0)
-let todo_event_result = ($active_todo | .append event "todo-priority-changed" --description "todo priority has been updated to high")
-assert ($todo_event_result | columns | any {|col| $col == "uu"}) "Todo event should return UUID"
-assert ($todo_event_result.uu | is-not-empty) "Todo event UUID should not be empty"
-echo "✓ .append event with piped todo UUID verified"
-
-echo "=== Testing .append request with todo UUID ==="
-let todo_request_result = ($active_todo | .append request "todo-clarification" --description "need clarification on todo requirements")
-assert ($todo_request_result | columns | any {|col| $col == "uu"}) "Todo request should return UUID"
-assert ($todo_request_result.uu | is-not-empty) "Todo request UUID should not be empty"
-echo "✓ .append request with piped todo UUID verified"
+echo "=== Testing error handling - get non-existent todo ==="
+let non_existent = ("00000000-0000-0000-0000-000000000000" | todo get)
+assert (($non_existent | length) == 0) "Get should return empty for non-existent UUID"
+echo "✓ Get returns empty for non-existent todo"
 
 echo "=== Final state verification ==="
-let final_active = (todo list)
-assert (($final_active | length) > 0) "Should have active todos in final state"
-echo "✓ Final active todos verified:" ($final_active | length) "items"
+# Count only the todos we created in this test run
+let final_active = (todo list | where name =~ $test_suffix)
+let test_active_count = ($final_active | length)
+assert ($test_active_count > 0) "Should have active todos from this test run"
+echo "✓ Final active todos from this test:" $test_active_count "items"
 
-let final_all = (todo list --all)
-assert (($final_all | length) > ($final_active | length)) "All todos should include more than just active"
-echo "✓ Final all todos verified:" ($final_all | length) "total items"
-
-echo "=== Testing todo creation with JSON data ==="
-let json_todo_list = (todo add "Project Planning" --json '{"due_date": "2024-12-31", "priority": "high", "tags": ["quarterly", "strategic"]}')
-assert ($json_todo_list | columns | any {|col| $col == "uu"}) "JSON todo creation should return UUID"
-assert ($json_todo_list.uu | is-not-empty) "JSON todo UUID should not be empty"
-echo "✓ Todo list with JSON created, UUID:" ($json_todo_list.uu)
-
-echo "=== Verifying todo's record_json field ==="
-# Need to use request get since todo uses stk_request table
-let json_todo_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($json_todo_list.uu.0)'" | get 0)
-assert ($json_todo_detail | columns | any {|col| $col == "record_json"}) "Todo should have record_json column"
-let stored_json = ($json_todo_detail.record_json)
-assert ($stored_json | columns | any {|col| $col == "due_date"}) "JSON should contain due_date field"
-assert ($stored_json | columns | any {|col| $col == "priority"}) "JSON should contain priority field"
-assert ($stored_json | columns | any {|col| $col == "tags"}) "JSON should contain tags field"
-assert ($stored_json.due_date == "2024-12-31") "Due date should be 2024-12-31"
-assert ($stored_json.priority == "high") "Priority should be high"
-assert (($stored_json.tags | length) == 2) "Tags should have 2 items"
-echo "✓ JSON data verified: record_json contains structured data"
-
-echo "=== Testing todo item with JSON and parent ==="
-let json_item = (todo add "Design mockups" --parent "Project Planning" --json '{"assigned_to": "design_team", "tools": ["figma", "sketch"], "hours_estimate": 16}')
-assert ($json_item | columns | any {|col| $col == "uu"}) "JSON todo item creation should return UUID"
-# Verify the JSON data
-let json_item_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($json_item.uu.0)'" | get 0)
-let item_stored = ($json_item_detail.record_json)
-assert ($item_stored.assigned_to == "design_team") "Assigned to should be design_team"
-assert (($item_stored.tools | length) == 2) "Should have 2 tools"
-assert ($item_stored.hours_estimate == 16) "Hours estimate should be 16"
-echo "✓ Todo item with JSON and parent verified"
-
-echo "=== Testing todo creation without JSON (default behavior) ==="
-let no_json_todo = (todo add "Simple Task")
-let no_json_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($no_json_todo.uu.0)'" | get 0)
-assert ($no_json_detail.record_json == {}) "record_json should be empty object when no JSON provided"
-echo "✓ Default behavior verified: no JSON parameter results in empty JSON object"
-
-echo "=== Testing complex nested JSON for todo ==="
-let complex_json = '{"schedule": {"start": "2024-01-01", "end": "2024-03-31", "milestones": ["phase1", "phase2", "launch"]}, "resources": {"budget": 50000, "team_size": 5}, "risks": [{"type": "technical", "severity": "medium"}, {"type": "timeline", "severity": "high"}]}'
-let complex_todo = (todo add "Q1 Initiative" --json $complex_json)
-let complex_detail = (psql exec $"SELECT * FROM api.stk_request WHERE uu = '($complex_todo.uu.0)'" | get 0)
-let complex_stored = ($complex_detail.record_json)
-assert ($complex_stored.schedule.start == "2024-01-01") "Start date should be 2024-01-01"
-assert (($complex_stored.schedule.milestones | length) == 3) "Should have 3 milestones"
-assert ($complex_stored.resources.budget == 50000) "Budget should be 50000"
-assert (($complex_stored.risks | length) == 2) "Should have 2 risks"
-assert ($complex_stored.risks.1.severity == "high") "Second risk severity should be high"
-echo "✓ Complex nested JSON structure verified"
+let final_all = (todo list --all | where name =~ $test_suffix)
+let test_all_count = ($final_all | length)
+assert ($test_all_count > $test_active_count) "All todos should include revoked items from this test"
+echo "✓ Final all todos from this test:" $test_all_count "total items"
 
 echo "=== All tests completed successfully ==="

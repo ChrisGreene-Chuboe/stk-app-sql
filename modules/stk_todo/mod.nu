@@ -38,7 +38,7 @@ export def "todo new" [
 ] {
     let parent_uuid = $in
     
-    # Build parameters for psql new-record-enum
+    # Build parameters for psql new-record
     mut params = {
         name: $name,
         description: $description
@@ -51,9 +51,9 @@ export def "todo new" [
     
     # Use enum-aware psql command with parent UUID piped if available
     if ($parent_uuid | is-empty) {
-        psql new-record-enum $STK_SCHEMA $STK_TABLE_NAME $params --enum $STK_TODO_TYPE_ENUM --type-name $type
+        psql new-record $STK_SCHEMA $STK_TABLE_NAME $params --enum $STK_TODO_TYPE_ENUM --type-name $type
     } else {
-        $parent_uuid | psql new-record-enum $STK_SCHEMA $STK_TABLE_NAME $params --enum $STK_TODO_TYPE_ENUM --type-name $type
+        $parent_uuid | psql new-record $STK_SCHEMA $STK_TABLE_NAME $params --enum $STK_TODO_TYPE_ENUM --type-name $type
     }
 }
 
@@ -89,7 +89,14 @@ export def "todo list" [
     --detail(-d)  # Include detailed type information for all todos
     --all(-a)     # Include revoked (completed) todos
 ] {
-    psql list-records-enum $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS --enum $STK_TODO_TYPE_ENUM --detail=$detail --all=$all
+    # Build args list with optional --all flag
+    let args = if $all {
+        [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TODO_COLUMNS | append "--all"
+    } else {
+        [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TODO_COLUMNS
+    }
+    
+    psql list-records ...$args --enum $STK_TODO_TYPE_ENUM --detail=$detail
 }
 
 # Retrieve a specific todo by its UUID
@@ -125,7 +132,8 @@ export def "todo get" [
         error make { msg: "UUID required via piped input" }
     }
     
-    $uu | psql get-record-enum $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS --enum $STK_TODO_TYPE_ENUM --detail=$detail
+    # Note: psql get-record takes uu as parameter, not piped input
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS $uu --enum $STK_TODO_TYPE_ENUM --detail=$detail
 }
 
 # Mark a todo item as done (revoke)
@@ -153,7 +161,8 @@ export def "todo revoke" [] {
         error make { msg: "UUID required via piped input" }
     }
     
-    $target_uuid | psql revoke-record-enum $STK_SCHEMA $STK_TABLE_NAME --enum $STK_TODO_TYPE_ENUM
+    # Note: psql revoke-record takes uu as parameter, not piped input
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid --enum $STK_TODO_TYPE_ENUM
 }
 
 # List available TODO types using filtered psql list-types command
@@ -174,5 +183,5 @@ export def "todo revoke" [] {
 # Returns: uu, type_enum, search_key, name, description, is_default, created for types with type_enum in ['TODO']
 # Note: Filters psql list-types to show only records with type_enum in ['TODO']
 export def "todo types" [] {
-    psql list-types-enum $STK_SCHEMA $STK_TABLE_NAME --enum $STK_TODO_TYPE_ENUM
+    psql list-types $STK_SCHEMA $STK_TABLE_NAME --enum $STK_TODO_TYPE_ENUM
 }

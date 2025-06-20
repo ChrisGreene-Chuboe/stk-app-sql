@@ -8,6 +8,7 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
 - [Testing Philosophy](#testing-philosophy)
 - [Test Environment](#test-environment)
 - [Writing Tests](#writing-tests)
+  - [Test Data Idempotency](#test-data-idempotency)
 - [Testing JSON Parameters](#testing-json-parameters)
 - [Running Tests](#running-tests)
 - [Common Issues](#common-issues)
@@ -151,6 +152,92 @@ End all tests by returning the success string (not printing):
 # Return this string as the last expression (no print/echo)
 "=== All tests completed successfully ==="
 ```
+
+### Test Data Idempotency
+
+Tests must be idempotent - they should pass whether run once, multiple times, or as part of the test suite. To achieve this, all test data must use unique identifiers that prevent conflicts.
+
+#### Standard Test Suffix Pattern
+
+Every test file should define a unique test suffix combining:
+1. A module-specific prefix (2 letters)
+2. A randomly generated suffix (2 alphanumeric characters)
+
+```nushell
+#!/usr/bin/env nu
+
+# Test script for stk_todo module
+echo "=== Testing stk_todo Module ==="
+
+# Test-specific suffix to ensure test isolation and idempotency
+# Generate random 2-char suffix from letters (upper/lower) and numbers
+let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+let random_suffix = (0..1 | each {|_| 
+    let idx = (random int 0..($chars | str length | $in - 1))
+    $chars | str substring $idx..($idx + 1)
+} | str join)
+let test_suffix = $"_st($random_suffix)"  # st for stk_todo + 2 random chars
+
+# REQUIRED: Import modules and assert
+use ../modules *
+use std/assert
+```
+
+#### Module Prefix Convention
+
+Each module test should use a consistent 2-letter prefix. Here are examples:
+- `_st` - stk_todo
+- `_se` - stk_event  
+- `_sp` - stk_project
+- `_sr` - stk_request
+- `_si` - stk_item
+- `_sa` - stk_address
+- `_sg` - stk_tag
+- `_sl` - stk_lines
+- `_ai` - stk_ai
+
+#### Using the Test Suffix
+
+Apply the suffix to all test data names:
+
+```nushell
+# Create test data with unique names
+let project_name = $"Test Project($test_suffix)"
+let item_name = $"Widget($test_suffix)"
+let todo_name = $"Fix bug($test_suffix)"
+
+let project = (project new $project_name)
+let item = (item new $item_name --description "Test item")
+let todo = (todo new $todo_name)
+```
+
+#### Filtering Test Data
+
+When verifying counts or lists, filter by the test suffix:
+
+```nushell
+# Count only items created by this test run
+let test_items = (item list | where name =~ $test_suffix)
+assert (($test_items | length) == 1) "Should have exactly 1 test item"
+
+# Verify revoked items
+let all_todos = (todo list --all | where name =~ $test_suffix)
+let active_todos = (todo list | where name =~ $test_suffix)
+assert (($all_todos | length) > ($active_todos | length)) "Should have revoked todos"
+```
+
+#### Benefits
+
+1. **Test Isolation**: Each test run uses unique data
+2. **Idempotency**: Tests pass reliably in any context
+3. **Debugging**: Easy to identify which test created data
+4. **No Cleanup Required**: Old test data doesn't affect new runs
+
+This pattern ensures tests work correctly whether run:
+- Individually (`./test-todo.nu`)
+- Multiple times in succession
+- As part of the test suite (`./test-all.nu`)
+- After other tests that create similar data
 
 ### Testing Patterns
 
