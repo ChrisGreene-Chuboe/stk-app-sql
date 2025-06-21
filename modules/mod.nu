@@ -6,6 +6,9 @@
 # PostgreSQL command execution with structured output
 export use stk_psql *
 
+# Utility functions for chuck-stack modules
+export use stk_utility *
+
 # Event logging and retrieval for audit trails and system monitoring  
 export use stk_event *
 
