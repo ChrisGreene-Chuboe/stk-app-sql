@@ -20,6 +20,7 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
   - [Nushell String Escaping](#nushell-string-escaping)
   - [JSON Parameter Issues](#json-parameter-issues)
   - [Test Output Not Visible (print vs echo)](#test-output-not-visible-print-vs-echo)
+  - [Error Handling Patterns](#error-handling-patterns)
 - [Maintenance Tasks](#maintenance-tasks)
 - [Document Maintenance Guidelines](#document-maintenance-guidelines)
 
@@ -39,6 +40,7 @@ Create new test:
 echo '#!/usr/bin/env nu' > suite/test-feature.nu
 chmod +x suite/test-feature.nu
 # Edit test following patterns in suite/test-simple.nu
+# Note: Use 'test-module.nu' not 'test-stk-module.nu' for consistency
 ```
 
 ## Testing Philosophy
@@ -177,6 +179,11 @@ assert (($list | any {|x| $x > 10})) "message"
 
 # Access list elements with .0
 assert (($result.field.0 == "value")) "Field should match"
+
+# Flexible type checking - useful when exact type may vary
+assert ((($result | describe) | str starts-with "table")) "Should be a table type"
+assert ((($result | describe) | str starts-with "record")) "Should be a record type"
+# Note: Empty tables/lists return as list<any>, not the original type
 ```
 
 #### 4. Standard Output
@@ -605,6 +612,27 @@ assert ($result.field == "expected") "Should match expected value"
 
 # Final expression for test harness
 "=== All tests completed successfully ==="
+```
+
+### Error Handling Patterns
+```nushell
+# Preferred: Use try/catch for nushell functions
+try {
+    $bad_input | extract-uu-table-name
+    assert false "Should have thrown error"
+} catch { |err|
+    assert (($err.msg | str contains "expected error")) "Error message should match"
+}
+
+# Alternative: do/complete can capture errors but try/catch is clearer
+let result = (do { $input | some-command } | complete)
+if ($result.exit_code != 0) {
+    # Handle error
+}
+
+# Special case: Table operations with 'each' may return list<error>
+let result = ($bad_table | extract-uu-table-name)
+assert ((($result | describe) | str contains "error")) "Should return error list"
 ```
 
 ## Maintenance Tasks

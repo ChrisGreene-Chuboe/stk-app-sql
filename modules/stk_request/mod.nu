@@ -40,17 +40,17 @@ export def ".append request" [
     let piped_input = $in
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
-    # Normalize piped input to get UUID
+    # Extract uu and table_name from piped input
     let attach_uuid = if ($piped_input | is-empty) {
         # No piped input, use --attach parameter
         $attach
     } else {
-        # Normalize piped input and get first row's UUID
-        let normalized = ($piped_input | normalize-uuid-input)
-        if ($normalized | is-empty) {
+        # Extract uu and table_name, then get first row's UUID
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
             null
         } else {
-            $normalized.0.uu?
+            $extracted.0.uu?
         }
     }
     
