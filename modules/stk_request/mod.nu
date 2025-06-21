@@ -122,11 +122,14 @@ export def "request list" [
 # Use --detail to include type information.
 #
 # Accepts piped input:
-#   string - The UUID of the request to retrieve (required via pipe)
+#   string - The UUID of the request to retrieve
+#   record - Single record containing 'uu' field
+#   table  - Table where first row contains 'uu' field
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | request get
-#   request list | get uu.0 | request get
+#   request list | get 0 | request get
+#   request list | where name == "urgent" | request get
 #   $request_uuid | request get | get table_name_uu_json
 #   $request_uuid | request get --detail | get type_enum
 #   $uu | request get | if $in.is_processed { print "Request completed" }
@@ -137,10 +140,22 @@ export def "request list" [
 export def "request get" [
     --detail(-d)  # Include detailed type information
 ] {
-    let uu = $in
+    let piped_input = $in
     
-    if ($uu | is-empty) {
+    if ($piped_input | is-empty) {
         error make { msg: "UUID required via piped input" }
+    }
+    
+    # Extract UUID from input
+    let uu = if ($piped_input | describe) == "string" {
+        $piped_input
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            error make { msg: "No valid UUID found in input" }
+        } else {
+            $extracted.0.uu
+        }
     }
     
     if $detail {
@@ -179,21 +194,36 @@ export def "request process" [
 # normal selections. Use this instead of hard deleting to maintain
 # audit trails and data integrity in the chuck-stack system.
 #
-# Accepts piped input: 
-#   string - The UUID of the request to revoke (required via pipe)
+# Accepts piped input:
+#   string - The UUID of the request to revoke
+#   record - Single record containing 'uu' field
+#   table  - Table where first row contains 'uu' field
 #
 # Examples:
-#   request list | where name == "obsolete" | get uu.0 | request revoke
-#   request list | where created < (date now) - 30day | each { |row| $row.uu | request revoke }
 #   "12345678-1234-5678-9012-123456789abc" | request revoke
+#   request list | get 0 | request revoke
+#   request list | where name == "obsolete" | request revoke
+#   request list | where created < (date now) - 30day | each { |row| $row | request revoke }
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or request is already revoked
 export def "request revoke" [] {
-    let target_uuid = $in
+    let piped_input = $in
     
-    if ($target_uuid | is-empty) {
+    if ($piped_input | is-empty) {
         error make { msg: "UUID required via piped input" }
+    }
+    
+    # Extract UUID from input
+    let target_uuid = if ($piped_input | describe) == "string" {
+        $piped_input
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            error make { msg: "No valid UUID found in input" }
+        } else {
+            $extracted.0.uu
+        }
     }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid

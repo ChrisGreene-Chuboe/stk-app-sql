@@ -28,6 +28,20 @@ assert (($request_detail.uu.0) == $request_uu) "Returned request should have mat
 assert ($request_detail | columns | any {|col| $col == "table_name_uu_json"}) "Request detail should contain table_name_uu_json"
 echo "✓ Request get verified for UUID:" $request_uu
 
+echo "=== Testing request get with record input ==="
+let request_record = (request list | get 0)
+let record_detail = ($request_record | request get)
+assert (($record_detail | length) == 1) "Request get with record should return exactly one record"
+assert (($record_detail.uu.0) == $request_record.uu) "Returned request should match record's UUID"
+echo "✓ Request get with record input verified"
+
+echo "=== Testing request get with table input ==="
+let request_table = (request list | where name == "budget-review")
+let table_detail = ($request_table | request get)
+assert (($table_detail | length) == 1) "Request get with table should return exactly one record"
+assert (($table_detail.name.0) == "budget-review") "Returned request should match query"
+echo "✓ Request get with table input verified"
+
 echo "=== Creating test event for attachment test ==="  
 let test_event_result = (.append event "test-attachment" --description "test event for attachment")
 assert ($test_event_result | columns | any {|col| $col == "uu"}) "Test event creation should return UUID"
@@ -46,6 +60,18 @@ assert ($piped_request_result | columns | any {|col| $col == "uu"}) "Piped reque
 assert ($piped_request_result.uu | is-not-empty) "Piped request UUID should not be empty"
 echo "✓ Attached request created with piped UUID"
 
+echo "=== Testing attached request creation with piped record ==="
+let piped_record_result = (event list | get 0 | .append request "record-follow-up" --description "Follow up with record input")
+assert ($piped_record_result | columns | any {|col| $col == "uu"}) "Piped record request creation should return UUID"
+assert ($piped_record_result.uu | is-not-empty) "Piped record request UUID should not be empty"
+echo "✓ Attached request created with piped record"
+
+echo "=== Testing attached request creation with piped table ==="
+let piped_table_result = (event list | where name == "test-attachment" | .append request "table-follow-up" --description "Follow up with table input")
+assert ($piped_table_result | columns | any {|col| $col == "uu"}) "Piped table request creation should return UUID"
+assert ($piped_table_result.uu | is-not-empty) "Piped table request UUID should not be empty"
+echo "✓ Attached request created with piped table"
+
 echo "=== Testing request-to-request attachment (parent-child relationship) ==="
 let parent_request_uu = (request list | where name == "budget-review" | get uu.0)
 let child_request_result = (.append request "sub-task-1" --description "Review Q1 financial data" --attach $parent_request_uu)
@@ -56,6 +82,18 @@ echo "=== Testing request-to-request attachment with piped UUID ==="
 let piped_child_result = (request list | where name == "budget-review" | get uu.0 | .append request "sub-task-2" --description "Prepare quarterly presentation")
 assert ($piped_child_result | columns | any {|col| $col == "uu"}) "Piped child request creation should return UUID"
 echo "✓ Parent-child request relationship created with piped UUID"
+
+echo "=== Testing request-to-request attachment with piped record ==="
+let parent_record = (request list | where name == "budget-review" | get 0)
+let record_child_result = ($parent_record | .append request "sub-task-3" --description "Review financial metrics")
+assert ($record_child_result | columns | any {|col| $col == "uu"}) "Record child request creation should return UUID"
+echo "✓ Parent-child request relationship created with piped record"
+
+echo "=== Testing request-to-request attachment with piped table ==="
+let parent_table = (request list | where name == "budget-review")
+let table_child_result = ($parent_table | .append request "sub-task-4" --description "Compile executive summary")
+assert ($table_child_result | columns | any {|col| $col == "uu"}) "Table child request creation should return UUID"
+echo "✓ Parent-child request relationship created with piped table"
 
 echo "=== Verifying attachment data structure ==="
 let attached_requests = (request list | where table_name_uu_json != {})
@@ -81,6 +119,20 @@ let revoked_request = ($revoke_test_request.uu.0 | request get)
 assert (($revoked_request.is_revoked.0) == true) "Revoked request should show is_revoked as true"
 echo "✓ Request revoke functionality verified"
 
+echo "=== Testing request revoke with record input ==="
+let revoke_record_request = (.append request "test-revoke-record" --description "Request for record revoke testing")
+let revoke_record_result = ($revoke_record_request.0 | request revoke)
+assert ($revoke_record_result | columns | any {|col| $col == "is_revoked"}) "Record revoke should return is_revoked status"
+assert (($revoke_record_result.is_revoked.0) == true) "Record revoked request should be marked as revoked"
+echo "✓ Request revoke with record input verified"
+
+echo "=== Testing request revoke with table input ==="
+let revoke_table_request = (.append request "test-revoke-table" --description "Request for table revoke testing")
+let revoke_table_result = (request list | where name == "test-revoke-table" | request revoke)
+assert ($revoke_table_result | columns | any {|col| $col == "is_revoked"}) "Table revoke should return is_revoked status"
+assert (($revoke_table_result.is_revoked.0) == true) "Table revoked request should be marked as revoked"
+echo "✓ Request revoke with table input verified"
+
 echo "=== Testing request revoke with piped UUID ==="
 let pipeline_request = (.append request "pipeline-revoke-test" --description "Request for pipeline revoke testing")
 let pipeline_revoke_result = ($pipeline_request.uu.0 | request revoke)
@@ -100,6 +152,25 @@ let meta_request_result = ($active_request_uu | .append request "meta-request" -
 assert ($meta_request_result | columns | any {|col| $col == "uu"}) "Meta request should return UUID"
 assert ($meta_request_result.uu | is-not-empty) "Meta request UUID should not be empty"
 echo "✓ .append request with piped request UUID verified (request-to-request attachment)"
+
+echo "=== Testing empty table input (creates standalone request) ==="
+let empty_table = (request list | where name == "nonexistent-request-xyz-123")
+assert (($empty_table | length) == 0) "Empty filter should return empty table"
+let empty_result = ($empty_table | .append request "empty-table-test" --description "Created from empty table")
+assert ($empty_result | columns | any {|col| $col == "uu"}) "Empty table should create standalone request"
+let empty_detail = ($empty_result.uu.0 | request get)
+assert (($empty_detail.table_name_uu_json.0.uu | is-empty)) "Empty table request should have no attachment"
+echo "✓ Empty table creates standalone request verified"
+
+echo "=== Testing multi-row table input (uses first row) ==="
+let multi_requests = (request list | take 3)
+assert (($multi_requests | length) >= 2) "Should have at least 2 requests for multi-row test"
+let multi_result = ($multi_requests | .append request "multi-row-test" --description "Attached to first of multiple rows")
+assert ($multi_result | columns | any {|col| $col == "uu"}) "Multi-row table should return request"
+let multi_detail = ($multi_result.uu.0 | request get)
+let first_uu = ($multi_requests.0.uu)
+assert (($multi_detail.table_name_uu_json.0.uu) == $first_uu) "Multi-row table should attach to first row"
+echo "✓ Multi-row table input verified (uses first row)"
 
 echo "=== Testing request types command ==="
 let types_result = (request types)
