@@ -3,6 +3,15 @@
 # Test script for stk_request module
 echo "=== Testing stk_request Module ==="
 
+# Test-specific suffix to ensure test isolation and idempotency
+# Generate random 2-char suffix from letters (upper/lower) and numbers
+let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+let random_suffix = (0..1 | each {|_| 
+    let idx = (random int 0..($chars | str length | $in - 1))
+    $chars | str substring $idx..($idx + 1)
+} | str join)
+let test_suffix = $"_sr($random_suffix)"  # sr for stk_request + 2 random chars
+
 # REQUIRED: Import modules and assert
 use ../modules *
 use std/assert
@@ -246,6 +255,44 @@ assert (($complex_stored.workflow.steps | length) == 3) "Should have 3 workflow 
 assert ($complex_stored.workflow.approvers.1 == "director") "Second approver should be director"
 assert (($complex_stored.metadata.tags | length) == 3) "Should have 3 tags"
 assert ($complex_stored.deadline == "2024-12-31") "Deadline should be 2024-12-31"
-echo "✓ Complex nested JSON structure verified"
+print "✓ Complex nested JSON structure verified"
 
-echo "=== All tests completed successfully ==="
+print "=== Testing table_name optimization (piped record with table_name) ==="
+# When piping from a list command, records include table_name
+# This test verifies the optimization that avoids DB lookup when table_name is known
+let project_for_optimization = (project new $"Optimization Test Project($test_suffix)")
+let project_uu = ($project_for_optimization.uu.0)
+
+# Get the project with table_name included
+let project_with_table = (project list | where uu == $project_uu | get 0)
+assert (($project_with_table.table_name? | is-not-empty)) "Project record should include table_name"
+assert (($project_with_table.table_name == "stk_project")) "Table name should be stk_project"
+
+# Pipe the full record (includes table_name) to .append request
+let optimized_request = ($project_with_table | .append request $"optimized-attachment($test_suffix)" --description "Uses table_name from record")
+assert (($optimized_request | columns | any {|col| $col == "uu"})) "Optimized request should return UUID"
+
+# Verify the attachment is correct
+let optimized_detail = ($optimized_request.uu.0 | request get)
+assert (($optimized_detail.table_name_uu_json.0.table_name == "stk_project")) "Should have correct table name"
+assert (($optimized_detail.table_name_uu_json.0.uu == $project_uu)) "Should have correct UUID"
+print "✓ Table name optimization verified (avoids DB lookup when table_name provided)"
+
+print "=== Testing --attach parameter still works (falls back to DB lookup) ==="
+# When using --attach with just a UUID string, it should still work
+let attach_request = (.append request $"attach-test($test_suffix)" --attach $project_uu --description "Uses --attach parameter")
+assert (($attach_request | columns | any {|col| $col == "uu"})) "Attach request should return UUID"
+
+# Verify the attachment is correct
+let attach_detail = ($attach_request.uu.0 | request get)
+assert (($attach_detail.table_name_uu_json.0.table_name == "stk_project")) "Should have correct table name via DB lookup"
+assert (($attach_detail.table_name_uu_json.0.uu == $project_uu)) "Should have correct UUID"
+print "✓ --attach parameter verified (uses DB lookup for table_name)"
+
+print "=== Comparing optimized vs fallback results ==="
+# Both methods should produce identical results
+assert (($optimized_detail.table_name_uu_json.0 == $attach_detail.table_name_uu_json.0)) "Both methods should produce identical table_name_uu_json"
+print "✓ Optimization produces identical results to DB lookup"
+
+# Return success string as final expression (no echo needed)
+"=== All tests completed successfully ==="

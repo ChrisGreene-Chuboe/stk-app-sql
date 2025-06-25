@@ -16,10 +16,14 @@ const STK_TAG_COLUMNS = [search_key, description, table_name_uu_json, record_jso
 #
 # Accepts piped input:
 #   string - UUID of record to tag (required)
+#   record - Record with 'uu' field to tag (required)
+#   table - Table with first row containing the record to tag (required)
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | .append tag --type-search-key ADDRESS --json '{"address1": "123 Main St", "city": "Austin", "postal": "78701"}'
 #   project list | get uu.0 | .append tag --search-key "headquarters" --type-name "Physical Address" --json '{"address1": "456 Oak Ave", "city": "Dallas", "state": "TX", "postal": "75001"}'
+#   project list | get 0 | .append tag --type-search-key ADDRESS --description "Main office"
+#   project list | where name == "HQ" | .append tag --type-name "Physical Address" --json $address_data
 #   item list | get uu.0 | .append tag --type-uu $email_type_uu --json '{"email": "support@example.com"}'
 #   "12345678-1234-5678-9012-123456789abc" | .append tag --type-search-key NONE --description "Special handling required"
 #   invoice list | get uu.0 | .append tag --search-key "billing-addr" --type-name "Physical Address" --json $address_data
@@ -34,10 +38,22 @@ export def ".append tag" [
     --type-uu: string                   # Lookup type by UUID
     --json(-j): string                  # JSON data to store in record_json field (validated against type schema)
 ] {
-    let piped_uuid = $in
+    let piped_input = $in
+    
+    # Extract UUID and table_name using Pattern B
+    let attach_data = if ($piped_input | is-empty) {
+        null
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0  # Get first row with both uu and table_name
+        }
+    }
     
     # UUID is required for tags
-    if ($piped_uuid | is-empty) {
+    if ($attach_data | is-empty) or ($attach_data.uu? | is-empty) {
         error make {
             msg: "UUID required: pipe in the UUID of the record you want to tag"
         }
@@ -83,21 +99,21 @@ export def ".append tag" [
         ($json | from json)  # Parse JSON string
     }
     
-    # Use api.get_table_name_uu_json to populate table_name_uu_json
-    let table_name_uu_json_result = (
-        psql exec $"SELECT ($STK_SCHEMA).get_table_name_uu_json\('($piped_uuid)') as result"
-    )
-    let table_name_uu_json = (
-        $table_name_uu_json_result.0.result
-        | from json
-    )
+    # Get table_name_uu as nushell record
+    let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
+        # We have the table name - use it directly (no DB lookup)
+        {table_name: $attach_data.table_name, uu: $attach_data.uu}
+    } else {
+        # No table name - look it up using psql command
+        psql get-table-name-uu $attach_data.uu
+    }
     
     # Build parameters record following the pattern
     let base_params = {
         description: ($description | default null)
         type_uu: $resolved_type_uu
-        table_name_uu_json: ($table_name_uu_json | to json)  # Convert back to JSON string for psql new-record
-        record_json: ($record_json | to json)  # Convert back to JSON string for psql new-record
+        table_name_uu_json: ($table_name_uu | to json)  # Convert to JSON string for psql new-record
+        record_json: ($record_json | to json)  # Convert to JSON string for psql new-record
     }
     
     # Use provided search_key or default to type's search_key
@@ -158,10 +174,14 @@ export def "tag list" [
 #
 # Accepts piped input:
 #   string - UUID of the tag to get
+#   record - Record with 'uu' field containing the UUID
+#   table - Table with first row containing the tag record
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | tag get
 #   tag list | get uu.0 | tag get
+#   tag list | get 0 | tag get
+#   tag list | where search_key == "headquarters" | tag get
 #   tag list | where search_key == "headquarters" | get uu.0 | tag get --detail
 #
 # Returns: Tag record fields
@@ -169,7 +189,19 @@ export def "tag list" [
 export def "tag get" [
     --detail(-d)  # Include type information
 ] {
-    let uu = $in
+    let piped_input = $in
+    
+    # Extract UUID using Pattern A
+    let uu = if ($piped_input | is-empty) {
+        null
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0.uu  # Just need the UUID
+        }
+    }
     
     if ($uu | is-empty) {
         error make {
@@ -191,15 +223,31 @@ export def "tag get" [
 #
 # Accepts piped input:
 #   string - UUID of the tag to revoke
+#   record - Record with 'uu' field containing the UUID
+#   table - Table with first row containing the tag record
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | tag revoke
 #   tag list | get uu.0 | tag revoke
+#   tag list | get 0 | tag revoke
+#   tag list | where search_key == "old-address" | tag revoke
 #   tag list | where search_key == "old-address" | get uu | tag revoke
 #
 # Returns: Success message with revoked UUID
 export def "tag revoke" [] {
-    let target_uuid = $in
+    let piped_input = $in
+    
+    # Extract UUID using Pattern A
+    let target_uuid = if ($piped_input | is-empty) {
+        null
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0.uu  # Just need the UUID
+        }
+    }
     
     if ($target_uuid | is-empty) {
         error make {

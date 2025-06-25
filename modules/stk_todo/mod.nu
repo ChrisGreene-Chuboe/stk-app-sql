@@ -19,11 +19,15 @@ const STK_TODO_COLUMNS = [name, description, table_name_uu_json, record_json, is
 #
 # Accepts piped input:
 #   string - UUID of parent todo to attach this item to (optional)
+#   record - Record with 'uu' field to use as parent (optional)
+#   table - Table with first row containing parent record (optional)
 #
 # Examples:
 #   todo new "Weekend Projects" --description "Tasks for the weekend"
 #   "12345678-1234-5678-9012-123456789abc" | todo new "Fix garden fence" --description "Replace broken posts"
 #   todo list | where name == "Home Tasks" | get uu.0 | todo new "Clean garage"
+#   todo list | get 0 | todo new "Sub-task" --description "Part of parent todo"
+#   todo list | where name == "Home Tasks" | todo new "Paint bedroom"
 #   todo new "Buy groceries" --json '{"due_date": "2024-12-31", "priority": "high"}'
 #   $parent_uuid | todo new "Mow lawn" --description "Front and back yard"
 #   todo new "Work task" --type "work-todo"  # Use specific TODO type
@@ -36,7 +40,19 @@ export def "todo new" [
     --json(-j): string              # Optional JSON data to store in record_json field
     --type(-t): string              # Specific TODO type name to use (optional, uses default if not specified)
 ] {
-    let parent_uuid = $in
+    let piped_input = $in
+    
+    # Extract parent UUID using Pattern A
+    let parent_uuid = if ($piped_input | is-empty) {
+        null
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0.uu  # Just need the UUID for parent
+        }
+    }
     
     # Build parameters for psql new-record
     mut params = {
@@ -110,10 +126,14 @@ export def "todo list" [
 #
 # Accepts piped input:
 #   string - The UUID of the todo to retrieve (required via pipe)
+#   record - Record with 'uu' field containing the UUID (required via pipe)
+#   table - Table with first row containing the todo record (required via pipe)
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | todo get
 #   todo list | get uu.0 | todo get
+#   todo list | get 0 | todo get
+#   todo list | where name == "Buy groceries" | todo get
 #   $todo_uuid | todo get | get description
 #   $todo_uuid | todo get --detail | get type_name
 #   $uu | todo get | get record_json
@@ -126,7 +146,19 @@ export def "todo list" [
 export def "todo get" [
     --detail(-d)  # Include detailed type information
 ] {
-    let uu = $in
+    let piped_input = $in
+    
+    # Extract UUID using Pattern A
+    let uu = if ($piped_input | is-empty) {
+        null
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0.uu  # Just need the UUID
+        }
+    }
     
     if ($uu | is-empty) {
         error make { msg: "UUID required via piped input" }
@@ -146,16 +178,32 @@ export def "todo get" [
 #
 # Accepts piped input: 
 #   string - The UUID of the todo to mark as done (required via pipe)
+#   record - Record with 'uu' field containing the UUID (required via pipe)
+#   table - Table with first row containing the todo record (required via pipe)
 #
 # Examples:
 #   todo list | where name == "Clean garage" | get uu.0 | todo revoke
+#   todo list | get 0 | todo revoke
+#   todo list | where name == "Clean garage" | todo revoke
 #   "12345678-1234-5678-9012-123456789abc" | todo revoke
 #   todo list | where created < (date now) - 7day | each { |row| $row.uu | todo revoke }
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist, is already revoked, or type_enum not in ['TODO']
 export def "todo revoke" [] {
-    let target_uuid = $in
+    let piped_input = $in
+    
+    # Extract UUID using Pattern A
+    let target_uuid = if ($piped_input | is-empty) {
+        null
+    } else {
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0.uu  # Just need the UUID
+        }
+    }
     
     if ($target_uuid | is-empty) {
         error make { msg: "UUID required via piped input" }

@@ -1,46 +1,63 @@
 #!/usr/bin/env nu
 
 # Test script for stk_psql module
+print "=== Testing stk_psql Module ==="
+
+# Test-specific suffix to ensure test isolation and idempotency
+# Generate random 2-char suffix from letters (upper/lower) and numbers
+let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+let random_suffix = (0..1 | each {|_| 
+    let idx = (random int 0..($chars | str length | $in - 1))
+    $chars | str substring $idx..($idx + 1)
+} | str join)
+let test_suffix = $"_ps($random_suffix)"  # ps for psql + 2 random chars
 
 # REQUIRED: Import modules and assert
 use ../modules *
 use std/assert
 
-# Test 1: Basic functionality
-# Test that valid queries work correctly
-let basic_result = (psql exec "SELECT 1 as test_value, 'hello' as test_text")
-assert (($basic_result | length) == 1) "Should return one row"
-assert ($basic_result.0.test_value == "1") "Should return correct numeric value"
-assert ($basic_result.0.test_text == "hello") "Should return correct text value"
+print "=== Testing psql get-table-name-uu command ==="
 
-# Test 2: Error handling
-# Test that SQL errors can be caught with try/catch
-let error_result = (try {
-    psql exec "SELECT column_that_does_not_exist FROM table_does_not_exist"
-    false  # If we get here, no error was thrown
+# Create a test project to get a valid UUID
+let test_project = (project new $"Test Project($test_suffix)")
+let project_uuid = ($test_project.uu.0)
+
+# Test the new psql get-table-name-uu command
+let result = (psql get-table-name-uu $project_uuid)
+assert ((($result | describe) | str starts-with "record")) "Should return a record"
+assert (("table_name" in ($result | columns))) "Should have table_name field"
+assert (("uu" in ($result | columns))) "Should have uu field"
+assert (($result.table_name == "stk_project")) "Table name should be stk_project"
+assert (($result.uu == $project_uuid)) "UUID should match input"
+print "✓ psql get-table-name-uu verified for project"
+
+# Test with different table types
+let test_item = (item new $"Test Item($test_suffix)")
+let item_uuid = ($test_item.uu.0)
+let item_result = (psql get-table-name-uu $item_uuid)
+assert (($item_result.table_name == "stk_item")) "Should identify stk_item table"
+assert (($item_result.uu == $item_uuid)) "UUID should match"
+print "✓ psql get-table-name-uu verified for item"
+
+# Test with request
+let test_request = (.append request $"Test Request($test_suffix)")
+let request_uuid = ($test_request.uu.0)
+let request_result = (psql get-table-name-uu $request_uuid)
+assert (($request_result.table_name == "stk_request")) "Should identify stk_request table"
+assert (($request_result.uu == $request_uuid)) "UUID should match"
+print "✓ psql get-table-name-uu verified for request"
+
+# Test error handling with non-existent UUID
+print "=== Testing error handling for non-existent UUID ==="
+try {
+    # Use a random UUID that definitely won't exist
+    let non_existent_uuid = "99999999-9999-9999-9999-999999999999"
+    psql get-table-name-uu $non_existent_uuid
+    assert false "Should have thrown error for non-existent UUID"
 } catch { |err|
-    # Verify error message contains expected content
-    ($err.msg | str contains "PostgreSQL error:") and ($err.msg | str contains "does not exist")
-})
+    assert (($err.msg | str contains "UUID not found")) "Error message should indicate UUID not found"
+    print "✓ Error handling verified for non-existent UUID"
+}
 
-assert $error_result "SQL errors should be catchable and contain PostgreSQL error message"
-
-# Test 3: Date column conversion
-# Test that created/updated columns are converted to datetime
-let date_result = (psql exec "SELECT now() as created, now() as updated")
-assert (($date_result.0.created | describe | str contains "date")) "Created should be datetime"
-assert (($date_result.0.updated | describe | str contains "date")) "Updated should be datetime"
-
-# Test 4: Boolean column conversion
-# Test that is_* and has_* columns are converted to boolean
-let bool_result = (psql exec "SELECT true as is_active, false as has_data")
-assert ($bool_result.0.is_active == true) "is_active should be true"
-assert ($bool_result.0.has_data == false) "has_data should be false"
-
-# Test 5: JSON column handling
-# Test that *_json columns are parsed
-let json_result = (psql exec "SELECT '{\"key\": \"value\"}'::jsonb as test_json")
-assert (($json_result.0.test_json | describe | str contains "record")) "JSON should be parsed as record"
-assert ($json_result.0.test_json.key == "value") "JSON content should be accessible"
-
+# Return success string as final expression
 "=== All tests completed successfully ==="

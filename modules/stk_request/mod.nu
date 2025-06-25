@@ -41,29 +41,43 @@ export def ".append request" [
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
     # Extract uu and table_name from piped input
-    let attach_uuid = if ($piped_input | is-empty) {
+    let attach_data = if ($piped_input | is-empty) {
         # No piped input, use --attach parameter
-        $attach
+        if ($attach | is-empty) {
+            null
+        } else {
+            {uu: $attach, table_name: null}
+        }
     } else {
-        # Extract uu and table_name, then get first row's UUID
+        # Extract uu and table_name, then get first row
         let extracted = ($piped_input | extract-uu-table-name)
         if ($extracted | is-empty) {
             null
         } else {
-            $extracted.0.uu?
+            $extracted.0
         }
     }
     
     # Handle json parameter
     let record_json = if ($json | is-empty) { "'{}'" } else { $"'($json)'" }
     
-    if ($attach_uuid | is-empty) {
+    if ($attach_data | is-empty) {
         # Standalone request - no attachment
         let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     } else {
-        # Request with attachment - auto-populate table_name_uu_json
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach_uuid)'), ($record_json)::jsonb) RETURNING uu"
+        # Request with attachment - get table_name_uu as nushell record
+        let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
+            # We have the table name - use it directly (no DB lookup)
+            {table_name: $attach_data.table_name, uu: $attach_data.uu}
+        } else {
+            # No table name - look it up using psql command
+            psql get-table-name-uu $attach_data.uu
+        }
+        
+        # Convert to JSON for SQL (until psql new-record handles JSONB better)
+        let table_name_uu_json = ($table_name_uu | to json)
+        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', '($table_name_uu_json)'::jsonb, ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     }
 }

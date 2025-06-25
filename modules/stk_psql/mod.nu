@@ -653,6 +653,47 @@ export def "psql get-type" [
 }
 
 
+# Get table name and UUID for a given UUID
+#
+# Looks up which table a UUID belongs to and returns both the table name
+# and UUID as a nushell record. This is a core chuck-stack function that
+# enables flexible references between any records.
+#
+# When you already know the table name (e.g., from a list command), you can
+# avoid this database lookup by building the record directly in nushell.
+#
+# Examples:
+#   psql get-table-name-uu "12345678-1234-5678-9012-123456789abc"
+#   # Returns: {table_name: "stk_project", uu: "12345678-1234-5678-9012-123456789abc"}
+#
+#   let uuid = (project list | get uu.0)
+#   psql get-table-name-uu $uuid
+#
+# Returns: Record with table_name and uu fields
+# Error: If UUID not found in any table
+export def "psql get-table-name-uu" [
+    uuid: string  # The UUID to look up
+] {
+    let result = (
+        psql exec $"SELECT api.get_table_name_uu_json\('($uuid)') as result"
+    )
+    
+    if ($result | is-empty) {
+        error make {msg: $"UUID not found: ($uuid)"}
+    }
+    
+    # Parse the JSONB result from PostgreSQL into a nushell record
+    let parsed = ($result.0.result | from json)
+    
+    # Check if the result contains an error
+    if ("error" in ($parsed | columns)) and ($parsed.error? | is-not-empty) {
+        error make {msg: $"UUID not found: ($uuid) - ($parsed.error)"}
+    }
+    
+    return $parsed
+}
+
+
 # Generic list records with detailed type information
 #
 # Executes a SELECT query with joins to type table for detailed views.

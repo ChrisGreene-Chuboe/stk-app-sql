@@ -3,6 +3,15 @@
 # Test script for stk_tag module
 echo "=== Testing stk_tag Module ==="
 
+# Test-specific suffix to ensure test isolation and idempotency
+# Generate random 2-char suffix from letters (upper/lower) and numbers
+let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+let random_suffix = (0..1 | each {|_| 
+    let idx = (random int 0..($chars | str length | $in - 1))
+    $chars | str substring $idx..($idx + 1)
+} | str join)
+let test_suffix = $"_sg($random_suffix)"  # sg for stk_tag + 2 random chars
+
 # REQUIRED: Import modules and assert
 use ../modules *
 use std/assert
@@ -26,7 +35,7 @@ echo "✓ Tag types verified successfully"
 
 echo "=== Testing basic tag creation with NONE type ==="
 # Create a project to tag
-let test_project = (project new "Tag Test Project" --description "Project for testing tags")
+let test_project = (project new $"Tag Test Project($test_suffix)" --description "Project for testing tags")
 let project_uuid = ($test_project.uu.0)
 
 # Create a simple tag with NONE type
@@ -180,4 +189,80 @@ let no_desc_tag = ($project_uuid | .append tag --type-search-key NONE --search-k
 assert ($no_desc_tag.uu | is-not-empty) "Tag without description should be created"
 echo "✓ Edge cases verified"
 
-echo "=== All tests completed successfully ==="
+print "=== Testing UUID input enhancement - .append tag with record ==="
+# Get a project as a record to tag
+let project_record = (project list | where uu == $project_uuid | get 0)
+assert (("uu" in ($project_record | columns))) "Project record should have uu field"
+assert (("table_name" in ($project_record | columns))) "Project record should have table_name field"
+
+# Tag using record input (with table_name optimization)
+let tag_from_record = ($project_record | .append tag --type-search-key NONE --search-key $"record-tag($test_suffix)" --description "Tagged from record")
+assert (($tag_from_record | columns | any {|col| $col == "uu"})) "Should create tag from record"
+
+# Verify the tag was created correctly
+let record_tag_detail = ($tag_from_record.uu.0 | tag get)
+assert (($record_tag_detail.table_name_uu_json.0.uu == $project_uuid)) "Tag should reference correct project"
+assert (($record_tag_detail.table_name_uu_json.0.table_name == "stk_project")) "Tag should have correct table name"
+print "✓ .append tag accepts record input with table_name optimization"
+
+print "=== Testing UUID input enhancement - .append tag with table ==="
+# Tag using table input (single row)
+let tag_from_table = (project list | where uu == $project_uuid | .append tag --type-search-key NONE --search-key $"table-tag($test_suffix)")
+assert (($tag_from_table | columns | any {|col| $col == "uu"})) "Should create tag from table"
+
+# Verify the relationship
+let table_tag_detail = ($tag_from_table.uu.0 | tag get)
+assert (($table_tag_detail.table_name_uu_json.0.uu == $project_uuid)) "Table tag should reference project"
+print "✓ .append tag accepts table input"
+
+print "=== Testing UUID input enhancement - tag get with record ==="
+# Get tag using record input
+let tag_to_get = (tag list | where search_key =~ $"record-tag($test_suffix)" | get 0)
+let get_from_record = ($tag_to_get | tag get)
+assert (($get_from_record.uu.0 == $tag_to_get.uu)) "Should get correct tag from record"
+print "✓ tag get accepts record input"
+
+print "=== Testing UUID input enhancement - tag get with table ==="
+# Get tag using table input
+let get_from_table = (tag list | where search_key =~ $"table-tag($test_suffix)" | tag get)
+assert (($get_from_table.search_key.0 | str contains $"table-tag($test_suffix)")) "Should get correct tag from table"
+print "✓ tag get accepts table input"
+
+print "=== Testing UUID input enhancement - tag revoke with record ==="
+# Create a tag to revoke
+let revoke_test = ($project_uuid | .append tag --type-search-key NONE --search-key $"to-revoke-record($test_suffix)")
+let revoke_uuid = ($revoke_test.uu.0)
+
+# Get as record and revoke
+let revoke_record = (tag list | where uu == $revoke_uuid | get 0)
+let revoked_result = ($revoke_record | tag revoke)
+assert (($revoked_result.is_revoked.0 == true)) "Should revoke tag from record"
+print "✓ tag revoke accepts record input"
+
+print "=== Testing UUID input enhancement - tag revoke with table ==="
+# Create another tag to revoke
+let revoke_test2 = ($project_uuid | .append tag --type-search-key NONE --search-key $"to-revoke-table($test_suffix)")
+
+# Revoke using table input
+let revoked_result2 = (tag list | where search_key =~ $"to-revoke-table($test_suffix)" | tag revoke)
+assert (($revoked_result2.is_revoked.0 == true)) "Should revoke tag from table"
+print "✓ tag revoke accepts table input"
+
+print "=== Testing UUID input enhancement - item tagging ==="
+# Create an item to tag (different table than project)
+let test_item = (item new $"Test Item($test_suffix)")
+let item_uuid = ($test_item.uu.0)
+let item_record = (item list | where uu == $item_uuid | get 0)
+
+# Tag the item using record (tests table_name optimization with different table)
+let item_tag = ($item_record | .append tag --type-search-key NONE --search-key $"item-tag($test_suffix)")
+assert (($item_tag | columns | any {|col| $col == "uu"})) "Should create tag for item"
+
+# Verify correct table reference
+let item_tag_detail = ($item_tag.uu.0 | tag get)
+assert (($item_tag_detail.table_name_uu_json.0.table_name == "stk_item")) "Tag should reference stk_item table"
+assert (($item_tag_detail.table_name_uu_json.0.uu == $item_uuid)) "Tag should reference correct item"
+print "✓ Table name optimization works with different table types"
+
+# Return success string as final expression
+"=== All tests completed successfully ==="

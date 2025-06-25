@@ -206,6 +206,79 @@ let non_existent = ("00000000-0000-0000-0000-000000000000" | todo get)
 assert (($non_existent | length) == 0) "Get should return empty for non-existent UUID"
 echo "✓ Get returns empty for non-existent todo"
 
+print "=== Testing UUID input enhancement - todo new with record ==="
+# Create a parent todo for testing
+let parent_todo = (todo new $"Parent Todo($test_suffix)" --description "Parent for record test")
+let parent_uu = ($parent_todo.uu.0)
+
+# Get the parent as a record (from list)
+let parent_record = (todo list | where uu == $parent_uu | get 0)
+assert (("uu" in ($parent_record | columns))) "Parent record should have uu field"
+
+# Pipe the record to create a sub-todo
+let sub_from_record = ($parent_record | todo new $"Sub from record($test_suffix)")
+assert (($sub_from_record | columns | any {|col| $col == "uu"})) "Should create sub-todo from record"
+
+# Verify the relationship
+let sub_detail = ($sub_from_record.uu.0 | todo get)
+assert (($sub_detail.table_name_uu_json.0.uu == $parent_uu)) "Sub-todo should be linked to parent"
+print "✓ todo new accepts record input"
+
+print "=== Testing UUID input enhancement - todo new with table ==="
+# Create sub-todo from filtered table (single row)
+let sub_from_table = (todo list | where uu == $parent_uu | todo new $"Sub from table($test_suffix)")
+assert (($sub_from_table | columns | any {|col| $col == "uu"})) "Should create sub-todo from table"
+
+# Verify the relationship
+let table_sub_detail = ($sub_from_table.uu.0 | todo get)
+assert (($table_sub_detail.table_name_uu_json.0.uu == $parent_uu)) "Table sub-todo should be linked to parent"
+print "✓ todo new accepts table input"
+
+print "=== Testing UUID input enhancement - todo get with record ==="
+# Get todo using record input
+let get_from_record = ($parent_record | todo get)
+assert (($get_from_record.uu.0 == $parent_uu)) "Should get correct todo from record"
+print "✓ todo get accepts record input"
+
+print "=== Testing UUID input enhancement - todo get with table ==="
+# Get todo using table input
+let get_from_table = (todo list | where uu == $parent_uu | todo get)
+assert (($get_from_table.uu.0 == $parent_uu)) "Should get correct todo from table"
+print "✓ todo get accepts table input"
+
+print "=== Testing UUID input enhancement - todo revoke with record ==="
+# Create a todo to revoke
+let revoke_test = (todo new $"To revoke with record($test_suffix)")
+let revoke_uu = ($revoke_test.uu.0)
+
+# Get as record and revoke
+let revoke_record = (todo list | where uu == $revoke_uu | get 0)
+let revoked_result = ($revoke_record | todo revoke)
+assert (($revoked_result.is_revoked.0 == true)) "Should revoke todo from record"
+print "✓ todo revoke accepts record input"
+
+print "=== Testing UUID input enhancement - todo revoke with table ==="
+# Create another todo to revoke
+let revoke_test2 = (todo new $"To revoke with table($test_suffix)")
+let revoke_uu2 = ($revoke_test2.uu.0)
+
+# Revoke using table input
+let revoked_result2 = (todo list | where uu == $revoke_uu2 | todo revoke)
+assert (($revoked_result2.is_revoked.0 == true)) "Should revoke todo from table"
+print "✓ todo revoke accepts table input"
+
+print "=== Testing UUID input enhancement - empty table handling ==="
+# Test with empty table (no matches)
+let empty_table = (todo list | where name == "nonexistent-xyz-123")
+assert (($empty_table | length) == 0) "Empty filter should return empty table"
+
+# todo new with empty table should create standalone todo
+let standalone_from_empty = ($empty_table | todo new $"Standalone from empty($test_suffix)")
+assert (($standalone_from_empty | columns | any {|col| $col == "uu"})) "Should create standalone todo from empty table"
+let standalone_detail = ($standalone_from_empty.uu.0 | todo get)
+assert (($standalone_detail.table_name_uu_json.0.uu | is-empty)) "Standalone todo should have no parent"
+print "✓ Empty table creates standalone todo"
+
 echo "=== Final state verification ==="
 # Count only the todos we created in this test run
 let final_active = (todo list | where name =~ $test_suffix)
