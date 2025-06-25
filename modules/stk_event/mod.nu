@@ -9,16 +9,20 @@ const STK_EVENT_COLUMNS = [name, description, table_name_uu_json, record_json]
 # Create a new event with optional attachment to another record
 #
 # This is the primary way to create events in the chuck-stack system.
-# You can either pipe in a UUID to attach to, or provide it via --attach.
+# You can either pipe in a UUID/record to attach to, or provide it via --attach.
 # The UUID identifies the parent record this event should be linked to.
 # Use --description to provide event details and --json for structured data.
 #
 # Accepts piped input:
 #   string - UUID of record to attach this event to (optional)
+#   record - Record with 'uu' field to attach this event to (optional)
+#   table - Table of records, uses first row's 'uu' field (optional)
 #
 # Examples:
 #   .append event "authentication" --description "User login successful"
 #   "12345678-1234-5678-9012-123456789abc" | .append event "bug-fix" --description "System error occurred"
+#   project list | get 0 | .append event "project-update" --description "Project milestone reached"
+#   todo list | where priority == "high" | .append event "task-review" --description "Review high priority tasks"
 #   .append event "system-backup" --description "Database backup completed" --attach $backup_uuid
 #   event list | get uu.0 | .append event "follow-up" --description "Follow up on this event"
 #   .append event "system-error" --description "Critical system failure" --json '{"urgency": "high", "component": "database"}'
@@ -31,26 +35,52 @@ export def ".append event" [
     --json(-j): string              # Optional JSON data to store in record_json field
     --attach(-a): string           # UUID of record to attach this event to (alternative to piped input)
 ] {
-    let piped_uuid = $in
+    let piped_input = $in
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
-    # Determine which UUID to use - piped input takes precedence over --attach
-    let attach_uuid = if ($piped_uuid | is-empty) {
-        $attach
+    # Extract UUID and table_name from piped input (if provided)
+    let extracted_data = if ($piped_input | is-empty) {
+        null
     } else {
-        $piped_uuid
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0  # Use first row for single-record operations
+        }
+    }
+    
+    # Create attach_data structure for consistency
+    # Piped input takes precedence over --attach
+    let attach_data = if ($extracted_data | is-not-empty) {
+        $extracted_data
+    } else if ($attach | is-not-empty) {
+        {uu: $attach, table_name: null}  # String param has no table_name
+    } else {
+        null
     }
     
     # Handle json parameter
     let record_json = if ($json | is-empty) { "'{}'" } else { $"'($json)'" }
     
-    if ($attach_uuid | is-empty) {
+    if ($attach_data | is-empty) {
         # Standalone event - no attachment
         let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     } else {
         # Event with attachment - auto-populate table_name_uu_json
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', ($STK_SCHEMA).get_table_name_uu_json\('($attach_uuid)'), ($record_json)::jsonb) RETURNING uu"
+        # Get table_name_uu as nushell record (not JSON!)
+        let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
+            # We have the table name - use it directly (no DB lookup)
+            {table_name: $attach_data.table_name, uu: $attach_data.uu}
+        } else {
+            # No table name - look it up using psql command
+            psql get-table-name-uu $attach_data.uu
+        }
+        
+        # Only convert to JSON at the SQL boundary
+        let table_name_uu_json = ($table_name_uu | to json)
+        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', '($table_name_uu_json)'::jsonb, ($record_json)::jsonb) RETURNING uu"
         psql exec $sql
     }
 }
@@ -109,10 +139,13 @@ export def "event list" [
 #
 # Accepts piped input:
 #   string - The UUID of the event to retrieve (required via pipe)
+#   record - Record with 'uu' field to retrieve
+#   table - Table of records, uses first row's 'uu' field
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | event get
-#   event list | get uu.0 | event get
+#   event list | get 0 | event get
+#   event list | where name == "error" | event get
 #   $event_uuid | event get | get description
 #   $event_uuid | event get --detail | get type_enum
 #   $uu | event get | get record_json
@@ -125,11 +158,18 @@ export def "event list" [
 export def "event get" [
     --detail(-d)  # Include detailed type information
 ] {
-    let uu = $in
+    let piped_input = $in
     
-    if ($uu | is-empty) {
+    if ($piped_input | is-empty) {
         error make { msg: "UUID required via piped input" }
     }
+    
+    # Extract UUID from input using Pattern A (simple UUID extraction)
+    let extracted = ($piped_input | extract-uu-table-name)
+    if ($extracted | is-empty) {
+        error make { msg: "No valid UUID found in input" }
+    }
+    let uu = $extracted.0.uu  # Just need the UUID
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -147,20 +187,29 @@ export def "event get" [
 #
 # Accepts piped input: 
 #   string - The UUID of the event to revoke (required via pipe)
+#   record - Record with 'uu' field to revoke
+#   table - Table of records, uses first row's 'uu' field
 #
 # Examples:
-#   event list | where name == "test" | get uu.0 | event revoke
-#   event list | where created < (date now) - 30day | each { |row| $row.uu | event revoke }
+#   event list | where name == "test" | get 0 | event revoke
+#   event list | where created < (date now) - 30day | each { |row| $row | event revoke }
 #   "12345678-1234-5678-9012-123456789abc" | event revoke
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or event is already revoked
 export def "event revoke" [] {
-    let target_uuid = $in
+    let piped_input = $in
     
-    if ($target_uuid | is-empty) {
+    if ($piped_input | is-empty) {
         error make { msg: "UUID required via piped input" }
     }
+    
+    # Extract UUID from input using Pattern A (simple UUID extraction)
+    let extracted = ($piped_input | extract-uu-table-name)
+    if ($extracted | is-empty) {
+        error make { msg: "No valid UUID found in input" }
+    }
+    let target_uuid = $extracted.0.uu  # Just need the UUID
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }

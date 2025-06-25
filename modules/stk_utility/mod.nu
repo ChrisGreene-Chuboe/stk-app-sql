@@ -9,6 +9,9 @@
 #
 # Consuming modules currently use only the first record (.0) from the returned table.
 #
+# Note: Also accepts list<any> type which occurs when nushell can't infer table schema.
+# This is common with PostgreSQL query results. See: https://github.com/nushell/nushell/discussions/10897
+#
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | extract-uu-table-name
 #   # Returns: table with one row: [{uu: "12345678-1234-5678-9012-123456789abc", table_name: null}]
@@ -19,7 +22,7 @@
 #   {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project", name: "test"} | extract-uu-table-name
 #   # Returns: table with one row: [{uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project"}]
 #
-#   project list | extract-uu-table-name  # Returns full table
+#   project list | extract-uu-table-name  # Returns full table (even if typed as list<any>)
 #   # Returns: table with all rows: [{uu: "uuid1", table_name: "stk_project"}, {uu: "uuid2", table_name: "stk_project"}, ...]
 #
 # Returns: Table with 'uu' and 'table_name' columns, or empty table if input is empty
@@ -44,8 +47,10 @@ export def extract-uu-table-name [] {
         }
         let table_name = $input.table_name?
         return [{uu: $uuid, table_name: $table_name}]
-    } else if ($input_type | str starts-with "table") {
-        # Table - normalize each row
+    } else if (($input_type | str starts-with "table") or ($input_type == "list<any>")) {
+        # Table or list<any> - normalize each row
+        # Note: list<any> is common when nushell can't infer table schema, especially
+        # with PostgreSQL results. See: https://github.com/nushell/nushell/discussions/10897
         if ($input | length) == 0 {
             return []
         }

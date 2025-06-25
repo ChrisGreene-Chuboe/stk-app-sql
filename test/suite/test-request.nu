@@ -255,9 +255,9 @@ assert (($complex_stored.workflow.steps | length) == 3) "Should have 3 workflow 
 assert ($complex_stored.workflow.approvers.1 == "director") "Second approver should be director"
 assert (($complex_stored.metadata.tags | length) == 3) "Should have 3 tags"
 assert ($complex_stored.deadline == "2024-12-31") "Deadline should be 2024-12-31"
-print "✓ Complex nested JSON structure verified"
+#print "✓ Complex nested JSON structure verified"
 
-print "=== Testing table_name optimization (piped record with table_name) ==="
+# print "=== Testing table_name optimization (piped record with table_name) ==="
 # When piping from a list command, records include table_name
 # This test verifies the optimization that avoids DB lookup when table_name is known
 let project_for_optimization = (project new $"Optimization Test Project($test_suffix)")
@@ -276,9 +276,9 @@ assert (($optimized_request | columns | any {|col| $col == "uu"})) "Optimized re
 let optimized_detail = ($optimized_request.uu.0 | request get)
 assert (($optimized_detail.table_name_uu_json.0.table_name == "stk_project")) "Should have correct table name"
 assert (($optimized_detail.table_name_uu_json.0.uu == $project_uu)) "Should have correct UUID"
-print "✓ Table name optimization verified (avoids DB lookup when table_name provided)"
+#print "✓ Table name optimization verified (avoids DB lookup when table_name provided)"
 
-print "=== Testing --attach parameter still works (falls back to DB lookup) ==="
+# print "=== Testing --attach parameter still works (falls back to DB lookup) ==="
 # When using --attach with just a UUID string, it should still work
 let attach_request = (.append request $"attach-test($test_suffix)" --attach $project_uu --description "Uses --attach parameter")
 assert (($attach_request | columns | any {|col| $col == "uu"})) "Attach request should return UUID"
@@ -287,12 +287,12 @@ assert (($attach_request | columns | any {|col| $col == "uu"})) "Attach request 
 let attach_detail = ($attach_request.uu.0 | request get)
 assert (($attach_detail.table_name_uu_json.0.table_name == "stk_project")) "Should have correct table name via DB lookup"
 assert (($attach_detail.table_name_uu_json.0.uu == $project_uu)) "Should have correct UUID"
-print "✓ --attach parameter verified (uses DB lookup for table_name)"
+#print "✓ --attach parameter verified (uses DB lookup for table_name)"
 
-print "=== Comparing optimized vs fallback results ==="
+# print "=== Comparing optimized vs fallback results ==="
 # Both methods should produce identical results
 assert (($optimized_detail.table_name_uu_json.0 == $attach_detail.table_name_uu_json.0)) "Both methods should produce identical table_name_uu_json"
-print "✓ Optimization produces identical results to DB lookup"
+#print "✓ Optimization produces identical results to DB lookup"
 
 # Return success string as final expression (no echo needed)
 "=== All tests completed successfully ==="

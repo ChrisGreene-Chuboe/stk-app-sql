@@ -156,8 +156,9 @@ echo "=== Testing error cases ==="
 
 # Test invalid column in tags command
 # The tags command gracefully handles errors by returning an error object
-let result_with_error = (project list | where name == "Tag Test Project" | tags invalid_column_name)
-let tags_result = ($result_with_error | get tags.0)
+let result_with_error = (project list | where name == $"Tag Test Project($test_suffix)" | tags invalid_column_name)
+let first_result = ($result_with_error | get 0)
+let tags_result = ($first_result | get tags)
 
 # Verify that an error was caught and handled
 assert ($tags_result | describe | str contains "record") "Tags should contain error record"
@@ -189,7 +190,7 @@ let no_desc_tag = ($project_uuid | .append tag --type-search-key NONE --search-k
 assert ($no_desc_tag.uu | is-not-empty) "Tag without description should be created"
 echo "✓ Edge cases verified"
 
-print "=== Testing UUID input enhancement - .append tag with record ==="
+#print "=== Testing UUID input enhancement - .append tag with record ==="
 # Get a project as a record to tag
 let project_record = (project list | where uu == $project_uuid | get 0)
 assert (("uu" in ($project_record | columns))) "Project record should have uu field"
@@ -203,9 +204,9 @@ assert (($tag_from_record | columns | any {|col| $col == "uu"})) "Should create 
 let record_tag_detail = ($tag_from_record.uu.0 | tag get)
 assert (($record_tag_detail.table_name_uu_json.0.uu == $project_uuid)) "Tag should reference correct project"
 assert (($record_tag_detail.table_name_uu_json.0.table_name == "stk_project")) "Tag should have correct table name"
-print "✓ .append tag accepts record input with table_name optimization"
+#print "✓ .append tag accepts record input with table_name optimization"
 
-print "=== Testing UUID input enhancement - .append tag with table ==="
+#print "=== Testing UUID input enhancement - .append tag with table ==="
 # Tag using table input (single row)
 let tag_from_table = (project list | where uu == $project_uuid | .append tag --type-search-key NONE --search-key $"table-tag($test_suffix)")
 assert (($tag_from_table | columns | any {|col| $col == "uu"})) "Should create tag from table"
@@ -213,22 +214,22 @@ assert (($tag_from_table | columns | any {|col| $col == "uu"})) "Should create t
 # Verify the relationship
 let table_tag_detail = ($tag_from_table.uu.0 | tag get)
 assert (($table_tag_detail.table_name_uu_json.0.uu == $project_uuid)) "Table tag should reference project"
-print "✓ .append tag accepts table input"
+#print "✓ .append tag accepts table input"
 
-print "=== Testing UUID input enhancement - tag get with record ==="
+#print "=== Testing UUID input enhancement - tag get with record ==="
 # Get tag using record input
 let tag_to_get = (tag list | where search_key =~ $"record-tag($test_suffix)" | get 0)
 let get_from_record = ($tag_to_get | tag get)
 assert (($get_from_record.uu.0 == $tag_to_get.uu)) "Should get correct tag from record"
-print "✓ tag get accepts record input"
+#print "✓ tag get accepts record input"
 
-print "=== Testing UUID input enhancement - tag get with table ==="
+#print "=== Testing UUID input enhancement - tag get with table ==="
 # Get tag using table input
 let get_from_table = (tag list | where search_key =~ $"table-tag($test_suffix)" | tag get)
 assert (($get_from_table.search_key.0 | str contains $"table-tag($test_suffix)")) "Should get correct tag from table"
-print "✓ tag get accepts table input"
+#print "✓ tag get accepts table input"
 
-print "=== Testing UUID input enhancement - tag revoke with record ==="
+#print "=== Testing UUID input enhancement - tag revoke with record ==="
 # Create a tag to revoke
 let revoke_test = ($project_uuid | .append tag --type-search-key NONE --search-key $"to-revoke-record($test_suffix)")
 let revoke_uuid = ($revoke_test.uu.0)
@@ -237,18 +238,18 @@ let revoke_uuid = ($revoke_test.uu.0)
 let revoke_record = (tag list | where uu == $revoke_uuid | get 0)
 let revoked_result = ($revoke_record | tag revoke)
 assert (($revoked_result.is_revoked.0 == true)) "Should revoke tag from record"
-print "✓ tag revoke accepts record input"
+#print "✓ tag revoke accepts record input"
 
-print "=== Testing UUID input enhancement - tag revoke with table ==="
+#print "=== Testing UUID input enhancement - tag revoke with table ==="
 # Create another tag to revoke
 let revoke_test2 = ($project_uuid | .append tag --type-search-key NONE --search-key $"to-revoke-table($test_suffix)")
 
 # Revoke using table input
 let revoked_result2 = (tag list | where search_key =~ $"to-revoke-table($test_suffix)" | tag revoke)
 assert (($revoked_result2.is_revoked.0 == true)) "Should revoke tag from table"
-print "✓ tag revoke accepts table input"
+#print "✓ tag revoke accepts table input"
 
-print "=== Testing UUID input enhancement - item tagging ==="
+#print "=== Testing UUID input enhancement - item tagging ==="
 # Create an item to tag (different table than project)
 let test_item = (item new $"Test Item($test_suffix)")
 let item_uuid = ($test_item.uu.0)
@@ -262,7 +263,7 @@ assert (($item_tag | columns | any {|col| $col == "uu"})) "Should create tag for
 let item_tag_detail = ($item_tag.uu.0 | tag get)
 assert (($item_tag_detail.table_name_uu_json.0.table_name == "stk_item")) "Tag should reference stk_item table"
 assert (($item_tag_detail.table_name_uu_json.0.uu == $item_uuid)) "Tag should reference correct item"
-print "✓ Table name optimization works with different table types"
+#print "✓ Table name optimization works with different table types"
 
 # Return success string as final expression
 "=== All tests completed successfully ==="

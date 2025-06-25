@@ -207,7 +207,7 @@ Every test file should define a unique test suffix combining:
 #!/usr/bin/env nu
 
 # Test script for stk_todo module
-echo "=== Testing stk_todo Module ==="
+"=== Testing stk_todo Module ==="
 
 # Test-specific suffix to ensure test isolation and idempotency
 # Generate random 2-char suffix from letters (upper/lower) and numbers
@@ -319,11 +319,11 @@ For modules with `record_json` columns, comprehensive testing of the `--json` pa
 ### Basic JSON Test Pattern
 
 ```nushell
-echo "=== Testing item creation with JSON data ==="
+print "=== Testing item creation with JSON data ==="
 let json_item = (item new "Premium Service" --json '{"features": ["24/7 support", "priority access"], "sla": "99.9%"}')
 assert ($json_item | columns | any {|col| $col == "uu"}) "JSON item creation should return UUID"
 assert ($json_item.uu | is-not-empty) "JSON item UUID should not be empty"
-echo "✓ Item with JSON created, UUID:" ($json_item.uu)
+print "✓ Item with JSON created, UUID:" ($json_item.uu)
 
 # Verify the stored JSON
 let json_detail = ($json_item.uu.0 | item get)
@@ -331,7 +331,7 @@ assert ($json_detail | columns | any {|col| $col == "record_json"}) "Item should
 let stored_json = ($json_detail.record_json.0)
 assert (($stored_json.features | length) == 2) "Features should have 2 items"
 assert ($stored_json.sla == "99.9%") "SLA should be 99.9%"
-echo "✓ JSON data verified"
+print "✓ JSON data verified"
 ```
 
 ### Required Test Cases
@@ -354,11 +354,11 @@ let mixed = (module new "Test" --json '{"text": "hello", "number": 42, "bool": t
 
 #### 2. Default Behavior (No JSON)
 ```nushell
-echo "=== Testing creation without JSON (default behavior) ==="
+print "=== Testing creation without JSON (default behavior) ==="
 let no_json_item = (item new "Basic Service")
 let no_json_detail = ($no_json_item.uu.0 | item get)
 assert ($no_json_detail.record_json.0 == {}) "record_json should be empty object when no JSON provided"
-echo "✓ Default behavior verified"
+print "✓ Default behavior verified"
 ```
 
 #### 3. Complex Nested JSON
