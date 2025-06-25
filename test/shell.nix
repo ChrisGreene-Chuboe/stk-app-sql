@@ -61,8 +61,7 @@ let
 
   # Function to override usql to psql
   usql-override = pkgs.writeShellScriptBin "usql" ''
-      #!${pkgs.bash}/bin/bash
-      exec ${postgresql-with-jsonschema}/bin/psql "$@"
+    exec ${postgresql-with-jsonschema}/bin/psql "$@"
   '';
 
 in pkgs.mkShell {
