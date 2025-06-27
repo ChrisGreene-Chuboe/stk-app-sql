@@ -37,26 +37,10 @@ export def ".append request" [
     --attach(-a): string           # UUID of record to attach this request to (alternative to piped input)
     --json(-j): string             # Optional JSON data to store in record_json field
 ] {
-    let piped_input = $in
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
-    # Extract uu and table_name from piped input
-    let attach_data = if ($piped_input | is-empty) {
-        # No piped input, use --attach parameter
-        if ($attach | is-empty) {
-            null
-        } else {
-            {uu: $attach, table_name: null}
-        }
-    } else {
-        # Extract uu and table_name, then get first row
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0
-        }
-    }
+    # Extract attachment data from piped input or --attach parameter
+    let attach_data = ($in | extract-attach-from-input $attach)
     
     # Handle json parameter
     let record_json = if ($json | is-empty) { "'{}'" } else { $"'($json)'" }
@@ -154,23 +138,8 @@ export def "request list" [
 export def "request get" [
     --detail(-d)  # Include detailed type information
 ] {
-    let piped_input = $in
-    
-    if ($piped_input | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
-    
-    # Extract UUID from input
-    let uu = if ($piped_input | describe) == "string" {
-        $piped_input
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            error make { msg: "No valid UUID found in input" }
-        } else {
-            $extracted.0.uu
-        }
-    }
+    # Extract UUID from piped input
+    let uu = ($in | extract-single-uu)
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -222,23 +191,8 @@ export def "request process" [
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or request is already revoked
 export def "request revoke" [] {
-    let piped_input = $in
-    
-    if ($piped_input | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
-    
-    # Extract UUID from input
-    let target_uuid = if ($piped_input | describe) == "string" {
-        $piped_input
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            error make { msg: "No valid UUID found in input" }
-        } else {
-            $extracted.0.uu
-        }
-    }
+    # Extract UUID from piped input
+    let target_uuid = ($in | extract-single-uu)
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }

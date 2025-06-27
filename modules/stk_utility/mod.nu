@@ -68,3 +68,76 @@ export def extract-uu-table-name [] {
         error make { msg: $"Input must be a string UUID, record, or table with 'uu' field, got ($input_type)" }
     }
 }
+
+# Extract a single UUID from piped input with validation
+#
+# This helper reduces the repetitive UUID extraction pattern used in commands like
+# 'request get' and 'request revoke'. It handles string UUIDs, records, and tables,
+# always returning a single UUID string.
+#
+# Examples:
+#   "uuid-string" | extract-single-uu
+#   {uu: "uuid", name: "test"} | extract-single-uu
+#   request list | first | extract-single-uu
+#
+# Returns: String UUID
+# Error: Throws error if input is empty or no valid UUID found
+export def extract-single-uu [
+    --error-msg: string = "UUID required via piped input"
+] {
+    let piped_input = $in
+    
+    if ($piped_input | is-empty) {
+        error make { msg: $error_msg }
+    }
+    
+    # Handle string UUID directly
+    if ($piped_input | describe) == "string" {
+        return $piped_input
+    }
+    
+    # For records/tables, use extract-uu-table-name
+    let extracted = ($piped_input | extract-uu-table-name)
+    if ($extracted | is-empty) {
+        error make { msg: "No valid UUID found in input" }
+    }
+    $extracted.0.uu
+}
+
+# Extract attachment data from piped input or --attach parameter
+#
+# This helper simplifies the common pattern of extracting attachment data
+# from either piped input or an --attach parameter. Used in commands that
+# support attaching records to other records.
+#
+# The function returns the exact same structure as the original code:
+# - null if no attachment
+# - {uu: string, table_name: string|null} if attachment found
+#
+# Examples:
+#   project list | first | extract-attach-from-input
+#   "" | extract-attach-from-input "uuid-string"
+#
+# Returns: Record with 'uu' and 'table_name' fields, or null
+export def extract-attach-from-input [
+    attach?: string  # The --attach parameter value (optional)
+] {
+    let piped_input = $in
+    
+    if ($piped_input | is-empty) {
+        # No piped input, use --attach parameter
+        if ($attach == null or ($attach | is-empty)) {
+            null
+        } else {
+            {uu: $attach, table_name: null}
+        }
+    } else {
+        # Extract uu and table_name, then get first row
+        let extracted = ($piped_input | extract-uu-table-name)
+        if ($extracted | is-empty) {
+            null
+        } else {
+            $extracted.0
+        }
+    }
+}
