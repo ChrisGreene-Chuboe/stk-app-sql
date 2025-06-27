@@ -184,14 +184,7 @@ export def "tag get" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let uu = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to get")
-    }
+    let uu = ($in | extract-uu-with-param $uu)
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -229,14 +222,7 @@ export def "tag revoke" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let target_uuid = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to revoke")
-    }
+    let target_uuid = ($in | extract-uu-with-param $uu)
     
     # Pass columns without 'name' since stk_tag uses 'search_key' instead
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid [uu, search_key, revoked, is_revoked]

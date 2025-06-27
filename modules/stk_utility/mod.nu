@@ -141,3 +141,40 @@ export def extract-attach-from-input [
         }
     }
 }
+
+# Extract UUID from either piped input or --uu parameter
+#
+# This helper consolidates the common pattern of accepting a UUID from either:
+# - Piped input (string, record with 'uu' field, or table)
+# - --uu parameter
+#
+# This reduces boilerplate in commands that support dual UUID input methods.
+#
+# Examples:
+#   # With piped input
+#   "uuid-string" | extract-uu-with-param
+#   {uu: "uuid", name: "test"} | extract-uu-with-param
+#   
+#   # With --uu parameter
+#   "" | extract-uu-with-param "uuid-from-param"
+#   
+#   # With custom error message
+#   $in | extract-uu-with-param $uu --error-msg "Tag UUID required"
+#
+# Returns: String UUID
+# Error: Throws error if no UUID provided via either method
+export def extract-uu-with-param [
+    uu?: string  # The --uu parameter value
+    --error-msg: string = "UUID required via piped input or --uu parameter"
+] {
+    let piped_input = $in
+    
+    if ($piped_input | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: $error_msg }
+        }
+        $uu
+    } else {
+        ($piped_input | extract-single-uu --error-msg $error_msg)
+    }
+}

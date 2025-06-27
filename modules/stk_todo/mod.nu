@@ -146,14 +146,7 @@ export def "todo get" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let uu = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let uu = ($in | extract-uu-with-param $uu)
     
     # Note: psql get-record takes uu as parameter, not piped input
     psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS $uu --enum $STK_TODO_TYPE_ENUM --detail=$detail
@@ -192,14 +185,7 @@ export def "todo revoke" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let target_uuid = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let target_uuid = ($in | extract-uu-with-param $uu)
     
     # Note: psql revoke-record takes uu as parameter, not piped input
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid --enum $STK_TODO_TYPE_ENUM

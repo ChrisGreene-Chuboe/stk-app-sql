@@ -145,14 +145,7 @@ export def "event get" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let uu = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let uu = ($in | extract-uu-with-param $uu)
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -191,14 +184,7 @@ export def "event revoke" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let target_uuid = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let target_uuid = ($in | extract-uu-with-param $uu)
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
