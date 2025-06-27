@@ -294,5 +294,46 @@ assert (($attach_detail.table_name_uu_json.0.uu == $project_uu)) "Should have co
 assert (($optimized_detail.table_name_uu_json.0 == $attach_detail.table_name_uu_json.0)) "Both methods should produce identical table_name_uu_json"
 #print "✓ Optimization produces identical results to DB lookup"
 
+print "=== Testing request get with --uu parameter ==="
+let test_uu = (request list | get uu.0)
+let uu_param_result = (request get --uu $test_uu)
+assert (($uu_param_result | length) == 1) "Request get --uu should return exactly one record"
+assert (($uu_param_result.uu.0) == $test_uu) "Returned request should have matching UUID"
+print "✓ Request get --uu parameter verified"
+
+print "=== Testing request get --detail with --uu parameter ==="
+let detail_uu_result = (request get --uu $test_uu --detail)
+assert (($detail_uu_result | length) == 1) "Request get --uu --detail should return exactly one record"
+assert ($detail_uu_result | columns | any {|col| $col == "type_enum"}) "Detailed result should contain type_enum"
+print "✓ Request get --uu --detail verified"
+
+print "=== Testing request revoke with --uu parameter ==="
+let revoke_uu_test = (.append request "test-revoke-uu-param" --description "Request for --uu revoke testing")
+let revoke_uu = ($revoke_uu_test.uu.0)
+let revoke_uu_result = (request revoke --uu $revoke_uu)
+assert ($revoke_uu_result | columns | any {|col| $col == "is_revoked"}) "Revoke --uu should return is_revoked status"
+assert (($revoke_uu_result.is_revoked.0) == true) "Request should be marked as revoked"
+print "✓ Request revoke --uu parameter verified"
+
+print "=== Testing error when no UUID provided to get ==="
+# Test error handling with try/catch
+try {
+    null | request get
+    assert false "Request get should have thrown an error"
+} catch {|e|
+    assert ($e.msg | str contains "UUID required via piped input or --uu parameter") "Should show correct error message"
+}
+print "✓ Request get error handling verified"
+
+print "=== Testing error when no UUID provided to revoke ==="
+# Test error handling with try/catch
+try {
+    null | request revoke
+    assert false "Request revoke should have thrown an error"
+} catch {|e|
+    assert ($e.msg | str contains "UUID required via piped input or --uu parameter") "Should show correct error message"
+}
+print "✓ Request revoke error handling verified"
+
 # Return success string as final expression (no echo needed)
 "=== All tests completed successfully ==="

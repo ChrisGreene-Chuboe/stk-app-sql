@@ -257,6 +257,47 @@ let revoked_result = ($revoke_record | todo revoke)
 assert (($revoked_result.is_revoked.0 == true)) "Should revoke todo from record"
 #print "✓ todo revoke accepts record input"
 
+print "=== Testing todo get with --uu parameter ==="
+let test_uu = (todo list | get uu.0)
+let uu_param_result = (todo get --uu $test_uu)
+assert (($uu_param_result | length) == 1) "Todo get --uu should return exactly one record"
+assert (($uu_param_result.uu.0) == $test_uu) "Returned todo should have matching UUID"
+print "✓ Todo get --uu parameter verified"
+
+print "=== Testing todo get --detail with --uu parameter ==="
+let detail_uu_result = (todo get --uu $test_uu --detail)
+assert (($detail_uu_result | length) == 1) "Todo get --uu --detail should return exactly one record"
+assert ($detail_uu_result | columns | any {|col| $col == "type_enum"}) "Detailed result should contain type_enum"
+print "✓ Todo get --uu --detail verified"
+
+print "=== Testing todo revoke with --uu parameter ==="
+let revoke_uu_test = (todo new $"test-revoke-uu-param($test_suffix)" --description "Todo for --uu revoke testing")
+let revoke_uu = ($revoke_uu_test.uu.0)
+let revoke_uu_result = (todo revoke --uu $revoke_uu)
+assert ($revoke_uu_result | columns | any {|col| $col == "is_revoked"}) "Revoke --uu should return is_revoked status"
+assert (($revoke_uu_result.is_revoked.0) == true) "Todo should be marked as revoked"
+print "✓ Todo revoke --uu parameter verified"
+
+print "=== Testing error when no UUID provided to get ==="
+# Test error handling with try/catch
+try {
+    null | todo get
+    assert false "Todo get should have thrown an error"
+} catch {|e|
+    assert ($e.msg | str contains "UUID required via piped input or --uu parameter") "Should show correct error message"
+}
+print "✓ Todo get error handling verified"
+
+print "=== Testing error when no UUID provided to revoke ==="
+# Test error handling with try/catch
+try {
+    null | todo revoke
+    assert false "Todo revoke should have thrown an error"
+} catch {|e|
+    assert ($e.msg | str contains "UUID required via piped input or --uu parameter") "Should show correct error message"
+}
+print "✓ Todo revoke error handling verified"
+
 #print "=== Testing UUID input enhancement - todo revoke with table ==="
 # Create another todo to revoke
 let revoke_test2 = (todo new $"To revoke with table($test_suffix)")

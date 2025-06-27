@@ -118,18 +118,23 @@ export def "event list" [
 # Use --detail to include type information.
 #
 # Accepts piped input:
-#   string - The UUID of the event to retrieve (required via pipe)
+#   string - The UUID of the event to retrieve
 #   record - Record with 'uu' field to retrieve
 #   table - Table of records, uses first row's 'uu' field
 #
 # Examples:
+#   # Using piped input
 #   "12345678-1234-5678-9012-123456789abc" | event get
 #   event list | get 0 | event get
 #   event list | where name == "error" | event get
+#   
+#   # Using --uu parameter
+#   event get --uu "12345678-1234-5678-9012-123456789abc"
+#   event get --uu $event_uuid --detail
+#   
+#   # Practical examples
 #   $event_uuid | event get | get description
-#   $event_uuid | event get --detail | get type_enum
-#   $uu | event get | get record_json
-#   $uu | event get | get table_name_uu_json
+#   event get --uu $uu | get record_json
 #   $uu | event get | if $in.is_revoked { print "Event was revoked" }
 #
 # Returns: name, description, record_json, created, updated, is_revoked, uu
@@ -137,9 +142,17 @@ export def "event list" [
 # Error: Returns empty result if UUID doesn't exist
 export def "event get" [
     --detail(-d)  # Include detailed type information
+    --uu: string  # UUID as parameter (alternative to piped input)
 ] {
-    # Extract UUID from piped input
-    let uu = ($in | extract-single-uu)
+    # Extract UUID from piped input or --uu parameter
+    let uu = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
+    }
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -156,20 +169,36 @@ export def "event get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the event to revoke (required via pipe)
+#   string - The UUID of the event to revoke
 #   record - Record with 'uu' field to revoke
 #   table - Table of records, uses first row's 'uu' field
 #
 # Examples:
+#   # Using piped input
 #   event list | where name == "test" | get 0 | event revoke
-#   event list | where created < (date now) - 30day | each { |row| $row | event revoke }
 #   "12345678-1234-5678-9012-123456789abc" | event revoke
+#   
+#   # Using --uu parameter
+#   event revoke --uu "12345678-1234-5678-9012-123456789abc"
+#   event revoke --uu $event_uuid
+#   
+#   # Bulk operations
+#   event list | where created < (date now) - 30day | each { |row| event revoke --uu $row.uu }
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or event is already revoked
-export def "event revoke" [] {
-    # Extract UUID from piped input
-    let target_uuid = ($in | extract-single-uu)
+export def "event revoke" [
+    --uu: string  # UUID as parameter (alternative to piped input)
+] {
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
+    }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }

@@ -265,5 +265,46 @@ assert (($item_tag_detail.table_name_uu_json.0.table_name == "stk_item")) "Tag s
 assert (($item_tag_detail.table_name_uu_json.0.uu == $item_uuid)) "Tag should reference correct item"
 #print "✓ Table name optimization works with different table types"
 
+print "=== Testing tag get with --uu parameter ==="
+let test_uu = (tag list | get uu.0)
+let uu_param_result = (tag get --uu $test_uu)
+assert (($uu_param_result | length) == 1) "Tag get --uu should return exactly one record"
+assert (($uu_param_result.uu.0) == $test_uu) "Returned tag should have matching UUID"
+print "✓ Tag get --uu parameter verified"
+
+print "=== Testing tag get --detail with --uu parameter ==="
+let detail_uu_result = (tag get --uu $test_uu --detail)
+assert (($detail_uu_result | length) == 1) "Tag get --uu --detail should return exactly one record"
+assert ($detail_uu_result | columns | any {|col| $col == "type_enum"}) "Detailed result should contain type_enum"
+print "✓ Tag get --uu --detail verified"
+
+print "=== Testing tag revoke with --uu parameter ==="
+let revoke_uu_test = ($project_uuid | .append tag --type-search-key NONE --search-key $"test-revoke-uu-param($test_suffix)" --description "Tag for --uu revoke testing")
+let revoke_uu = ($revoke_uu_test.uu.0)
+let revoke_uu_result = (tag revoke --uu $revoke_uu)
+assert ($revoke_uu_result | columns | any {|col| $col == "is_revoked"}) "Revoke --uu should return is_revoked status"
+assert (($revoke_uu_result.is_revoked.0) == true) "Tag should be marked as revoked"
+print "✓ Tag revoke --uu parameter verified"
+
+print "=== Testing error when no UUID provided to get ==="
+# Test error handling with try/catch
+try {
+    null | tag get
+    assert false "Tag get should have thrown an error"
+} catch {|e|
+    assert ($e.msg | str contains "UUID required via piped input or --uu parameter") "Should show correct error message"
+}
+print "✓ Tag get error handling verified"
+
+print "=== Testing error when no UUID provided to revoke ==="
+# Test error handling with try/catch
+try {
+    null | tag revoke
+    assert false "Tag revoke should have thrown an error"
+} catch {|e|
+    assert ($e.msg | str contains "UUID required via piped input or --uu parameter") "Should show correct error message"
+}
+print "✓ Tag revoke error handling verified"
+
 # Return success string as final expression
 "=== All tests completed successfully ==="

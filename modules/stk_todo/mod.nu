@@ -118,19 +118,24 @@ export def "todo list" [
 # type information.
 #
 # Accepts piped input:
-#   string - The UUID of the todo to retrieve (required via pipe)
-#   record - Record with 'uu' field containing the UUID (required via pipe)
-#   table - Table with first row containing the todo record (required via pipe)
+#   string - The UUID of the todo to retrieve
+#   record - Record with 'uu' field containing the UUID
+#   table - Table with first row containing the todo record
 #
 # Examples:
+#   # Using piped input
 #   "12345678-1234-5678-9012-123456789abc" | todo get
 #   todo list | get uu.0 | todo get
 #   todo list | get 0 | todo get
 #   todo list | where name == "Buy groceries" | todo get
+#   
+#   # Using --uu parameter
+#   todo get --uu "12345678-1234-5678-9012-123456789abc"
+#   todo get --uu $todo_uuid --detail
+#   
+#   # Practical examples
 #   $todo_uuid | todo get | get description
-#   $todo_uuid | todo get --detail | get type_name
-#   $uu | todo get | get record_json
-#   $uu | todo get | get table_name_uu_json
+#   todo get --uu $uu | get record_json
 #   $uu | todo get | if $in.is_revoked { print "Todo was completed" }
 #
 # Returns: name, description, table_name_uu_json, record_json, is_processed, created, updated, is_revoked, uu
@@ -138,9 +143,17 @@ export def "todo list" [
 # Error: Returns empty result if UUID doesn't exist or type_enum not in ['TODO']
 export def "todo get" [
     --detail(-d)  # Include detailed type information
+    --uu: string  # UUID as parameter (alternative to piped input)
 ] {
-    # Extract UUID from piped input
-    let uu = ($in | extract-single-uu)
+    # Extract UUID from piped input or --uu parameter
+    let uu = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
+    }
     
     # Note: psql get-record takes uu as parameter, not piped input
     psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS $uu --enum $STK_TODO_TYPE_ENUM --detail=$detail
@@ -155,22 +168,38 @@ export def "todo get" [
 # in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the todo to mark as done (required via pipe)
-#   record - Record with 'uu' field containing the UUID (required via pipe)
-#   table - Table with first row containing the todo record (required via pipe)
+#   string - The UUID of the todo to mark as done
+#   record - Record with 'uu' field containing the UUID
+#   table - Table with first row containing the todo record
 #
 # Examples:
+#   # Using piped input
 #   todo list | where name == "Clean garage" | get uu.0 | todo revoke
 #   todo list | get 0 | todo revoke
 #   todo list | where name == "Clean garage" | todo revoke
 #   "12345678-1234-5678-9012-123456789abc" | todo revoke
-#   todo list | where created < (date now) - 7day | each { |row| $row.uu | todo revoke }
+#   
+#   # Using --uu parameter
+#   todo revoke --uu "12345678-1234-5678-9012-123456789abc"
+#   todo revoke --uu $todo_uuid
+#   
+#   # Bulk operations
+#   todo list | where created < (date now) - 7day | each { |row| todo revoke --uu $row.uu }
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist, is already revoked, or type_enum not in ['TODO']
-export def "todo revoke" [] {
-    # Extract UUID from piped input
-    let target_uuid = ($in | extract-single-uu)
+export def "todo revoke" [
+    --uu: string  # UUID as parameter (alternative to piped input)
+] {
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
+    }
     
     # Note: psql revoke-record takes uu as parameter, not piped input
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid --enum $STK_TODO_TYPE_ENUM

@@ -167,19 +167,31 @@ export def "tag list" [
 #   table - Table with first row containing the tag record
 #
 # Examples:
+#   # Using piped input
 #   "12345678-1234-5678-9012-123456789abc" | tag get
 #   tag list | get uu.0 | tag get
 #   tag list | get 0 | tag get
 #   tag list | where search_key == "headquarters" | tag get
-#   tag list | where search_key == "headquarters" | get uu.0 | tag get --detail
+#   
+#   # Using --uu parameter
+#   tag get --uu "12345678-1234-5678-9012-123456789abc"
+#   tag get --uu $tag_uuid --detail
 #
 # Returns: Tag record fields
 # Returns (with --detail): Includes type information
 export def "tag get" [
     --detail(-d)  # Include type information
+    --uu: string  # UUID as parameter (alternative to piped input)
 ] {
-    # Extract UUID from piped input
-    let uu = ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to get")
+    # Extract UUID from piped input or --uu parameter
+    let uu = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to get")
+    }
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -199,16 +211,32 @@ export def "tag get" [
 #   table - Table with first row containing the tag record
 #
 # Examples:
+#   # Using piped input
 #   "12345678-1234-5678-9012-123456789abc" | tag revoke
 #   tag list | get uu.0 | tag revoke
 #   tag list | get 0 | tag revoke
 #   tag list | where search_key == "old-address" | tag revoke
-#   tag list | where search_key == "old-address" | get uu | tag revoke
+#   
+#   # Using --uu parameter
+#   tag revoke --uu "12345678-1234-5678-9012-123456789abc"
+#   tag revoke --uu $tag_uuid
+#   
+#   # Bulk operations
+#   tag list | where search_key =~ "deprecated" | each { |row| tag revoke --uu $row.uu }
 #
 # Returns: Success message with revoked UUID
-export def "tag revoke" [] {
-    # Extract UUID from piped input
-    let target_uuid = ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to revoke")
+export def "tag revoke" [
+    --uu: string  # UUID as parameter (alternative to piped input)
+] {
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to revoke")
+    }
     
     # Pass columns without 'name' since stk_tag uses 'search_key' instead
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid [uu, search_key, revoked, is_revoked]
