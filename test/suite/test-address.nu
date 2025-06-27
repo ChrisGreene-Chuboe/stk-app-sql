@@ -45,5 +45,37 @@ echo "✓ Address tag attached to project"
 assert ($tag_detail.search_key.0 == "ADDRESS") "Tag should have ADDRESS search_key"
 echo "✓ Tag type verified"
 
+# Test 3: Test UUID enhancement - record input
+echo "=== Testing .append address with record input ==="
+let project_record = (project list | where uu == $project_uuid | get 0)
+let record_address_tag = ($project_record | .append address "456 Oak St Dallas TX 75201")
+assert (($record_address_tag | length) > 0) "Address tag should be created from record input"
+assert ($record_address_tag.uu.0 | is-not-empty) "Address tag from record should have UUID"
+echo "✓ .append address accepts record input"
+
+# Test 4: Test UUID enhancement - table input
+echo "=== Testing .append address with table input ==="
+let project_table = (project list | where uu == $project_uuid)
+let table_address_tag = ($project_table | .append address "789 Elm Ave Houston TX 77001")
+assert (($table_address_tag | length) > 0) "Address tag should be created from table input"
+assert ($table_address_tag.uu.0 | is-not-empty) "Address tag from table should have UUID"
+echo "✓ .append address accepts table input"
+
+# Test 5: Verify all addresses were created
+echo "=== Verifying all address tags ==="
+# Get the project record which includes table_name
+let project_record = ($project_uuid | project get | get 0)
+
+# Get tags using the project record (not just UUID)
+let project_with_tags = ($project_record | tags)
+let all_tags = $project_with_tags.tags
+
+# Filter for ADDRESS tags
+let address_tags = ($all_tags | where search_key == "ADDRESS")
+let address_count = ($address_tags | length)
+
+assert ($address_count >= 3) "Should have at least 3 ADDRESS tags"
+echo $"✓ All ($address_count) address tags verified"
+
 # Return success message for test harness
 "=== All tests completed successfully ===="

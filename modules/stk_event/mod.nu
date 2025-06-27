@@ -35,30 +35,10 @@ export def ".append event" [
     --json(-j): string              # Optional JSON data to store in record_json field
     --attach(-a): string           # UUID of record to attach this event to (alternative to piped input)
 ] {
-    let piped_input = $in
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
-    # Extract UUID and table_name from piped input (if provided)
-    let extracted_data = if ($piped_input | is-empty) {
-        null
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0  # Use first row for single-record operations
-        }
-    }
-    
-    # Create attach_data structure for consistency
-    # Piped input takes precedence over --attach
-    let attach_data = if ($extracted_data | is-not-empty) {
-        $extracted_data
-    } else if ($attach | is-not-empty) {
-        {uu: $attach, table_name: null}  # String param has no table_name
-    } else {
-        null
-    }
+    # Extract attachment data from piped input or --attach parameter
+    let attach_data = ($in | extract-attach-from-input $attach)
     
     # Handle json parameter
     let record_json = if ($json | is-empty) { "'{}'" } else { $"'($json)'" }
@@ -158,18 +138,8 @@ export def "event list" [
 export def "event get" [
     --detail(-d)  # Include detailed type information
 ] {
-    let piped_input = $in
-    
-    if ($piped_input | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
-    
-    # Extract UUID from input using Pattern A (simple UUID extraction)
-    let extracted = ($piped_input | extract-uu-table-name)
-    if ($extracted | is-empty) {
-        error make { msg: "No valid UUID found in input" }
-    }
-    let uu = $extracted.0.uu  # Just need the UUID
+    # Extract UUID from piped input
+    let uu = ($in | extract-single-uu)
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -198,18 +168,8 @@ export def "event get" [
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or event is already revoked
 export def "event revoke" [] {
-    let piped_input = $in
-    
-    if ($piped_input | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
-    
-    # Extract UUID from input using Pattern A (simple UUID extraction)
-    let extracted = ($piped_input | extract-uu-table-name)
-    if ($extracted | is-empty) {
-        error make { msg: "No valid UUID found in input" }
-    }
-    let target_uuid = $extracted.0.uu  # Just need the UUID
+    # Extract UUID from piped input
+    let target_uuid = ($in | extract-single-uu)
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }

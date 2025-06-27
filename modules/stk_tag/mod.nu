@@ -38,22 +38,11 @@ export def ".append tag" [
     --type-uu: string                   # Lookup type by UUID
     --json(-j): string                  # JSON data to store in record_json field (validated against type schema)
 ] {
-    let piped_input = $in
-    
-    # Extract UUID and table_name using Pattern B
-    let attach_data = if ($piped_input | is-empty) {
-        null
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0  # Get first row with both uu and table_name
-        }
-    }
+    # Extract attachment data from piped input (required for tags)
+    let attach_data = ($in | extract-attach-from-input)
     
     # UUID is required for tags
-    if ($attach_data | is-empty) or ($attach_data.uu? | is-empty) {
+    if ($attach_data == null) or ($attach_data.uu? | is-empty) {
         error make {
             msg: "UUID required: pipe in the UUID of the record you want to tag"
         }
@@ -189,25 +178,8 @@ export def "tag list" [
 export def "tag get" [
     --detail(-d)  # Include type information
 ] {
-    let piped_input = $in
-    
-    # Extract UUID using Pattern A
-    let uu = if ($piped_input | is-empty) {
-        null
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0.uu  # Just need the UUID
-        }
-    }
-    
-    if ($uu | is-empty) {
-        error make {
-            msg: "UUID required: pipe in the UUID of the tag to get"
-        }
-    }
+    # Extract UUID from piped input
+    let uu = ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to get")
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -235,25 +207,8 @@ export def "tag get" [
 #
 # Returns: Success message with revoked UUID
 export def "tag revoke" [] {
-    let piped_input = $in
-    
-    # Extract UUID using Pattern A
-    let target_uuid = if ($piped_input | is-empty) {
-        null
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0.uu  # Just need the UUID
-        }
-    }
-    
-    if ($target_uuid | is-empty) {
-        error make {
-            msg: "UUID required: pipe in the UUID of the tag to revoke"
-        }
-    }
+    # Extract UUID from piped input
+    let target_uuid = ($in | extract-single-uu --error-msg "UUID required: pipe in the UUID of the tag to revoke")
     
     # Pass columns without 'name' since stk_tag uses 'search_key' instead
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid [uu, search_key, revoked, is_revoked]

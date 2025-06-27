@@ -138,27 +138,38 @@ export def "project list" [
 # other system outputs. Use --detail to include type information.
 #
 # Accepts piped input:
-#   string - The UUID of the project to retrieve (required via pipe)
+#   string - The UUID of the project to retrieve
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'project list | where'
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | project get
 #   project list | get uu.0 | project get
+#   project list | where name == "Website Redesign" | project get
+#   project list | first | project get
 #   $project_uuid | project get | get description
 #   $project_uuid | project get --detail | get type_enum
 #   $uu | project get | if $in.is_revoked { print "Project was revoked" }
 #   $project_uuid | project get | lines  # Get project with all its line items
 #   $project_uuid | project get | lines | get lines.0  # Extract just the lines
+#   project get --uu "12345678-1234-5678-9012-123456789abc"
+#   project get --uu $my_project_uuid --detail
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
 # Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "project get" [
     --detail(-d)  # Include detailed type information
+    --uu: string  # UUID as a parameter instead of piped input
 ] {
-    let uu = $in
-    
-    if ($uu | is-empty) {
-        error make { msg: "UUID required via piped input" }
+    # Extract UUID from piped input or --uu parameter
+    let uu = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
     }
     
     if $detail {
@@ -176,20 +187,31 @@ export def "project get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the project to revoke (required via pipe)
+#   string - The UUID of the project to revoke
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'project list | where'
 #
 # Examples:
 #   project list | where name == "obsolete-project" | get uu.0 | project revoke
+#   project list | where name == "obsolete-project" | project revoke
 #   project list | where is_template == true | each { |row| $row.uu | project revoke }
 #   "12345678-1234-5678-9012-123456789abc" | project revoke
+#   project revoke --uu "12345678-1234-5678-9012-123456789abc"
+#   project revoke --uu $obsolete_project_uuid
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or project is already revoked
-export def "project revoke" [] {
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make { msg: "UUID required via piped input" }
+export def "project revoke" [
+    --uu: string  # UUID as a parameter instead of piped input
+] {
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
     }
     
     psql revoke-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $target_uuid
@@ -328,24 +350,35 @@ export def "project line list" [
 # other system outputs. Use --detail to include type information.
 #
 # Accepts piped input: 
-#   string - The UUID of the project line to retrieve (required via pipe)
+#   string - The UUID of the project line to retrieve
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'project line list | where'
 #
 # Examples:
-#   project line list $project_uuid | get uu.0 | project line get
+#   $project_uuid | project line list | get uu.0 | project line get
+#   $project_uuid | project line list | where name == "Database Design" | project line get
+#   $project_uuid | project line list | first | project line get
 #   $line_uuid | project line get | get description
 #   $line_uuid | project line get --detail | get type_enum
 #   "12345678-1234-5678-9012-123456789abc" | project line get
+#   project line get --uu "12345678-1234-5678-9012-123456789abc"
+#   project line get --uu $my_line_uuid --detail
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
 # Returns (with --detail): Includes type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "project line get" [
     --detail(-d)  # Include detailed type information
+    --uu: string  # UUID as a parameter instead of piped input
 ] {
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make {msg: "Project line UUID is required via piped input."}
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make {msg: "Project line UUID is required via piped input or --uu parameter."}
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
     }
     
     if $detail {
@@ -363,33 +396,48 @@ export def "project line get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the project line to revoke (required via pipe)
+#   string - The UUID of the project line to revoke
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'project line list | where'
 #   list - Multiple UUIDs to revoke in bulk
 #
 # Examples:
-#   project line list $project_uuid | where name == "obsolete-task" | get uu.0 | project line revoke
-#   project line list $project_uuid | where created < (date now) - 30day | get uu | project line revoke
+#   $project_uuid | project line list | where name == "obsolete-task" | get uu.0 | project line revoke
+#   $project_uuid | project line list | where name == "obsolete-task" | project line revoke
+#   $project_uuid | project line list | where created < (date now) - 30day | get uu | project line revoke
 #   "12345678-1234-5678-9012-123456789abc" | project line revoke
 #   [$uuid1, $uuid2, $uuid3] | project line revoke
+#   project line revoke --uu "12345678-1234-5678-9012-123456789abc"
+#   project line revoke --uu $obsolete_line_uuid
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status for each revoked line
 # Error: Command fails if UUID doesn't exist or line is already revoked
-export def "project line revoke" [] {
-    let input_data = $in
+export def "project line revoke" [
+    --uu: string  # UUID as a parameter instead of piped input
+] {
+    let input_data = if ($uu | is-not-empty) {
+        $uu
+    } else {
+        $in
+    }
     
     if ($input_data | is-empty) {
-        error make { msg: "UUID required via piped input" }
+        error make { msg: "UUID required via --uu parameter or piped input" }
     }
     
     # Handle both single UUID (string) and multiple UUIDs (list)
-    if ($input_data | describe) == "string" {
+    let data_type = ($input_data | describe)
+    if $data_type == "string" {
         psql revoke-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $input_data
-    } else if ($input_data | describe) =~ "list" {
+    } else if $data_type =~ "list" {
         $input_data | each { |uuid| 
             psql revoke-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $uuid
         }
+    } else if $data_type =~ "record" or $data_type =~ "table" {
+        let uuid = ($input_data | extract-single-uu)
+        psql revoke-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $uuid
     } else {
-        error make { msg: "Input must be a string UUID or list of UUIDs" }
+        error make { msg: "Input must be a string UUID, list of UUIDs, record, or table" }
     }
 }
 

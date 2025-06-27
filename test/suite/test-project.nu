@@ -188,6 +188,24 @@ assert ($retrieved_project | columns | any {|col| $col == "uu"}) "Retrieved proj
 assert ($retrieved_project.uu.0 == $first_project_uu) "Retrieved UUID should match requested UUID"
 echo "✓ Project get verified for UUID:" $first_project_uu
 
+echo "=== Testing project get with --uu parameter ==="
+let uu_param_project = (project get --uu $first_project_uu)
+assert (($uu_param_project | length) == 1) "Should return exactly one project with --uu parameter"
+assert ($uu_param_project.uu.0 == $first_project_uu) "Retrieved UUID should match requested UUID with --uu"
+echo "✓ Project get --uu parameter verified"
+
+echo "=== Testing project get with table input ==="
+let table_input_project = ($projects_list | where uu == $first_project_uu | project get)
+assert (($table_input_project | length) == 1) "Should return exactly one project from table input"
+assert ($table_input_project.uu.0 == $first_project_uu) "Retrieved UUID should match from table input"
+echo "✓ Project get with table input verified"
+
+echo "=== Testing project get with record input ==="
+let record_input_project = ($projects_list | where uu == $first_project_uu | get 0 | project get)
+assert (($record_input_project | length) == 1) "Should return exactly one project from record input"
+assert ($record_input_project.uu.0 == $first_project_uu) "Retrieved UUID should match from record input"
+echo "✓ Project get with record input verified"
+
 echo "=== Testing project get --detail command ==="
 let detailed_project = ($first_project_uu | project get --detail)
 assert (($detailed_project | length) == 1) "Should return exactly one detailed project"
@@ -204,6 +222,24 @@ assert ($retrieved_line | columns | any {|col| $col == "uu"}) "Retrieved line sh
 assert ($retrieved_line.uu.0 == $first_line_uu) "Retrieved line UUID should match requested UUID"
 echo "✓ Project line get verified for UUID:" $first_line_uu
 
+echo "=== Testing project line get with --uu parameter ==="
+let uu_param_line = (project line get --uu $first_line_uu)
+assert (($uu_param_line | length) == 1) "Should return exactly one project line with --uu parameter"
+assert ($uu_param_line.uu.0 == $first_line_uu) "Retrieved line UUID should match requested UUID with --uu"
+echo "✓ Project line get --uu parameter verified"
+
+echo "=== Testing project line get with table input ==="
+let table_input_line = ($line_list | where uu == $first_line_uu | project line get)
+assert (($table_input_line | length) == 1) "Should return exactly one project line from table input"
+assert ($table_input_line.uu.0 == $first_line_uu) "Retrieved line UUID should match from table input"
+echo "✓ Project line get with table input verified"
+
+echo "=== Testing project line get with record input ==="
+let record_input_line = ($line_list | where uu == $first_line_uu | get 0 | project line get)
+assert (($record_input_line | length) == 1) "Should return exactly one project line from record input"
+assert ($record_input_line.uu.0 == $first_line_uu) "Retrieved line UUID should match from record input"
+echo "✓ Project line get with record input verified"
+
 echo "=== Testing project line get --detail command ==="
 let detailed_line = ($first_line_uu | project line get --detail)
 assert (($detailed_line | length) == 1) "Should return exactly one detailed project line"
@@ -217,6 +253,34 @@ let revoke_result = ($project_uuid | project revoke)
 assert ($revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke should return is_revoked status"
 assert (($revoke_result.is_revoked.0) == true) "Project should be marked as revoked"
 echo "✓ Project revoke with piped UUID verified"
+
+echo "=== Testing project revoke with --uu parameter ==="
+# Create a new project to revoke
+let revoke_test_project = (project new "Project to Revoke via --uu")
+let revoke_test_uuid = ($revoke_test_project.uu.0)
+let uu_revoke_result = (project revoke --uu $revoke_test_uuid)
+assert ($uu_revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke with --uu should return is_revoked status"
+assert (($uu_revoke_result.is_revoked.0) == true) "Project should be marked as revoked via --uu"
+echo "✓ Project revoke with --uu parameter verified"
+
+echo "=== Testing project revoke with table input ==="
+# Create another project to revoke
+let table_revoke_project = (project new "Project to Revoke via Table")
+let table_revoke_result = (project list | where name == "Project to Revoke via Table" | project revoke)
+assert ($table_revoke_result | columns | any {|col| $col == "is_revoked"}) "Revoke with table should return is_revoked status"
+assert (($table_revoke_result.is_revoked.0) == true) "Project should be marked as revoked via table input"
+echo "✓ Project revoke with table input verified"
+
+echo "=== Testing project line revoke with --uu parameter ==="
+# Create a project and line for testing
+let line_revoke_project = (project new "Project for Line Revoke Test")
+let line_revoke_proj_uuid = ($line_revoke_project.uu.0)
+let line_to_revoke = ($line_revoke_proj_uuid | project line new "Line to Revoke via --uu")
+let line_revoke_uuid = ($line_to_revoke.uu.0)
+let uu_line_revoke_result = (project line revoke --uu $line_revoke_uuid)
+assert ($uu_line_revoke_result | columns | any {|col| $col == "is_revoked"}) "Line revoke with --uu should return is_revoked status"
+assert (($uu_line_revoke_result.is_revoked.0) == true) "Project line should be marked as revoked via --uu"
+echo "✓ Project line revoke with --uu parameter verified"
 
 echo "=== Testing lines command - Step 1: Basic functionality ==="
 # Create a test project for lines

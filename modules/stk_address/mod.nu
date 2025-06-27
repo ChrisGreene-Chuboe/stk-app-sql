@@ -13,11 +13,16 @@ const STK_ADDRESS_TYPE_KEY = "ADDRESS"
 # creates a tag attached to the specified record.
 #
 # Pipeline Input:
-#   string - UUID of the record to attach the address to (required)
+#   string - UUID of the record to attach the address to
+#   record - Record containing a 'uu' field
+#   table - Single-row table from commands like 'project list | where'
 #
 # Examples:
 #   # Add address to a project
 #   $project_uuid | .append address "3508 Galena Hills Loop Round Rock TX 78681"
+#   
+#   # Add address with record input
+#   project list | first | .append address "123 Main St Austin TX"
 #   
 #   # Add address with type specification
 #   $contact_uuid | .append address "ship to: 123 Main St Austin TX 78701" --type-search-key ADDRESS_SHIP_TO
@@ -38,11 +43,8 @@ export def ".append address" [
     --type-search-key: string = $STK_ADDRESS_TYPE_KEY  # Tag type search key (default: ADDRESS)
     --model: string               # AI model to use (optional)
 ] {
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make {msg: "Target UUID required via piped input"}
-    }
+    # Extract UUID from piped input (string, record, or table)
+    let target_uuid = ($in | extract-single-uu --error-msg "Target UUID required via piped input")
     
     # Get the tag type and its schema
     let tag_type = (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key)

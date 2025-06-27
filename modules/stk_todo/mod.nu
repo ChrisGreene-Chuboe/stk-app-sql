@@ -40,18 +40,11 @@ export def "todo new" [
     --json(-j): string              # Optional JSON data to store in record_json field
     --type(-t): string              # Specific TODO type name to use (optional, uses default if not specified)
 ] {
-    let piped_input = $in
-    
-    # Extract parent UUID using Pattern A
-    let parent_uuid = if ($piped_input | is-empty) {
-        null
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0.uu  # Just need the UUID for parent
-        }
+    # Extract parent UUID from piped input (optional for todos)
+    let parent_uuid = try {
+        ($in | extract-single-uu)
+    } catch {
+        null  # No parent UUID provided
     }
     
     # Build parameters for psql new-record
@@ -146,23 +139,8 @@ export def "todo list" [
 export def "todo get" [
     --detail(-d)  # Include detailed type information
 ] {
-    let piped_input = $in
-    
-    # Extract UUID using Pattern A
-    let uu = if ($piped_input | is-empty) {
-        null
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0.uu  # Just need the UUID
-        }
-    }
-    
-    if ($uu | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
+    # Extract UUID from piped input
+    let uu = ($in | extract-single-uu)
     
     # Note: psql get-record takes uu as parameter, not piped input
     psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS $uu --enum $STK_TODO_TYPE_ENUM --detail=$detail
@@ -191,23 +169,8 @@ export def "todo get" [
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist, is already revoked, or type_enum not in ['TODO']
 export def "todo revoke" [] {
-    let piped_input = $in
-    
-    # Extract UUID using Pattern A
-    let target_uuid = if ($piped_input | is-empty) {
-        null
-    } else {
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0.uu  # Just need the UUID
-        }
-    }
-    
-    if ($target_uuid | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
+    # Extract UUID from piped input
+    let target_uuid = ($in | extract-single-uu)
     
     # Note: psql revoke-record takes uu as parameter, not piped input
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid --enum $STK_TODO_TYPE_ENUM

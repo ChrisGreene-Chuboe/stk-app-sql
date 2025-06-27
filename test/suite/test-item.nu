@@ -1,7 +1,16 @@
 #!/usr/bin/env nu
 
 # Test script for stk_item module
-echo "=== Testing stk_item Module ==="
+print "=== Testing stk_item Module ==="
+
+# Test-specific suffix to ensure test isolation and idempotency
+# Generate random 2-char suffix from letters (upper/lower) and numbers
+let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+let random_suffix = (0..1 | each {|_| 
+    let idx = (random int 0..($chars | str length | $in - 1))
+    $chars | str substring $idx..($idx + 1)
+} | str join)
+let test_suffix = $"_si($random_suffix)"  # si for stk_item + 2 random chars
 
 # REQUIRED: Import modules and assert
 use ../modules *
@@ -24,13 +33,13 @@ assert ($type_enums | any {|t| $t == "ACCOUNT"}) "Should have ACCOUNT type"
 echo "✓ Item types verified successfully"
 
 echo "=== Testing basic item creation (default type) ==="
-let simple_item = (item new "Test Laptop Computer")
+let simple_item = (item new $"Test Laptop Computer($test_suffix)")
 
 echo "=== Verifying basic item creation ==="
 assert ($simple_item | columns | any {|col| $col == "uu"}) "Result should contain a 'uu' field"
 assert ($simple_item.uu | is-not-empty) "UUID field should not be empty"
 assert ($simple_item | columns | any {|col| $col == "name"}) "Result should contain 'name' field"
-assert ($simple_item.name.0 | str contains "Test Laptop Computer") "Name should match input"
+assert ($simple_item.name.0 | str contains $"Test Laptop Computer($test_suffix)") "Name should match input"
 echo "✓ Basic item creation verified with UUID:" ($simple_item.uu)
 
 echo "=== Testing item creation with description ==="
@@ -80,6 +89,27 @@ assert ($retrieved_item.uu.0 == $first_item_uu) "Retrieved UUID should match req
 assert ($retrieved_item | columns | any {|col| $col == "name"}) "Retrieved item should contain 'name' field"
 echo "✓ Item get verified for UUID:" $first_item_uu
 
+echo "=== Testing NEW: item get with --uu parameter ==="
+let param_retrieved_item = (item get --uu $first_item_uu)
+assert (($param_retrieved_item | length) == 1) "Should return exactly one item with --uu"
+assert ($param_retrieved_item.uu.0 == $first_item_uu) "Retrieved UUID should match requested UUID"
+echo "✓ NEW: Item get --uu parameter verified"
+
+echo "=== Testing NEW: item get with piped record ==="
+let first_item_record = ($items_list | get 0)
+let record_retrieved_item = ($first_item_record | item get)
+assert (($record_retrieved_item | length) == 1) "Should return exactly one item from record"
+assert ($record_retrieved_item.uu.0 == $first_item_record.uu) "Retrieved UUID should match record UUID"
+echo "✓ NEW: Item get with piped record verified"
+
+echo "=== Testing NEW: item get with piped single-row table ==="
+let test_items = ($items_list | where name =~ $test_suffix)
+let filtered_table = ($test_items | where name =~ "Laptop" | take 1)
+let table_retrieved_item = ($filtered_table | item get)
+assert (($table_retrieved_item | length) == 1) "Should return exactly one item from table"
+assert ($table_retrieved_item.name.0 | str contains "Laptop") "Retrieved item should be the laptop"
+echo "✓ NEW: Item get with piped table verified"
+
 echo "=== Testing item get --detail command ==="
 let detailed_item = ($first_item_uu | item get --detail)
 
@@ -102,11 +132,34 @@ assert ($revoke_result.is_revoked.0) "Item should be marked as revoked"
 echo "✓ Item revoke verified for UUID:" $first_item_uu
 
 echo "=== Testing item revoke with piped UUID ==="
-let pipeline_item = (item new "Pipeline Revoke Test Item")
+let pipeline_item = (item new $"Pipeline Revoke Test Item($test_suffix)")
 let pipeline_revoke_result = ($pipeline_item.uu.0 | item revoke)
 assert ($pipeline_revoke_result | columns | any {|col| $col == "is_revoked"}) "Pipeline revoke should return is_revoked status"
 assert (($pipeline_revoke_result.is_revoked.0) == true) "Pipeline revoked item should be marked as revoked"
 echo "✓ Item revoke with piped UUID verified"
+
+echo "=== Testing NEW: item revoke with --uu parameter ==="
+let param_item = (item new $"Parameter Revoke Test($test_suffix)")
+let param_revoke_result = (item revoke --uu $param_item.uu.0)
+assert ($param_revoke_result | columns | any {|col| $col == "is_revoked"}) "Parameter revoke should return is_revoked status"
+assert (($param_revoke_result.is_revoked.0) == true) "Parameter revoked item should be marked as revoked"
+echo "✓ NEW: Item revoke --uu parameter verified"
+
+echo "=== Testing NEW: item revoke with piped record ==="
+let record_item = (item new $"Record Revoke Test($test_suffix)")
+let record_for_revoke = (item list | where uu == $record_item.uu.0 | get 0)
+let record_revoke_result = ($record_for_revoke | item revoke)
+assert ($record_revoke_result | columns | any {|col| $col == "is_revoked"}) "Record revoke should return is_revoked status"
+assert (($record_revoke_result.is_revoked.0) == true) "Record revoked item should be marked as revoked"
+echo "✓ NEW: Item revoke with piped record verified"
+
+echo "=== Testing NEW: item revoke with piped table ==="
+let table_item = (item new $"Table Revoke Test($test_suffix)")
+let table_for_revoke = (item list | where uu == $table_item.uu.0)
+let table_revoke_result = ($table_for_revoke | item revoke)
+assert ($table_revoke_result | columns | any {|col| $col == "is_revoked"}) "Table revoke should return is_revoked status"
+assert (($table_revoke_result.is_revoked.0) == true) "Table revoked item should be marked as revoked"
+echo "✓ NEW: Item revoke with piped table verified"
 
 echo "=== Testing .append event with item UUID ==="
 let active_item_uu = ($described_item.uu.0)  # Use an unrevoked item

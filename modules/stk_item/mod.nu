@@ -121,13 +121,17 @@ export def "item list" [
 # other system outputs. Use --detail to include type information.
 #
 # Accepts piped input:
-#   string - The UUID of the item to retrieve (required via pipe)
+#   string - The UUID of the item to retrieve (required via pipe or --uu parameter)
+#   record - Record with 'uu' field to retrieve
+#   table - Table of records, uses first row's 'uu' field
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | item get
+#   item get --uu "12345678-1234-5678-9012-123456789abc"
 #   item list | get uu.0 | item get
+#   item list | get 0 | item get
 #   $item_uuid | item get | get description
-#   $item_uuid | item get --detail | get type_enum
+#   item get --uu $item_uuid --detail | get type_enum
 #   $uu | item get | if $in.is_revoked { print "Item was revoked" }
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
@@ -135,11 +139,16 @@ export def "item list" [
 # Error: Returns empty result if UUID doesn't exist
 export def "item get" [
     --detail(-d)  # Include detailed type information
+    --uu: string  # UUID as parameter (alternative to piped input)
 ] {
-    let uu = $in
-    
-    if ($uu | is-empty) {
-        error make { msg: "UUID required via piped input" }
+    # Extract UUID from piped input or --uu parameter
+    let uu = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
     }
     
     if $detail {
@@ -157,20 +166,31 @@ export def "item get" [
 # audit trails and data integrity in the chuck-stack system.
 #
 # Accepts piped input: 
-#   string - The UUID of the item to revoke (required via pipe)
+#   string - The UUID of the item to revoke (required via pipe or --uu parameter)
+#   record - Record with 'uu' field to revoke
+#   table - Table of records, uses first row's 'uu' field
 #
 # Examples:
 #   item list | where name == "obsolete-product" | get uu.0 | item revoke
-#   item list | where is_template == true | each { |row| $row.uu | item revoke }
+#   item list | where name == "obsolete-product" | get 0 | item revoke
+#   item list | where name == "obsolete-product" | item revoke
+#   item list | where is_template == true | each { |row| $row | item revoke }
 #   "12345678-1234-5678-9012-123456789abc" | item revoke
+#   item revoke --uu "12345678-1234-5678-9012-123456789abc"
 #
 # Returns: uu, name, revoked timestamp, and is_revoked status
 # Error: Command fails if UUID doesn't exist or item is already revoked
-export def "item revoke" [] {
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make { msg: "UUID required via piped input" }
+export def "item revoke" [
+    --uu: string  # UUID as parameter (alternative to piped input)
+] {
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = if ($in | is-empty) {
+        if ($uu | is-empty) {
+            error make { msg: "UUID required via piped input or --uu parameter" }
+        }
+        $uu
+    } else {
+        ($in | extract-single-uu)
     }
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
