@@ -1,5 +1,7 @@
 use ../modules *
 
+# to see this in action, simple `source project.nu' from a nushell session
+
 # create new parent project
 let p = project new "digital consulting erp"
 
