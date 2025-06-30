@@ -137,6 +137,7 @@ in pkgs.mkShell {
       cp -r pg_extension/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: pg_extension not found"
       cp -r ../migrations/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../migrations not found"
       cp -r ../modules/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../modules not found"
+      cp -r ../demo/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../demo not found"
       
       echo ""
       echo "******************************************************"

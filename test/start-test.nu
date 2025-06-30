@@ -64,6 +64,11 @@ def setup_directories [] {
     mkdir $"($env.STK_TEST_DIR)/suite"
     glob $"($env.STK_PWD_SHELL)/suite/test-*.nu" | each { |file| cp -f $file $"($env.STK_TEST_DIR)/suite" }
     print $"  Copied: test files to ($env.STK_TEST_DIR)/suite"
+    
+    # Copy demo files to test directory
+    print "Copying demo files..."
+    cp -rf $"($env.STK_PWD_SHELL)/../demo" $env.STK_TEST_DIR
+    print $"  Copied: demo files to ($env.STK_TEST_DIR)/demo"
 }
 
 # Setup PostgreSQL cluster and database
