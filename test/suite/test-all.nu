@@ -4,8 +4,8 @@
 # Automatically discovers and runs all test files based on test-*.nu pattern
 # Excludes test-all.nu itself to prevent circular references
 
-echo $"(ansi green_bold)=== Chuck-Stack Test Suite ===(ansi reset)"
-echo ""
+print $"(ansi green_bold)=== Chuck-Stack Test Suite ===(ansi reset)"
+print ""
 
 # Discover all test files using the test-*.nu pattern, excluding test-all.nu
 let test_files = (ls test-*.nu 
@@ -15,13 +15,13 @@ let test_files = (ls test-*.nu
     | sort)
 
 if ($test_files | is-empty) {
-    echo $"(ansi red)No test files found matching pattern 'test-*.nu' (excluding test-all.nu)(ansi reset)"
+    print $"(ansi red)No test files found matching pattern 'test-*.nu' (excluding test-all.nu)(ansi reset)"
     exit 1
 }
 
-echo $"Found ($test_files | length) test files:"
-$test_files | each {|file| echo $"  - ($file)"}
-echo ""
+print $"Found ($test_files | length) test files:"
+$test_files | each {|file| print $"  - ($file)"}
+print ""
 
 # Run each test file and collect results
 mut test_results = []
@@ -58,20 +58,20 @@ let passed_tests = ($test_results | where status == "passed" | length)
 let failed_tests = ($test_results | where status == "failed")
 
 # Print summary
-echo $"(ansi green_bold)=== Test Suite Summary ===(ansi reset)"
-echo $"Total tests: ($total_tests)"
-echo $"Passed: ($passed_tests)"
-echo $"Failed: ($failed_tests | length)"
+print $"(ansi green_bold)=== Test Suite Summary ===(ansi reset)"
+print $"Total tests: ($total_tests)"
+print $"Passed: ($passed_tests)"
+print $"Failed: ($failed_tests | length)"
 
 if ($failed_tests | length) > 0 {
-    echo ""
-    echo $"(ansi red)Failed tests:(ansi reset)"
-    $failed_tests | each {|result| echo $"  - ($result.file)"}
-    echo ""
-    echo $"(ansi red)Test suite FAILED(ansi reset)"
+    print ""
+    print $"(ansi red)Failed tests:(ansi reset)"
+    $failed_tests | each {|result| print $"  - ($result.file)"}
+    print ""
+    print $"(ansi red)Test suite FAILED(ansi reset)"
     exit 1
 } else {
-    echo ""
-    echo $"(ansi green)All tests PASSED! 🎉(ansi reset)"
+    print ""
+    print $"(ansi green)All tests PASSED! 🎉(ansi reset)"
     exit 0
 }
