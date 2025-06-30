@@ -1,0 +1,6 @@
+{
+  "contributors": [],
+  "message": "Thank you for your contribution! Please read and sign our [Contributor License Agreement (CLA)](.github/CLA.md) by commenting:\n\n`I have read and agree to the Contributor License Agreement`\n\nThis is required before we can accept your pull request.",
+  "label": "cla-signed",
+  "removelabel": "cla-required"
+}
