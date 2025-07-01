@@ -86,6 +86,7 @@ Modules that provide specialized interfaces to existing tables:
 - **Constants**: Reference wrapped table (STK_TABLE_NAME points to wrapped table)
 - **Key Considerations**:
   - Use `.append` pattern for attachments (see [Pattern 7](#7-parent-child-pattern))
+  - Handle `table_name_uu_json` explicitly when wrapping event/request tables
   - Delegate to base module's generic commands
 - **Examples**: See [Domain Wrapper Modules](#domain-wrapper-modules-1) in Reference Implementations
 
@@ -452,7 +453,7 @@ Focus on:
 - **`stk_item`** - Clean single-table module with `--json` parameter
 - **`stk_project`** - Complete header-line pattern with `--json` for both header and lines
 - **`stk_event`** - Specialized attachment patterns with `--json` parameter
-- **`stk_tag`** - Advanced `--json` usage with schema validation
+- **`stk_tag`** - Advanced `--json` usage with schema validation (see `stk_address` for implementation)
 - **`stk_request`** - Simple `--json` implementation
 
 Enhanced modules with UUID input pattern: stk_request, stk_todo, stk_tag, stk_event, stk_item
@@ -463,7 +464,8 @@ Enhanced modules with UUID input pattern: stk_request, stk_todo, stk_tag, stk_ev
 
 ### Domain Wrapper Modules
 - **`stk_todo`** - Wraps `stk_request` table for todo list functionality
-- **`stk_address`** - Wraps `stk_tag` table with AI-powered address parsing
+- **`stk_address`** - Wraps `stk_tag` table with AI-powered address parsing and JSON schema validation
+- **`stk_timesheet`** - Wraps `stk_event` table for time tracking
 
 ## Appendix: Common Pitfalls
 

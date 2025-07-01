@@ -6,7 +6,7 @@ use ../modules *
 let p = project new "digital consulting erp"
 
 # create first project line
-$p.0.uu | project line new "create timesheets"
+let p1 = $p.0.uu | project line new "create timesheets"
 
 # create second project line
 $p.0.uu | project line new "create support ticket"
@@ -15,4 +15,9 @@ $p.0.uu | project line new "create support ticket"
 $p.0.uu | project line new "party like it is 1984"
 
 # show progress
-$p | lines | select name lines
+print ***************
+print project lines
+print ***************
+print ($p | lines | select name lines)
+
+$p1 | .append timesheet --minutes 60

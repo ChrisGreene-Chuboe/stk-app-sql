@@ -897,7 +897,7 @@ export def elaborate [
         for col in $uu_cols {
             $result = $result | insert $"($col)_resolved" {|row|
                 let uu_value = ($row | get $col)
-                if ($uu_value != null) and ($uu_value != "") {
+                if ($uu_value != null) and ($uu_value != "") and (($uu_value | str downcase) != "null") {
                     # Look up table name using PostgreSQL function
                     let lookup_result = (psql exec $"SELECT api.get_table_name_uu_json\('($uu_value)'::uuid)" | first)
                     let ref = ($lookup_result | get "get_table_name_uu_json")
