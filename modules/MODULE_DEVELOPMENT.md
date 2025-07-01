@@ -9,6 +9,17 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
 - [Module Categories](#module-categories)
 - [Database Schema Context](#database-schema-context)
 - [Core Patterns](#core-patterns)
+  - [1. Parameters Record Pattern](#1-parameters-record-pattern)
+  - [2. UUID Input Operations](#2-uuid-input-operations)
+  - [3. Generic PSQL Commands](#3-generic-psql-commands)
+  - [4. Module Constants](#4-module-constants)
+  - [5. Type Support](#5-type-support)
+  - [6. Header-Line Pattern](#6-header-line-pattern)
+  - [7. Parent-Child Pattern](#7-parent-child-pattern)
+  - [8. JSON Parameter Pattern](#8-json-parameter-pattern)
+  - [9. Dynamic Command Building](#9-dynamic-command-building)
+  - [10. UUID Input Enhancement Pattern](#10-uuid-input-enhancement-pattern)
+  - [11. Utility Functions Pattern](#11-utility-functions-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -117,16 +128,19 @@ let params = {
 psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 ```
 
-### 2. Pipeline-Only UUID Operations
+### 2. UUID Input Operations
 
-Commands operating on existing records require UUIDs via piped input:
+Commands operating on existing records accept UUIDs via piped input or --uu parameter:
 
 ```nushell
 # Examples
 $uuid | project get
 $uuid | project revoke
 $project_uuid | project line list
+# Also supports: project get --uu $uuid
 ```
+
+See Pattern 10 for enhanced UUID input options.
 
 ### 3. Generic PSQL Commands
 
@@ -241,6 +255,25 @@ if $detail {
 
 This pattern avoids nested if/else blocks when combining optional parameters.
 
+### 10. UUID Input Enhancement Pattern
+
+Commands accept UUIDs through multiple input types:
+- String UUID (backward compatible)
+- Single record with 'uu' field  
+- Table (uses first row)
+- --uu parameter (alternative to piped input)
+
+Uses `extract-uu-table-name` and `extract-single-uu` utilities from stk_utility.
+Reference: stk_request module for complete implementation.
+
+### 11. Utility Functions Pattern
+
+Reduce boilerplate with stk_utility functions:
+- `extract-single-uu`: UUID extraction with validation
+- `extract-attach-from-input`: Attachment data extraction
+
+Reference: stk_request `.append request` for both utilities.
+
 ## Implementation Guide
 
 ### Step 1: Define Module Constants
@@ -290,6 +323,7 @@ export def "module new" [
         # record_json: ($record_json | to json)  # Add if table has record_json column
     }
     
+    # For .append commands with attachments, use extract-attach-from-input - see stk_request
     psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 }
 ```
@@ -315,12 +349,10 @@ export def "module list" [
 ```nushell
 export def "module get" [
     --detail(-d)
+    --uu: string  # UUID as parameter (alternative to piped input)
 ] {
-    let uu = $in
-    
-    if ($uu | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
+    # Extract UUID using utility function
+    let uu = ($in | extract-single-uu --uu $uu)
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -332,12 +364,11 @@ export def "module get" [
 
 #### Revoke Command
 ```nushell
-export def "module revoke" [] {
-    let target_uuid = $in
-    
-    if ($target_uuid | is-empty) {
-        error make { msg: "UUID required via piped input" }
-    }
+export def "module revoke" [
+    --uu: string  # UUID as parameter (alternative to piped input)
+] {
+    # Extract UUID using utility function
+    let target_uuid = ($in | extract-single-uu --uu $uu)
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
@@ -371,12 +402,15 @@ Choose the appropriate checklist based on your module category:
 - [ ] Implement `list` command with --detail and --all flags
 - [ ] Implement `get` command with pipeline UUID input
 - [ ] Implement `revoke` command with pipeline UUID input
+- [ ] Add --uu parameter to get/revoke commands
+- [ ] Use stk_utility functions for UUID/attachment extraction
 - [ ] Add `types` command if table has associated types
 - [ ] Add header-line commands if applicable
 - [ ] Write comprehensive help documentation
 - [ ] Create README.md focusing on concepts
 - [ ] Test all command variations (see "Testing Requirements" in TESTING_NOTES.md)
 - [ ] Test JSON functionality: valid JSON, invalid JSON, empty/missing JSON
+- [ ] Test string/record/table input modes
 
 ### For System Wrapper Modules:
 - [ ] Define tool-specific constants
@@ -421,6 +455,8 @@ Focus on:
 - **`stk_tag`** - Advanced `--json` usage with schema validation
 - **`stk_request`** - Simple `--json` implementation
 
+Enhanced modules with UUID input pattern: stk_request, stk_todo, stk_tag, stk_event, stk_item
+
 ### System Wrapper Modules
 - **`stk_psql`** - PostgreSQL command wrapper with structured output parsing
 - **`stk_ai`** - AI tool wrapper for text transformation
@@ -441,6 +477,7 @@ Focus on:
 - **No custom SQL**: Always use psql generic commands
 - **Include type support**: If table has `_type` companion
 - **Support bulk operations**: Accept lists where logical
+- **Type handling**: PostgreSQL results may return `list<any>` - extract-uu-table-name handles this automatically
 
 ## Document Maintenance Guidelines
 
