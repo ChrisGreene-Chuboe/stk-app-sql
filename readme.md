@@ -62,8 +62,6 @@ We use the following to support migration scripts. This script is especially des
 
 - https://github.com/chuckstack/chuck-stack-nushell-psql-migration
 
-We previously used sqlx-cli to manage database migrations.
-
 ## Nushell Module CRUD
 
 The ./modules/MODULE_DEVELOPMENT.md covers this topic extensively.

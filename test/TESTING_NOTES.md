@@ -84,7 +84,7 @@ When `nix-shell` runs, it creates a temporary test workspace:
 ### Key Components
 - **nix-shell**: Provides PostgreSQL and dependencies
 - **start-test.nu**: Initializes database and runs migrations
-- **migrate command**: Manages database migrations (replaces sqlx-cli)
+- **migrate command**: Manages database migrations
 - **psql commands**: Execute database operations
 
 ### Environment Variables

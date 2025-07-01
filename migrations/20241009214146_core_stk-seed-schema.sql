@@ -20,5 +20,5 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT ALL ON SEQUENCES TO stk_superuser;
 
 ALTER ROLE stk_superuser SET search_path TO public, private, api;
 
---Note: leaving public schema since used by sqlx migration
+--Note: leaving public schema since used by migration
 --ALTER SCHEMA public OWNER TO stk_superuser;

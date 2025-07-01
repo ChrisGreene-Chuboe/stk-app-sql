@@ -24,8 +24,6 @@ in pkgs.mkShell {
     # note the PGUSER env var is used by psql directly
     export PGUSER=$ID_SUPERUSER
     export PGDATABASE=idempiere
-    # note next line is used by sqlx-cli
-    #export DATABASE_URL="postgresql://$ID_SUPERUSER/$PGDATABASE?host=$PGHOST"
 
     if [ ! -d "$PGDATA" ]; then
       echo "Initializing PostgreSQL database..."
