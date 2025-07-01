@@ -1,6 +1,6 @@
-# Contributing to stk-app-sql
+# Contributing to chuck-stack-core
 
-Thank you for your interest in contributing to stk-app-sql! We welcome contributions from the community.
+Thank you for your interest in contributing to chuck-stack-core! We welcome contributions from the community.
 
 ## Contributor License Agreement (CLA)
 
@@ -56,4 +56,4 @@ If you have questions about contributing, please:
 - Open an issue for clarification
 - Contact us at [your-email@chuck-stack.org]
 
-We appreciate your contributions to making stk-app-sql better!
+We appreciate your contributions to making chuck-stack-core better!

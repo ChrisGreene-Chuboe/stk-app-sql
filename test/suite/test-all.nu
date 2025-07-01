@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 
-# Test All Script for stk-app-sql modules
+# Test All Script for chuck-stack-core modules
 # Automatically discovers and runs all test files based on test-*.nu pattern
 # Excludes test-all.nu itself to prevent circular references
 

@@ -1,4 +1,4 @@
-# stk-app-sql 
+# chuck-stack-core 
 
 The purpose of this repository is to create the application/framework aspect of the chuck-stack.
 

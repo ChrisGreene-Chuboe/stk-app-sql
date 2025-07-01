@@ -2,7 +2,7 @@
 
 ## Individual Contributor License Agreement
 
-By contributing to stk-app-sql, you accept and agree to the following terms and conditions for your present and future contributions submitted to the project.
+By contributing to chuck-stack-core, you accept and agree to the following terms and conditions for your present and future contributions submitted to the project.
 
 ### Grant of Rights
 
@@ -28,4 +28,4 @@ By submitting a pull request, you agree to this CLA. You can indicate your agree
 I have read and agree to the Contributor License Agreement.
 ```
 
-This agreement covers all your contributions to stk-app-sql, both past and future.
+This agreement covers all your contributions to chuck-stack-core, both past and future.
