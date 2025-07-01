@@ -335,5 +335,49 @@ try {
 }
 #print "✓ Request revoke error handling verified"
 
+#print "=== Testing requests command (table_name_uu_json enrichment) ==="
+# Create a project to attach requests to
+let test_project = (project new $"Requests Command Test($test_suffix)")
+let project_uu = ($test_project.uu.0)
+
+# Create multiple requests attached to the project
+let req1 = ($project_uu | .append request $"task-1($test_suffix)" --description "First task")
+let req2 = ($project_uu | .append request $"task-2($test_suffix)" --description "Second task")
+let req3 = ($project_uu | .append request $"task-3($test_suffix)" --description "Third task")
+
+# Test basic requests command
+let projects_with_requests = (project list | where uu == $project_uu | requests)
+assert (($projects_with_requests | length) == 1) "Should return one project"
+assert (($projects_with_requests.0.requests | length) == 3) "Project should have 3 requests"
+assert ($projects_with_requests.0.requests.0.name | str contains $test_suffix) "Request name should contain test suffix"
+#print "✓ Basic requests command verified"
+
+# Test with specific columns
+let requests_with_columns = (project list | where uu == $project_uu | requests name description)
+assert (($requests_with_columns.0.requests.0 | columns | length) == 2) "Should only have specified columns"
+assert ($requests_with_columns.0.requests.0 | columns | any {|col| $col == "name"}) "Should have name column"
+assert ($requests_with_columns.0.requests.0 | columns | any {|col| $col == "description"}) "Should have description column"
+#print "✓ Requests command with specific columns verified"
+
+# Test with --all flag
+let requests_all = (project list | where uu == $project_uu | requests --all)
+assert (($requests_all.0.requests.0 | columns | length) > 4) "Should have all columns with --all flag"
+assert ($requests_all.0.requests.0 | columns | any {|col| $col == "created"}) "Should have created column"
+assert ($requests_all.0.requests.0 | columns | any {|col| $col == "uu"}) "Should have uu column"
+#print "✓ Requests command with --all flag verified"
+
+# Test with no attached requests
+let empty_project = (project new $"Empty Project($test_suffix)")
+let empty_project_requests = (project list | where uu == ($empty_project.uu.0) | requests)
+assert (($empty_project_requests.0.requests | length) == 0) "Project with no requests should have empty array"
+#print "✓ Requests command with no results verified"
+
+# Clean up test data
+request revoke --uu ($req1.uu.0)
+request revoke --uu ($req2.uu.0)
+request revoke --uu ($req3.uu.0)
+project revoke --uu $project_uu
+project revoke --uu ($empty_project.uu.0)
+
 # Return success string as final expression (no #print needed)
 "=== All tests completed successfully ==="

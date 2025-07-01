@@ -244,3 +244,22 @@ export def "tag revoke" [
 export def "tag types" [] {
     psql list-types $STK_SCHEMA $STK_TABLE_NAME
 }
+
+# Add a 'tags' column to records, fetching associated stk_tag records
+#
+# This command enriches piped records with a 'tags' column containing
+# their associated tag records. It uses the table_name_uu_json pattern
+# to find tags that reference the input records.
+#
+# Examples:
+#   project list | tags                          # Default columns
+#   project list | tags --all                    # All tag columns
+#   project list | tags search_key record_json   # Specific columns
+#
+# Returns: Original records with added 'tags' column containing array of tag records
+export def tags [
+    ...columns: string  # Specific columns to include in tag records
+    --all               # Include all columns (select *)
+] {
+    $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "search_key", "description", "type_uu"] ...$columns --all=$all
+}

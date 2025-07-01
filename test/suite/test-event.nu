@@ -345,5 +345,49 @@ try {
 }
 #print "✓ Event revoke error handling verified"
 
+#print "=== Testing events command (table_name_uu_json enrichment) ==="
+# Create a project to attach events to
+let test_project = (project new $"Events Command Test($test_suffix)")
+let project_uu = ($test_project.uu.0)
+
+# Create multiple events attached to the project
+let evt1 = ($project_uu | .append event $"started($test_suffix)" --description "Project started")
+let evt2 = ($project_uu | .append event $"milestone($test_suffix)" --description "Milestone reached")
+let evt3 = ($project_uu | .append event $"completed($test_suffix)" --description "Project completed")
+
+# Test basic events command
+let projects_with_events = (project list | where uu == $project_uu | events)
+assert (($projects_with_events | length) == 1) "Should return one project"
+assert (($projects_with_events.0.events | length) == 3) "Project should have 3 events"
+assert ($projects_with_events.0.events.0.name | str contains $test_suffix) "Event name should contain test suffix"
+#print "✓ Basic events command verified"
+
+# Test with specific columns
+let events_with_columns = (project list | where uu == $project_uu | events name description)
+assert (($events_with_columns.0.events.0 | columns | length) == 2) "Should only have specified columns"
+assert ($events_with_columns.0.events.0 | columns | any {|col| $col == "name"}) "Should have name column"
+assert ($events_with_columns.0.events.0 | columns | any {|col| $col == "description"}) "Should have description column"
+#print "✓ Events command with specific columns verified"
+
+# Test with --all flag
+let events_all = (project list | where uu == $project_uu | events --all)
+assert (($events_all.0.events.0 | columns | length) > 3) "Should have all columns with --all flag"
+assert ($events_all.0.events.0 | columns | any {|col| $col == "created"}) "Should have created column"
+assert ($events_all.0.events.0 | columns | any {|col| $col == "uu"}) "Should have uu column"
+#print "✓ Events command with --all flag verified"
+
+# Test with no attached events
+let empty_project = (project new $"Empty Event Project($test_suffix)")
+let empty_project_events = (project list | where uu == ($empty_project.uu.0) | events)
+assert (($empty_project_events.0.events | length) == 0) "Project with no events should have empty array"
+#print "✓ Events command with no results verified"
+
+# Clean up test data
+event revoke --uu ($evt1.uu.0)
+event revoke --uu ($evt2.uu.0)
+event revoke --uu ($evt3.uu.0)
+project revoke --uu $project_uu
+project revoke --uu ($empty_project.uu.0)
+
 # Return success string for test harness (not print)
 "=== All tests completed successfully ==="

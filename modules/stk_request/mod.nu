@@ -232,3 +232,22 @@ export def "request revoke" [
 export def "request types" [] {
     psql list-types $STK_SCHEMA $STK_TABLE_NAME
 }
+
+# Add a 'requests' column to records, fetching associated stk_request records
+#
+# This command enriches piped records with a 'requests' column containing
+# their associated request records. It uses the table_name_uu_json pattern
+# to find requests that reference the input records.
+#
+# Examples:
+#   project list | requests                            # Default columns
+#   project list | requests --all                      # All request columns
+#   project list | requests name description created   # Specific columns
+#
+# Returns: Original records with added 'requests' column containing array of request records
+export def requests [
+    ...columns: string  # Specific columns to include in request records
+    --all               # Include all columns (select *)
+] {
+    $in | psql append-table-name-uu-json "stk_request" "requests" ["name", "description", "is_processed", "record_json"] ...$columns --all=$all
+}

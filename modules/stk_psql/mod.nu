@@ -1161,3 +1161,99 @@ export def tags [
     
     $result
 }
+
+# Generic command to append related records using table_name_uu_json pattern
+#
+# This is a generic implementation that allows any module to add a column
+# containing related records that reference the input records via table_name_uu_json.
+# This pattern is used by tags, requests, events, and potentially other modules.
+#
+# The command enriches piped records by:
+# - Building a table_name_uu_json value for each record: {"table_name": "xxx", "uu": "yyy"}
+# - Querying the specified table for records where table_name_uu_json matches
+# - Adding a new column with the fetched records
+#
+# This is typically wrapped by module-specific commands like:
+# - stk_tag: tags command
+# - stk_request: requests command  
+# - stk_event: events command
+#
+# Requirements:
+# - Input records must have 'table_name' and 'uu' columns
+# - Target table must have 'table_name_uu_json' and 'is_revoked' columns
+#
+# Examples (when wrapped by module commands):
+# # From stk_tag module
+# export def tags [...columns: string --all] {
+#     $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "search_key", "description", "type_uu"] ...$columns --all=$all
+# }
+#
+# Parameters:
+# - table: The table name to query (e.g., "stk_tag", "stk_request")
+# - column: The column name to add to results (e.g., "tags", "requests")
+# - default_columns: List of columns to return by default when no columns specified
+# - ...columns: User-specified columns to return
+# - --all: Return all columns from the related records
+export def "psql append-table-name-uu-json" [
+    table: string               # Table to query for related records
+    column: string              # Name of column to add to results
+    default_columns: list       # Default columns when none specified
+    ...columns: string          # Specific columns to include
+    --all                       # Include all columns (select *)
+] {
+    let input = $in
+    
+    # Return empty if no input
+    if ($input | is-empty) {
+        return []
+    }
+    
+    # Process each record
+    let result = $input | each { |record|
+        # Check if record has required columns
+        if 'table_name' not-in ($record | columns) or 'uu' not-in ($record | columns) {
+            return $record | insert $column null
+        }
+        
+        let table_name = $record.table_name
+        let record_uu = $record.uu
+        
+        try {
+            # Build the table_name_uu_json value for searching
+            let table_name_uu_json = {table_name: $table_name, uu: $record_uu} | to json
+            
+            # Build SELECT clause based on user input
+            let select_clause = if ($columns | is-empty) {
+                "*"
+            } else {
+                $columns | str join ", "
+            }
+            
+            # Query for related records using standard is_revoked pattern
+            let query = $"SELECT ($select_clause) FROM api.($table) WHERE table_name_uu_json = '($table_name_uu_json)' AND is_revoked = false ORDER BY created"
+            let data = (psql exec $query)
+            
+            # If no columns specified and not --all, filter to default columns
+            let final_data = if (not $all) and ($columns | is-empty) and (not ($data | is-empty)) {
+                let available_columns = ($data | columns)
+                let cols_to_keep = $default_columns | where { |col| $col in $available_columns }
+                
+                if ($cols_to_keep | is-empty) {
+                    $data
+                } else {
+                    $data | select ...$cols_to_keep
+                }
+            } else {
+                $data
+            }
+            
+            # Add column with fetched data
+            $record | insert $column $final_data
+        } catch {
+            # Error occurred, return error object
+            $record | insert $column { error: $"Failed to fetch ($column) for ($table_name):($record_uu): ($in)" }
+        }
+    }
+    
+    $result
+}

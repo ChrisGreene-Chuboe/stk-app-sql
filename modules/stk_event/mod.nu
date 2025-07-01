@@ -209,4 +209,23 @@ export def "event types" [] {
     psql list-types $STK_SCHEMA $STK_TABLE_NAME
 }
 
+# Add an 'events' column to records, fetching associated stk_event records
+#
+# This command enriches piped records with an 'events' column containing
+# their associated event records. It uses the table_name_uu_json pattern
+# to find events that reference the input records.
+#
+# Examples:
+#   project list | events                          # Default columns
+#   project list | events --all                    # All event columns
+#   project list | events name description created # Specific columns
+#
+# Returns: Original records with added 'events' column containing array of event records
+export def events [
+    ...columns: string  # Specific columns to include in event records
+    --all               # Include all columns (select *)
+] {
+    $in | psql append-table-name-uu-json "stk_event" "events" ["name", "description", "record_json"] ...$columns --all=$all
+}
+
 
