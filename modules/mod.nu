@@ -32,3 +32,6 @@ export use stk_ai *
 
 # Address management with AI-powered natural language processing
 export use stk_address *
+
+# Timesheet tracking for recording work hours against projects and tasks
+export use stk_timesheet *
