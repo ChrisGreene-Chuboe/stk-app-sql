@@ -165,6 +165,22 @@ assert ($null_result.uu | is-not-empty) "Should create project without parent"
 assert ($null_result.parent_uu.0 == "null") "Should have null parent_uu without piped input"
 #print "✓ Edge cases for parent UUID verified"
 
+#print "=== Testing project new with table input ==="
+# Create parent project
+let table_parent = (project new "Parent for Table Test")
+# Create sub-project using table input
+let table_sub = (project list | where name == "Parent for Table Test" | project new "Sub via Table")
+assert ($table_sub.uu | is-not-empty) "Should create sub-project with table input"
+assert ($table_sub.parent_uu.0 == $table_parent.uu.0) "Sub-project parent_uu should match parent from table"
+#print "✓ Project new with table input verified"
+
+#print "=== Testing project new with record input ==="
+# Create sub-project using record input
+let record_sub = (project list | where name == "Parent for Table Test" | first | project new "Sub via Record")
+assert ($record_sub.uu | is-not-empty) "Should create sub-project with record input"
+assert ($record_sub.parent_uu.0 == $table_parent.uu.0) "Sub-project parent_uu should match parent from record"
+#print "✓ Project new with record input verified"
+
 
 #print "=== Testing project list command ==="
 let projects_list = (project list)
@@ -239,6 +255,37 @@ let record_input_line = ($line_list | where uu == $first_line_uu | get 0 | proje
 assert (($record_input_line | length) == 1) "Should return exactly one project line from record input"
 assert ($record_input_line.uu.0 == $first_line_uu) "Retrieved line UUID should match from record input"
 #print "✓ Project line get with record input verified"
+
+#print "=== Testing project line new with table input ==="
+# Create a project for line table input testing
+let line_table_project = (project new "Project for Line Table Test")
+# Create line using table input
+let table_line = (project list | where name == "Project for Line Table Test" | project line new "Line via Table" --description "Created with table input")
+assert ($table_line.uu | is-not-empty) "Should create project line with table input"
+assert ($table_line.name.0 == "Line via Table") "Line name should match"
+#print "✓ Project line new with table input verified"
+
+#print "=== Testing project line new with record input ==="
+# Create line using record input
+let record_line = (project list | where name == "Project for Line Table Test" | first | project line new "Line via Record" --description "Created with record input")
+assert ($record_line.uu | is-not-empty) "Should create project line with record input"
+assert ($record_line.name.0 == "Line via Record") "Line name should match"
+#print "✓ Project line new with record input verified"
+
+#print "=== Testing project line list with table input ==="
+# List lines using table input
+let table_lines = (project list | where name == "Project for Line Table Test" | project line list)
+assert (($table_lines | length) == 2) "Should list 2 lines with table input"
+let table_line_names = ($table_lines | get name)
+assert ($table_line_names | any {|n| $n == "Line via Table"}) "Should have Line via Table"
+assert ($table_line_names | any {|n| $n == "Line via Record"}) "Should have Line via Record"
+#print "✓ Project line list with table input verified"
+
+#print "=== Testing project line list with record input ==="
+# List lines using record input
+let record_lines = (project list | where name == "Project for Line Table Test" | first | project line list)
+assert (($record_lines | length) == 2) "Should list 2 lines with record input"
+#print "✓ Project line list with record input verified"
 
 #print "=== Testing project line get --detail command ==="
 let detailed_line = ($first_line_uu | project line get --detail)

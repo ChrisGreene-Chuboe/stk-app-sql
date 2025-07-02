@@ -17,12 +17,16 @@ const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid, reco
 #
 # Accepts piped input:
 #   string - UUID of parent project for creating sub-projects (optional)
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'project list | where'
 #
 # Examples:
 #   project new "Website Redesign"
 #   project new "CRM Development" --description "Internal CRM system development"
 #   project new "AI Research" --type-search-key "research" --description "Research new AI technologies"
 #   "12345678-1234-5678-9012-123456789abc" | project new "Sub-project Name"
+#   project list | where name == "Parent Project" | project new "Sub-project Name"
+#   project list | first | project new "Child Project" --description "Part of parent project"
 #   project new "Data Migration" --json '{"priority": "high", "estimated_hours": 120}'
 #
 # Returns: The UUID and name of the newly created project record
@@ -42,10 +46,12 @@ export def "project new" [
     }
     
     # Handle optional piped parent UUID
-    let piped_uuid = $in
-    let parent_uuid = if ($piped_uuid | is-not-empty) {
-        # Validate that the piped UUID exists in the project table
-        psql validate-uuid-table $piped_uuid $STK_PROJECT_TABLE_NAME
+    let piped_input = $in
+    let parent_uuid = if ($piped_input | is-not-empty) {
+        # Extract UUID from various input types
+        let uuid = ($piped_input | extract-single-uu)
+        # Validate that the UUID exists in the project table
+        psql validate-uuid-table $uuid $STK_PROJECT_TABLE_NAME
     } else {
         null
     }
@@ -247,12 +253,15 @@ export def "project types" [] {
 # items that make up a project and can be tagged with stk_item for billing.
 # The system automatically assigns default values via triggers if type is not specified.
 #
-# Accepts piped input: project UUID (required)
+# Accepts piped input:
+#   string - The UUID of the project (required)
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'project list | where'
 #
 # Examples:
 #   $project_uuid | project line new "User Auth Implementation"
-#   $project_uuid | project line new "Database Design" --description "Complete database design" --type-search-key "TASK"
-#   $project_uuid | project line new "Production Deployment" --type-search-key "MILESTONE" --description "Deploy to production server"
+#   project list | where name == "My Project" | project line new "Database Design" --description "Complete database design" --type-search-key "TASK"
+#   project list | first | project line new "Production Deployment" --type-search-key "MILESTONE" --description "Deploy to production server"
 #   $project_uuid | project line new "Requirements Analysis" --template
 #   $project_uuid | project line new "API Integration" --json '{"estimated_hours": 40, "priority": "high"}'
 #
@@ -267,11 +276,8 @@ export def "project line new" [
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
 ] {
-    let project_uu = $in
-    
-    if ($project_uu | is-empty) {
-        error make {msg: "Project UUID is required via piped input."}
-    }
+    # Extract UUID from piped input
+    let project_uu = ($in | extract-single-uu --error-msg "Project UUID is required via piped input")
     
     # Validate that only one type parameter is provided
     if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
@@ -312,11 +318,15 @@ export def "project line new" [
 # view project breakdown, track progress, or manage project tasks.
 # Shows the most recent lines first for easy review.
 #
-# Accepts piped input: project UUID (required)
+# Accepts piped input:
+#   string - The UUID of the project (required)
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'project list | where'
 #
 # Examples:
 #   $project_uuid | project line list
-#   $project_uuid | project line list | where is_template == false
+#   project list | where name == "My Project" | project line list
+#   project list | first | project line list | where is_template == false
 #   $project_uuid | project line list | select name description | table
 #   $project_uuid | project line list | where name =~ "test"
 #   $project_uuid | project line list | elaborate  # Resolve all UUID references
@@ -327,11 +337,8 @@ export def "project line new" [
 export def "project line list" [
     --all(-a)  # Include revoked project lines
 ] {
-    let project_uu = $in
-    
-    if ($project_uu | is-empty) {
-        error make {msg: "Project UUID is required via piped input."}
-    }
+    # Extract UUID from piped input
+    let project_uu = ($in | extract-single-uu --error-msg "Project UUID is required via piped input")
     
     # Build arguments array
     let args = [$STK_SCHEMA, $STK_PROJECT_LINE_TABLE_NAME, $project_uu] | append $STK_PROJECT_LINE_COLUMNS

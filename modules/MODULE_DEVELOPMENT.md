@@ -134,14 +134,26 @@ psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 Commands operating on existing records accept UUIDs via piped input or --uu parameter:
 
 ```nushell
-# Examples
+# String UUID (traditional)
 $uuid | project get
 $uuid | project revoke
 $project_uuid | project line list
-# Also supports: project get --uu $uuid
+
+# Table input (from list/where commands)
+project list | where name == "My Project" | project get
+project list | where name == "My Project" | project line list
+
+# Record input
+project list | first | project revoke
+
+# Parameter option
+project get --uu $uuid
 ```
 
-See Pattern 10 for enhanced UUID input options.
+For consistent implementation across all commands:
+- Use `extract-single-uu` utility from stk_utility module
+- Support string, record, and table input types
+- See Pattern 10 for implementation details
 
 ### 3. Generic PSQL Commands
 
@@ -178,15 +190,17 @@ Modules with business classification include:
 ### 6. Header-Line Pattern
 
 For related tables (e.g., project/project_line):
-- Line creation receives header UUID via pipe
-- Line listing receives header UUID via pipe
+- Line creation receives header UUID via pipe (accepts string/record/table)
+- Line listing receives header UUID via pipe (accepts string/record/table)
 - Line operations receive line UUID via pipe
 - Supports bulk operations on lists
+- Use `extract-single-uu` utility for flexible input handling
 
 ### 7. Parent-Child Pattern
 
 For hierarchical relationships within the same table (e.g., project sub-projects):
-- Parent UUID is provided via piped input to creation command
+- Parent is provided via piped input to creation command
+- Accepts flexible input types: UUID string, record with 'uu' field, or table
 - Validation ensures parent UUID exists in the same table
 - Enables tree structures for categories, organizations, or project hierarchies
 
@@ -194,14 +208,23 @@ For hierarchical relationships within the same table (e.g., project sub-projects
 # Create parent
 let parent = (project new "Q4 Initiative")
 
-# Create child by piping parent UUID
+# Create child - multiple input options:
+# Option 1: Pipe UUID string
 $parent.uu.0 | project new "Phase 1 - Research"
 
-# Implementation pattern
-let piped_uuid = $in
-let parent_uuid = if ($piped_uuid | is-not-empty) {
+# Option 2: Pipe table (from list/where commands)
+project list | where name == "Q4 Initiative" | project new "Phase 2 - Implementation"
+
+# Option 3: Pipe record
+project list | first | project new "Phase 3 - Deployment"
+
+# Implementation pattern using extract-single-uu utility
+let piped_input = $in
+let parent_uuid = if ($piped_input | is-not-empty) {
+    # Extract UUID from various input types
+    let uuid = ($piped_input | extract-single-uu)
     # Validate parent exists in same table
-    psql validate-uuid-table $piped_uuid $STK_TABLE_NAME
+    psql validate-uuid-table $uuid $STK_TABLE_NAME
 } else {
     null
 }
@@ -456,7 +479,7 @@ Focus on:
 - **`stk_tag`** - Advanced `--json` usage with schema validation (see `stk_address` for implementation)
 - **`stk_request`** - Simple `--json` implementation
 
-Enhanced modules with UUID input pattern: stk_request, stk_todo, stk_tag, stk_event, stk_item
+Enhanced modules with UUID input pattern: stk_request, stk_todo, stk_tag, stk_event, stk_item, stk_project
 
 ### System Wrapper Modules
 - **`stk_psql`** - PostgreSQL command wrapper with structured output parsing
