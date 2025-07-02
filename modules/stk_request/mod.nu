@@ -249,5 +249,5 @@ export def requests [
     ...columns: string  # Specific columns to include in request records
     --all               # Include all columns (select *)
 ] {
-    $in | psql append-table-name-uu-json "stk_request" "requests" ["name", "description", "is_processed", "record_json"] ...$columns --all=$all
+    $in | psql append-table-name-uu-json "stk_request" "requests" ["name", "record_json", "description", "search_key"] ...$columns --all=$all
 }

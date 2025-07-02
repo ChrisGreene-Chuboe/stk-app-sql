@@ -261,5 +261,5 @@ export def tags [
     ...columns: string  # Specific columns to include in tag records
     --all               # Include all columns (select *)
 ] {
-    $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "search_key", "description", "type_uu"] ...$columns --all=$all
+    $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "search_key", "description"] ...$columns --all=$all
 }

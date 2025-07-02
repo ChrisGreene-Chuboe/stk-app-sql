@@ -225,7 +225,7 @@ export def events [
     ...columns: string  # Specific columns to include in event records
     --all               # Include all columns (select *)
 ] {
-    $in | psql append-table-name-uu-json "stk_event" "events" ["name", "description", "record_json"] ...$columns --all=$all
+    $in | psql append-table-name-uu-json "stk_event" "events" ["record_json", "description", "search_key"] ...$columns --all=$all
 }
 
 
