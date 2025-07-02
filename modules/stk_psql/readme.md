@@ -22,6 +22,13 @@ The module also provides generic commands for common database operations:
 - `psql list-types` - Show available types for any concept
 - `psql get-type` - Look up type by search key or name
 - `psql detail-record` - Get record with type information
+- `psql append-table-name-uu-json` - Generic enrichment for table_name_uu_json pattern
+
+### Data Enrichment Commands
+
+These commands add related data columns to records:
+- `lines` - Add related line records (header-line pattern, e.g., project -> project_line)
+- `children` - Add child records (parent-child pattern, e.g., sub-projects via parent_uu)
 
 ## Usage Examples
 

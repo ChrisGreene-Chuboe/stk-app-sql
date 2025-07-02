@@ -951,6 +951,24 @@ def table-exists [table_name: string] {
     }
 }
 
+# Helper function to check if a column exists in a table
+def column-exists [column: string, table: string] {
+    let query = $"
+        SELECT EXISTS \(
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_schema = 'api' 
+            AND table_name = '($table)' 
+            AND column_name = '($column)'
+        ) as exists
+    "
+    let result = (psql exec $query)
+    if ($result | is-empty) {
+        false
+    } else {
+        $result | get exists.0 | into bool ext
+    }
+}
+
 # Add a 'lines' column to records that have associated line tables
 #
 # This command enhances table data by adding a column containing all related line records
@@ -1064,44 +1082,43 @@ export def lines [
     $result
 }
 
-# Add a 'tags' column to records, fetching associated stk_tag records
+# Add a 'children' column to records, fetching child records via parent_uu
 #
-# This command enriches piped records with a 'tags' column containing
-# their associated tag records from the stk_tag table. Tags in chuck-stack
-# provide flexible metadata that can be attached to any record.
+# This command enriches piped records with a 'children' column containing
+# their child records for tables that follow the parent-child pattern.
+# The parent-child pattern enables hierarchical relationships within the
+# same table (e.g., sub-projects, organizational hierarchies).
 #
-# The command uses the table_name_uu_json pattern to find tags:
-# - Each tag has a table_name_uu_json field linking it to a record
-# - Tags are fetched using: {"table_name": "xxx", "uu": "yyy"}
+# Purpose:
+# - Automatically detects if a table has a 'parent_uu' column
+# - Fetches all child records where parent_uu matches the record's uu
+# - Adds a 'children' column containing the full child records
+# - Allows column selection with default to [name, description, type_uu] when available
 #
-# Column selection follows the same pattern as the 'lines' command:
-# - Default: returns common columns (record_json, search_key, description, type_uu)
-# - --all flag: returns all columns from tag records
-# - Custom columns: specify exact columns to return
-#
-# Requirements:
-# - Input records must have 'table_name' and 'uu' columns
-# - Tags are ordered by created timestamp
+# The command gracefully handles tables without parent_uu support by
+# returning an empty array, maintaining consistency with the 'lines' command.
 #
 # Examples:
-# # Default columns
-# project list | tags
+# > project list | where name == "Q4 Initiative" | children
+# > project list | first | children name description created
+# > project list | first | children --all
+# > project list | children | select name {|r| $r.children | length}
 #
-# # All tag columns
-# project list | tags --all
-#
-# # Specific columns
-# project list | tags search_key record_json created
-#
-# # Multiple tables can be tagged
-# person list | tags | where { |p| ($p.tags | length) > 0 }
+# Parameters:
+# - ...columns: Specific columns to include in child records (optional)
+# - --all: Include all columns from child records (overrides column selection)
 #
 # Returns:
-# - Original records with added 'tags' column
-# - Tags column contains array of tag records (may be empty)
-# - Returns error object in tags column if query fails
-export def tags [
-    ...columns: string  # Specific columns to include in tag records
+# - Original records with an additional 'children' column
+# - The 'children' column contains an array of child records (empty if none exist)
+# - Child records include only requested columns (or defaults when applicable)
+#
+# Error handling:
+# - Returns empty array [] if table has no parent_uu column
+# - Returns empty array [] if no children are found
+# - Returns error object if database query fails
+export def children [
+    ...columns: string  # Specific columns to include in child records
     --all               # Include all columns (select *)
 ] {
     let input = $in
@@ -1115,52 +1132,63 @@ export def tags [
     let result = $input | each { |record|
         # Check if record has required columns
         if 'table_name' not-in ($record | columns) or 'uu' not-in ($record | columns) {
-            return $record | insert tags null
+            return $record | insert children []
         }
         
         let table_name = $record.table_name
-        let record_uu = $record.uu
         
-        try {
-            # Build the table_name_uu_json value for searching
-            let table_name_uu_json = {table_name: $table_name, uu: $record_uu} | to json
-            
-            # Build SELECT clause based on user input
-            let select_clause = if ($columns | is-empty) {
-                "*"
-            } else {
-                $columns | str join ", "
-            }
-            
-            # Query for tags associated with this record
-            let tags_query = $"SELECT ($select_clause) FROM api.stk_tag WHERE table_name_uu_json = '($table_name_uu_json)' AND is_valid = true ORDER BY created"
-            let tags_data = (psql exec $tags_query)
-            
-            # If no columns specified and not --all, filter to default columns
-            let final_data = if (not $all) and ($columns | is-empty) and (not ($tags_data | is-empty)) {
-                let available_columns = ($tags_data | columns)
-                let default_cols = ["record_json", "search_key", "description", "type_uu"]
-                let cols_to_keep = $default_cols | where { |col| $col in $available_columns }
-                
-                if ($cols_to_keep | is-empty) {
-                    $tags_data
+        # Check if table has parent_uu column
+        let has_parent_uu = (column-exists "parent_uu" $table_name)
+        
+        if $has_parent_uu {
+            # Table has parent_uu column, fetch children
+            try {
+                # Build SELECT clause based on user input
+                let select_clause = if ($columns | is-empty) {
+                    "*"
                 } else {
-                    $tags_data | select ...$cols_to_keep
+                    $columns | str join ", "
                 }
-            } else {
-                $tags_data
+                
+                let children_query = $"
+                    SELECT ($select_clause) 
+                    FROM api.($table_name) 
+                    WHERE parent_uu = '($record.uu)' 
+                    AND is_revoked = false
+                    ORDER BY created
+                "
+                let children_data = (psql exec $children_query)
+                
+                # If no columns specified and not --all, filter to default columns
+                let final_data = if (not $all) and ($columns | is-empty) and (not ($children_data | is-empty)) {
+                    let available_columns = ($children_data | columns)
+                    let default_cols = ["name", "description", "type_uu"]
+                    let cols_to_keep = $default_cols | where { |col| $col in $available_columns }
+                    
+                    if ($cols_to_keep | is-empty) {
+                        $children_data
+                    } else {
+                        $children_data | select ...$cols_to_keep
+                    }
+                } else {
+                    $children_data
+                }
+                
+                # Add children column with fetched data
+                $record | insert children $final_data
+            } catch {
+                # Error occurred, return error object
+                $record | insert children { error: $"Failed to fetch children from ($table_name): ($in)" }
             }
-            
-            # Add tags column with fetched data
-            $record | insert tags $final_data
-        } catch {
-            # Error occurred, return error object
-            $record | insert tags { error: $"Failed to fetch tags for ($table_name):($record_uu): ($in)" }
+        } else {
+            # No parent_uu column exists, add empty array
+            $record | insert children []
         }
     }
     
     $result
 }
+
 
 # Generic command to append related records using table_name_uu_json pattern
 #

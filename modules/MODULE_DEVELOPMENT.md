@@ -20,6 +20,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
   - [9. Dynamic Command Building](#9-dynamic-command-building)
   - [10. UUID Input Enhancement Pattern](#10-uuid-input-enhancement-pattern)
   - [11. Utility Functions Pattern](#11-utility-functions-pattern)
+  - [12. Data Enrichment Pattern](#12-data-enrichment-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -196,6 +197,10 @@ For related tables (e.g., project/project_line):
 - Supports bulk operations on lists
 - Use `extract-single-uu` utility for flexible input handling
 
+For data enrichment, see:
+- `lines` command in stk_psql for adding line data to headers
+- Pattern #12: Data Enrichment Pattern
+
 ### 7. Parent-Child Pattern
 
 For hierarchical relationships within the same table (e.g., project sub-projects):
@@ -229,6 +234,10 @@ let parent_uuid = if ($piped_input | is-not-empty) {
     null
 }
 ```
+
+For data enrichment, see:
+- `children` command in stk_psql for adding child data to parents
+- Pattern #12: Data Enrichment Pattern
 
 ### 8. JSON Parameter Pattern
 
@@ -297,6 +306,32 @@ Reduce boilerplate with stk_utility functions:
 - `extract-attach-from-input`: Attachment data extraction
 
 Reference: stk_request `.append request` for both utilities.
+
+### 12. Data Enrichment Pattern
+
+Chuck-stack provides data enrichment through pipeline commands that add columns containing related records.
+
+#### Generic Commands (stk_psql)
+- `lines` - Adds header-line data (see `lines --help` for examples)
+- `children` - Adds parent-child data (see `children --help` for examples)
+- `psql append-table-name-uu-json` - Generic pattern for module-specific enrichment
+
+#### Module-Specific Commands
+Modules wrap the generic pattern:
+- `tags` in stk_tag
+- `events` in stk_event
+- `requests` in stk_request
+
+#### Key Principles
+- Graceful degradation (empty arrays for unsupported patterns)
+- Consistent column selection: default, specific columns, or --all
+- Pipeline composability
+- Automatic capability detection
+
+Reference implementations:
+- `lines` command in stk_psql/mod.nu
+- `children` command in stk_psql/mod.nu
+- `tags` command in stk_tag/mod.nu for module pattern
 
 ## Implementation Guide
 
