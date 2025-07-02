@@ -6,13 +6,13 @@ use ../modules *
 let p = project new "digital consulting erp"
 
 # create first project line
-let p1 = $p.0.uu | project line new "create timesheets"
+let p1 = $p | project line new "create timesheets"
 
 # create second project line
-$p.0.uu | project line new "create support ticket"
+$p | project line new "create support ticket"
 
 # create to-be-revoked project line
-$p.0.uu | project line new "party like it is 1984"
+$p | project line new "party like it is 1984"
 
 # show progress
 print ***************
