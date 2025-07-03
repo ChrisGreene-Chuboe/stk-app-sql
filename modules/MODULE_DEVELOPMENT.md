@@ -5,6 +5,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Business Logic Placement](#business-logic-placement)
 - [Module Structure](#module-structure)
 - [Module Categories](#module-categories)
 - [Database Schema Context](#database-schema-context)
@@ -36,6 +37,15 @@ To create a new module:
 3. Adjust command parameters for your business logic
 4. Write conceptual README
 5. Test all command variations
+
+## Business Logic Placement
+
+**Critical Rule**: Business logic belongs in the database, not in nushell modules. This ensures consistency across CLI and PostgREST API access.
+
+**Database**: Calculations, validations, defaults, state transitions, data integrity rules
+**Nushell**: Command parsing, output formatting, user interaction, database function orchestration
+
+See `stk_invoice` (future) for complex business logic patterns.
 
 ## Module Structure
 
