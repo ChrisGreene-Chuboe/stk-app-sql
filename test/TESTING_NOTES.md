@@ -7,6 +7,7 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
 - [Quick Start](#quick-start)
 - [Testing Philosophy](#testing-philosophy)
 - [Test Environment](#test-environment)
+- [Template-Based Testing](#template-based-testing)
 - [Writing Tests](#writing-tests)
   - [Test Data Idempotency](#test-data-idempotency)
 - [Testing JSON Parameters](#testing-json-parameters)
@@ -34,7 +35,15 @@ nix-shell --run "./suite/test-project.nu"
 nix-shell --run "cd suite && ./test-all.nu"
 ```
 
-Create new test:
+Create new test using templates (recommended):
+```bash
+# See templates/README.md for complete instructions
+cp templates/test-module-template.nu suite/test-yourmodule.nu
+# Replace MODULE with your module name, copy relevant patterns
+chmod +x suite/test-yourmodule.nu
+```
+
+Create new test manually:
 ```bash
 # Create test file with executable permissions
 echo '#!/usr/bin/env nu' > suite/test-feature.nu
@@ -101,6 +110,33 @@ SELECT api.get_table_name_uu_json('uuid-here'::uuid);
 -- Incorrect (permission denied)
 SELECT private.get_table_name_uu_json('uuid-here'::uuid);
 ```
+
+## Template-Based Testing
+
+Chuck-stack uses test templates to ensure consistent, comprehensive testing across all modules. See `templates/README.md` for usage instructions.
+
+### Critical: Template Maintenance
+
+**With every new module test, evaluate the templates:**
+
+1. **Are patterns complete?** Did the new module require test patterns not in templates?
+2. **Best practices?** Does the new test reveal better ways to test existing patterns?
+3. **New edge cases?** Did testing uncover scenarios the templates don't handle?
+4. **Simplifications?** Can we make the templates clearer or more concise?
+
+**When templates need updates:**
+- Update the pattern template files, not individual tests
+- Update the `Template Version: YYYY-MM-DD` timestamp in each modified template
+- Consider if existing tests should be regenerated with improved templates
+- Use `grep -r "Template Version:" suite/` to find tests using older templates
+- Document why the change was needed in git commit
+
+**Example improvements discovered through usage:**
+- Better assertion patterns for flexible type checking
+- Cleaner UUID input validation sequences
+- More robust error handling patterns
+
+The templates are living documents that improve with each module implementation.
 
 ## Writing Tests
 
@@ -697,3 +733,5 @@ Default role is `stk_login` with `stk_api_role`.
 - **Avoid direct file references**: use searchable string references instead
 - **Current patterns only**: Remove historical context and deprecated approaches
 - **Maintain TOC**: Update table of contents when adding or removing major sections
+- **Template-first mindset**: When documenting new patterns, consider if they belong in test templates
+- **Continuous improvement**: Each new module should trigger template evaluation
