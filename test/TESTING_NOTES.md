@@ -12,6 +12,7 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
   - [Test Data Idempotency](#test-data-idempotency)
 - [Testing JSON Parameters](#testing-json-parameters)
 - [Running Tests](#running-tests)
+  - [Running Chuck-Stack Commands](#running-chuck-stack-commands)
 - [Common Issues](#common-issues)
   - [Permission Denied](#permission-denied)
   - [Module Not Found](#module-not-found)
@@ -494,6 +495,42 @@ nix-shell --run "./suite/test-new.nu" 2>&1 | tail -50
 # Run all with filtered output
 nix-shell --run "cd suite && ./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 ```
+
+### Running Chuck-Stack Commands
+
+You can explore and run chuck-stack commands directly without creating test files:
+
+#### Ad-hoc Command Execution
+```bash
+# Run a single chuck-stack command
+nix-shell --run "nu -l -c 'use ./modules *; bp list'"
+
+# Explore available types for a module
+nix-shell --run "nu -l -c 'use ./modules *; tag types'"
+nix-shell --run "nu -l -c 'use ./modules *; project types'"
+nix-shell --run "nu -l -c 'use ./modules *; item types'"
+
+# Get help for commands
+nix-shell --run "nu -l -c 'use ./modules *; bp new --help'"
+nix-shell --run "nu -l -c 'use ./modules *; project line new --help'"
+
+# Chain commands with pipes
+nix-shell --run "nu -l -c 'use ./modules *; bp list | where name =~ \"ACME\"'"
+
+# Create and query data
+nix-shell --run "nu -l -c 'use ./modules *; let p = project new \"Test\"; \$p | lines'"
+```
+
+#### Useful for:
+- Exploring available commands and types
+- Quick data verification
+- Understanding command parameters
+- Testing command pipelines
+- Debugging module behavior
+
+**Note**: Always use `nu -l -c` to ensure proper environment loading:
+- `-l` loads the login environment (required for modules)
+- `-c` executes the command string
 
 ### Debugging Migration Failures
 
