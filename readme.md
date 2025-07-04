@@ -19,6 +19,13 @@ The PostgreSQL aspect of this repository is usable and functioning. Here is what
 - We can insert a record into 'stk_event' with the following: `insert into api.stk_event (name) values ('test')`
 - Note that all columns default accordingly (triggers and context variables are used to set the remaining columns)
 
+#### Database Migrations
+
+For creating and managing database migrations:
+- See [./migrations/MIGRATION_NOTES.md](./migrations/MIGRATION_NOTES.md) for chuck-stack specific migration patterns
+- Reference [sample-table-convention.md](../chuckstack.github.io/src-ls/postgres-convention/sample-table-convention.md) for creating new first-class citizens
+- Use the test environment (see [./test/TESTING_NOTES.md](./test/TESTING_NOTES.md)) to test migrations locally
+
 ### Nushell
 
 We are starting to develop Nushell modules in the ./modules/ directory.

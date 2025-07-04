@@ -22,6 +22,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
   - [10. UUID Input Enhancement Pattern](#10-uuid-input-enhancement-pattern)
   - [11. Utility Functions Pattern](#11-utility-functions-pattern)
   - [12. Data Enrichment Pattern](#12-data-enrichment-pattern)
+  - [13. Template Pattern](#13-template-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -111,7 +112,9 @@ Chuck-stack concepts (first-class citizen tables) always include:
 - Accompanying `_type` table (e.g., `stk_project_type`)
 - Standard columns and triggers for chuck-stack behavior
 
-**Creating new concepts**: Refer to sample-table-convention in postgres-convention documentation for the complete migration template and prompting process.
+**Creating new concepts**: 
+- Refer to sample-table-convention in postgres-convention documentation for the complete migration template and prompting process
+- See [MIGRATION_NOTES.md](../migrations/MIGRATION_NOTES.md) for chuck-stack specific migration patterns, type tables, enums, and testing guidance
 
 ### Working with Existing Tables
 Most modules expose existing tables. Before implementing:
@@ -306,13 +309,14 @@ Commands accept UUIDs through multiple input types:
 - Table (uses first row)
 - --uu parameter (alternative to piped input)
 
-Uses `extract-uu-table-name` and `extract-single-uu` utilities from stk_utility.
+Uses `extract-uu-table-name` and `extract-uu-with-param` utilities from stk_utility.
 Reference: stk_request module for complete implementation.
 
 ### 11. Utility Functions Pattern
 
 Reduce boilerplate with stk_utility functions:
-- `extract-single-uu`: UUID extraction with validation
+- `extract-single-uu`: UUID extraction with validation from piped input only
+- `extract-uu-with-param`: UUID extraction from piped input OR --uu parameter
 - `extract-attach-from-input`: Attachment data extraction
 
 Reference: stk_request `.append request` for both utilities.
@@ -342,6 +346,65 @@ Reference implementations:
 - `lines` command in stk_psql/mod.nu
 - `children` command in stk_psql/mod.nu
 - `tags` command in stk_tag/mod.nu for module pattern
+
+### 13. Template Pattern
+
+Templates provide reusable configurations that serve as starting points for creating new records. They are excluded from normal operational listings to keep the interface focused on active data.
+
+#### Behavior Rules
+1. **Default List**: Excludes templates (`WHERE is_template = false`)
+2. **Template List**: Shows only templates with `--templates` flag
+3. **Complete List**: Shows everything with `--all` flag (templates AND revoked records)
+4. **Direct Access**: Templates can be retrieved by UUID with `get` command
+
+#### Implementation in psql
+The `psql list-records` and `psql list-records-with-detail` commands handle template filtering automatically:
+- Default: `WHERE is_revoked = false AND is_template = false`
+- `--templates`: `WHERE is_template = true`
+- `--all`: No WHERE clause (shows everything)
+
+Tables without an `is_template` column continue to work normally.
+
+#### Module Implementation
+```nushell
+export def "module list" [
+    --detail(-d)    # Include detailed type information
+    --all(-a)       # Include revoked records AND templates
+    --templates     # Show only templates
+] {
+    # Build args array
+    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
+    
+    # Pass flags to psql
+    let args = if $all { $args | append "--all" } else { $args }
+    let args = if $templates { $args | append "--templates" } else { $args }
+    
+    # Execute query
+    if $detail {
+        psql list-records-with-detail ...$args
+    } else {
+        psql list-records ...$args
+    }
+}
+```
+
+#### Key Principles
+- Templates are operational data, not system configuration
+- Template filtering is handled by psql for consistency
+- The `--all` flag shows ALL data: active, revoked, and templates
+- Template creation uses `--template` flag on `new` command
+- Only tables with `is_template` column support templates
+- Templates can have tags just like regular records
+
+#### Future Considerations
+Templates with tags present interesting design questions that need further exploration:
+- Should template tags be copied when creating records from templates?
+- How should tag inheritance work in template hierarchies?
+- Should there be template-specific tag types?
+
+These questions will be addressed in a future project focused on template-tag interactions.
+
+Reference implementation: `bp list` in stk_business_partner/mod.nu
 
 ## Implementation Guide
 
@@ -420,8 +483,8 @@ export def "module get" [
     --detail(-d)
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
-    # Extract UUID using utility function
-    let uu = ($in | extract-single-uu --uu $uu)
+    # Extract UUID from piped input or --uu parameter
+    let uu = ($in | extract-uu-with-param $uu)
     
     if $detail {
         psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
@@ -436,8 +499,8 @@ export def "module get" [
 export def "module revoke" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
-    # Extract UUID using utility function
-    let target_uuid = ($in | extract-single-uu --uu $uu)
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = ($in | extract-uu-with-param $uu)
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
@@ -480,6 +543,7 @@ Choose the appropriate checklist based on your module category:
 - [ ] Test all command variations (see "Testing Requirements" in TESTING_NOTES.md)
 - [ ] Test JSON functionality: valid JSON, invalid JSON, empty/missing JSON
 - [ ] Test string/record/table input modes
+- [ ] Add module export to parent `modules/mod.nu` file
 
 ### For System Wrapper Modules:
 - [ ] Define tool-specific constants
@@ -524,7 +588,8 @@ Focus on:
 - **`stk_tag`** - Advanced `--json` usage with schema validation (see `stk_address` for implementation)
 - **`stk_request`** - Simple `--json` implementation
 
-Enhanced modules with UUID input pattern: stk_request, stk_todo, stk_tag, stk_event, stk_item, stk_project
+Modules using modern `extract-uu-with-param` pattern: stk_request, stk_todo, stk_tag
+Modules using older manual pattern: stk_item, stk_project, stk_event
 
 ### System Wrapper Modules
 - **`stk_psql`** - PostgreSQL command wrapper with structured output parsing
@@ -554,7 +619,9 @@ Enhanced modules with UUID input pattern: stk_request, stk_todo, stk_tag, stk_ev
 ### Core Principles
 - **Clear and concise**: Remove redundancy, focus on essential information
 - **Logical flow**: Start with overview, progress to specifics, end with references
-- **Serve AI needs**: Provide concrete examples and templates that can be directly applied
+- **Serve AI needs**: Provide concrete templates that can be directly applied
+- **Prioritize references over examples**: If there is existing code that serves as an example, provide the search term to find the code
 - **Avoid line numbers**: Use searchable string references (e.g., "see Parameters Record Pattern")
+- **Avoid direct file references**: use searchable string references instead
 - **Current patterns only**: Remove historical context and deprecated approaches
-- **Maintain table of contents**: Update TOC when adding/removing major sections
+- **Maintain TOC**: Update table of contents when adding or removing major sections

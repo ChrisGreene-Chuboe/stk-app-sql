@@ -94,13 +94,14 @@ export def "psql exec" [
 # Returns: All specified columns from the table, newest records first
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql list-records" [
-    ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all]
+    ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
     --limit: int = 10               # Maximum number of records to return
     --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
     --detail                        # Include type information (type_enum, type_name, type_description)
 ] {
-    # Check if --all flag is present in args
+    # Check if --all or --templates flags are present in args
     let has_all = ("--all" in $args)
+    let has_templates = ("--templates" in $args)
     
     # Filter out any flags from the args to get only positional arguments
     let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
@@ -144,7 +145,28 @@ export def "psql list-records" [
     } else {
         # Original simple query (no enum filtering)
         let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-        let where_clause = if $has_all { "" } else { " WHERE is_revoked = false" }
+        
+        # Build WHERE clause based on flags and table capabilities
+        let where_clause = if $has_all {
+            ""  # Show everything
+        } else if $has_templates {
+            # Check if table has is_template column
+            let has_template_col = (column-exists "is_template" $table_name)
+            if $has_template_col {
+                " WHERE is_template = true"
+            } else {
+                ""  # Table doesn't support templates
+            }
+        } else {
+            # Default: exclude revoked and templates
+            let has_template_col = (column-exists "is_template" $table_name)
+            if $has_template_col {
+                " WHERE is_revoked = false AND is_template = false"
+            } else {
+                " WHERE is_revoked = false"
+            }
+        }
+        
         psql exec $"SELECT ($columns) FROM ($table)($where_clause) ORDER BY created DESC LIMIT ($limit)"
     }
 }
@@ -713,11 +735,12 @@ export def "psql get-table-name-uu" [
 # Returns: All specified columns plus type_enum, type_name, type_description from joined type table
 # Note: Uses LEFT JOIN to include records without type assignments
 export def "psql list-records-with-detail" [
-    ...args: string          # Positional arguments: schema, table_name, column1, column2, ... [, --all]
+    ...args: string          # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
     --limit: int = 10        # Maximum number of records to return
 ] {
-    # Check if --all flag is present in args
+    # Check if --all or --templates flags are present in args
     let has_all = ("--all" in $args)
+    let has_templates = ("--templates" in $args)
     
     # Filter out any flags from the args to get only positional arguments
     let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
@@ -746,7 +769,26 @@ export def "psql list-records-with-detail" [
         }
     } | str join ", "
     
-    let where_clause = if $has_all { "" } else { "WHERE i.is_revoked = false" }
+    # Build WHERE clause based on flags and table capabilities
+    let where_clause = if $has_all {
+        ""  # Show everything
+    } else if $has_templates {
+        # Check if table has is_template column
+        let has_template_col = (column-exists "is_template" $table_name)
+        if $has_template_col {
+            "WHERE i.is_template = true"
+        } else {
+            ""  # Table doesn't support templates
+        }
+    } else {
+        # Default: exclude revoked and templates
+        let has_template_col = (column-exists "is_template" $table_name)
+        if $has_template_col {
+            "WHERE i.is_revoked = false AND i.is_template = false"
+        } else {
+            "WHERE i.is_revoked = false"
+        }
+    }
     
     let sql = $"
         SELECT 

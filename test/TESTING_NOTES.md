@@ -691,7 +691,9 @@ Default role is `stk_login` with `stk_api_role`.
 ### Core Principles
 - **Clear and concise**: Remove redundancy, focus on essential information
 - **Logical flow**: Start with overview, progress to specifics, end with references
-- **Serve AI needs**: Provide concrete examples and templates that can be directly applied
+- **Serve AI needs**: Provide concrete templates that can be directly applied
+- **Prioritize references over examples**: If there is existing code that serves as an example, provide the search term to find the code
 - **Avoid line numbers**: Use searchable string references (e.g., "see Parameters Record Pattern")
+- **Avoid direct file references**: use searchable string references instead
 - **Current patterns only**: Remove historical context and deprecated approaches
 - **Maintain TOC**: Update table of contents when adding or removing major sections

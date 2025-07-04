@@ -35,3 +35,6 @@ export use stk_address *
 
 # Timesheet tracking for recording work hours against projects and tasks
 export use stk_timesheet *
+
+# Business Partner management for customers, vendors, employees, and other financial relationships
+export use stk_business_partner *
