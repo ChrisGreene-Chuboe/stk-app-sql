@@ -8,6 +8,18 @@ const STK_PROJECT_LINE_TABLE_NAME = "stk_project_line"
 const STK_PROJECT_COLUMNS = [name, description, is_template, is_valid, record_json]
 const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid, record_json]
 
+# Project module overview
+export def "project" [] {
+    print "Projects organize work and financial activities with hierarchical structure.
+Projects can contain sub-projects and line items for detailed tracking.
+
+Templates enable reusable project structures.
+Projects integrate with timesheets and financial reporting.
+
+Type 'project <tab>' to see available commands.
+"
+}
+
 # Create a new project with specified name and type
 #
 # This is the primary way to create projects in the chuck-stack system.

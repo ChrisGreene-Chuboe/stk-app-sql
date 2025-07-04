@@ -61,6 +61,9 @@ const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
 # Add record_json if table has this column:
 # const STK_MODULE_COLUMNS = [name, description, is_template, is_valid, record_json]
 
+# Module overview (see Documentation Standards for details)
+export def "module" [] { ... }
+
 # Commands: new, list, get, revoke, types
 ```
 
@@ -527,6 +530,7 @@ Choose the appropriate checklist based on your module category:
 
 ### For Database Table Modules:
 - [ ] Define module constants (schema, table, columns)
+- [ ] Add module overview command (e.g., `export def "module" []`)
 - [ ] Check if table has `record_json` column
 - [ ] If yes, include `record_json` in column constants
 - [ ] Implement `new` command with parameters record
@@ -547,6 +551,7 @@ Choose the appropriate checklist based on your module category:
 
 ### For System Wrapper Modules:
 - [ ] Define tool-specific constants
+- [ ] Add module overview command if appropriate
 - [ ] Implement error handling for external commands
 - [ ] Document prerequisites and installation requirements
 - [ ] Use `complete` pattern for external command execution
@@ -556,6 +561,7 @@ Choose the appropriate checklist based on your module category:
 
 ### For Domain Wrapper Modules:
 - [ ] Define constants referencing wrapped table
+- [ ] Add module overview command (e.g., `export def "todo" []`)
 - [ ] Implement domain-specific commands using `.append` or similar patterns
 - [ ] Delegate to base module commands appropriately
 - [ ] Write comprehensive help documentation
@@ -563,6 +569,29 @@ Choose the appropriate checklist based on your module category:
 - [ ] Test integration with base module
 
 ## Documentation Standards
+
+### Module Overview Command
+Each module should export a base command (e.g., `bp`, `item`, `project`) that provides module discovery:
+```nushell
+# Module overview command (place after module constants)
+export def "module" [] {
+    print "Brief description of what this module manages.
+One-line explanation of key concepts or relationships.
+
+Additional context if needed (types, patterns, integrations).
+Keep to 4-6 lines maximum.
+
+Type 'module <tab>' to see available commands.
+"
+}
+```
+
+This command:
+- Executes when users type the module name alone
+- Provides immediate context about the module's purpose
+- Guides users to tab completion for command discovery
+- Keeps output minimal (under 8 lines total)
+- Includes trailing newline for visual spacing
 
 ### Command Help
 Each command must include:

@@ -6,6 +6,17 @@ const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_item"
 const STK_ITEM_COLUMNS = [name, description, is_template, is_valid, record_json]
 
+# Item module overview
+export def "item" [] {
+    print "Items are the building blocks of business transactions:
+products, services, fees, discounts, taxes, or chart of accounts.
+
+Items can be organized hierarchically and tagged for flexible categorization.
+
+Type 'item <tab>' to see available commands.
+"
+}
+
 
 # Create a new item with specified name and type
 #

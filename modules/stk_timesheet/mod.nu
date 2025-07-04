@@ -7,6 +7,18 @@ const STK_TABLE_NAME = "stk_event"  # Wrapping stk_event
 const STK_TIMESHEET_TYPE_ENUM = ["TIMESHEET"]  # Filter for timesheet events
 const STK_TIMESHEET_COLUMNS = [name, description, table_name_uu_json, record_json, processed, is_processed]
 
+# Timesheet module overview
+export def "timesheet" [] {
+    print "Timesheets track work hours against projects, tasks, and requests.
+Time entries are immutable events for audit compliance.
+
+Timesheets support flexible time formats and can be attached to any record.
+Use for project billing, payroll, and productivity analysis.
+
+Type 'timesheet <tab>' to see available commands.
+"
+}
+
 # Create a new timesheet entry with attachment to another record
 #
 # This is the primary way to record time entries in the chuck-stack system.

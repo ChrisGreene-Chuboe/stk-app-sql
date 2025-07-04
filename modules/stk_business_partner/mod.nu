@@ -6,6 +6,18 @@ const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_business_partner"
 const STK_BUSINESS_PARTNER_COLUMNS = [name, description, is_template, is_valid, record_json]
 
+# Business Partner module overview
+export def "bp" [] {
+    print "Business Partners represent anyone you engage with financially:
+customers, vendors, employees, contractors, or partners.
+
+Types define entity structure (ORGANIZATION, INDIVIDUAL, GROUP).
+Business roles are assigned through tags (BP_CUSTOMER, BP_VENDOR, etc.).
+
+Type 'bp <tab>' to see available commands.
+"
+}
+
 
 # Create a new business partner with specified name and type
 #

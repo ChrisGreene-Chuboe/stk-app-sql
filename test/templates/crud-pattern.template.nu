@@ -3,6 +3,11 @@
 # Template Version: 2025-01-04
 # Optional: Add --type-search-key TYPE_KEY if module has types
 
+# print "=== Testing MODULE overview command ==="
+let overview_result = (do { MODULE } | complete)
+assert ($overview_result.exit_code == 0) "MODULE overview command should succeed"
+assert ($overview_result.stdout | str contains "Type 'MODULE <tab>' to see available commands") "Should guide to tab completion"
+
 # print "=== Testing MODULE creation ==="
 let created = (MODULE new $"Test MODULE($test_suffix)")
 assert ($created | is-not-empty) "Should create MODULE"

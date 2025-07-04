@@ -7,6 +7,18 @@ const STK_TABLE_NAME = "stk_request"
 const STK_TODO_TYPE_ENUM = ["TODO"]  # Array for future flexibility - defines module scope
 const STK_TODO_COLUMNS = [name, description, table_name_uu_json, record_json, is_processed]
 
+# Todo module overview
+export def "todo" [] {
+    print "Todos are lightweight tasks built on the request system.
+Each todo can have sub-todos for breaking down complex work.
+
+Todos support attachments to link tasks to any chuck-stack record.
+Use hierarchical todos to organize work at any level of detail.
+
+Type 'todo <tab>' to see available commands.
+"
+}
+
 # Create a new todo item with optional attachment to parent todo
 #
 # This is the primary way to create todos in the chuck-stack system.
