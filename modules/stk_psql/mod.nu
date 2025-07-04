@@ -153,7 +153,7 @@ export def "psql list-records" [
             # Check if table has is_template column
             let has_template_col = (column-exists "is_template" $table_name)
             if $has_template_col {
-                " WHERE is_template = true"
+                " WHERE is_template = true AND is_revoked = false"
             } else {
                 ""  # Table doesn't support templates
             }
