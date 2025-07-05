@@ -127,7 +127,30 @@ Most modules expose existing tables. Before implementing:
 
 ## Core Patterns
 
-### 1. Parameters Record Pattern
+### 1. Unnamed Parameter Convention
+
+Commands use unnamed positional parameters for their most common use case, with flags for alternative/advanced options:
+
+```nushell
+# Primary use case gets unnamed parameter
+project new "Project Name"           # Name is always needed
+item new "Widget"                    # Name is the primary input
+.append address "123 Main St"        # Natural language is expected default
+
+# Alternative/advanced cases use flags
+.append address --json '{"address1": "123 Main St"}'  # Direct JSON is advanced
+todo new "Task" --json '{"priority": "high"}'         # JSON metadata is optional
+```
+
+**Key principles:**
+- Most common/natural input gets the unnamed parameter
+- Alternative methods use explicit flags (--json, --file, etc.)
+- Makes simple things simple, complex things possible
+- Reduces cognitive load for common operations
+
+This pattern creates intuitive UX where the default behavior matches user expectations.
+
+### 2. Parameters Record Pattern
 
 Creation commands use a parameters record to eliminate cascading if/else logic:
 
@@ -146,7 +169,7 @@ let params = {
 psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 ```
 
-### 2. UUID Input Operations
+### 3. UUID Input Operations
 
 Commands operating on existing records accept UUIDs via piped input or --uu parameter:
 
@@ -172,7 +195,7 @@ For consistent implementation across all commands:
 - Support string, record, and table input types
 - See Pattern 10 for implementation details
 
-### 3. Generic PSQL Commands
+### 4. Generic PSQL Commands
 
 All modules use standardized commands from `stk_psql`:
 - `psql new-record` - Create with parameters record
@@ -185,7 +208,7 @@ All modules use standardized commands from `stk_psql`:
 - `psql list-types` - List available types
 - `psql get-type` - Resolve type by key or name
 
-### 4. Module Constants
+### 5. Module Constants
 
 ```nushell
 const STK_SCHEMA = "api"
@@ -197,14 +220,14 @@ const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
 
 Note: Base columns (created, updated, uu, etc.) are handled by psql commands.
 
-### 5. Type Support
+### 6. Type Support
 
 Modules with business classification include:
 - Type resolution in creation (--type-uu or --type-search-key)
 - `module types` command to list available types
 - `--detail` flag on get/list commands for type information
 
-### 6. Header-Line Pattern
+### 7. Header-Line Pattern
 
 For related tables (e.g., project/project_line):
 - Line creation receives header UUID via pipe (accepts string/record/table)
@@ -217,7 +240,7 @@ For data enrichment, see:
 - `lines` command in stk_psql for adding line data to headers
 - Pattern #12: Data Enrichment Pattern
 
-### 7. Parent-Child Pattern
+### 8. Parent-Child Pattern
 
 For hierarchical relationships within the same table (e.g., project sub-projects):
 - Parent is provided via piped input to creation command
@@ -255,38 +278,33 @@ For data enrichment, see:
 - `children` command in stk_psql for adding child data to parents
 - Pattern #12: Data Enrichment Pattern
 
-### 8. JSON Parameter Pattern
+### 9. JSON Parameter Pattern
 
 For tables with `record_json` column, provide structured metadata storage:
 
 ```nushell
 # Parameter definition in creation commands
 --json(-j): string  # Optional JSON data to store in record_json field
-
-# Standard handling pattern
-let record_json = if ($json | is-empty) { 
-    {}  # Empty object (default behavior)
-} else { 
-    ($json | from json)  # Parse JSON string
-}
-
-# Include in parameters record
-let params = {
-    name: $name
-    type_uu: ($resolved_type_uu | default null)
-    description: ($description | default null)
-    # ... other fields ...
-    record_json: ($record_json | to json)  # Convert back to JSON string for psql
-}
 ```
 
+**Standard handling patterns:**
+- **Basic validation**: Use `parse-json` utility from stk_utility module
+- **Default behavior**: Empty object `{}` when not provided
+- **Syntax validation**: In nushell (let database handle schema validation)
+- **Parameter name**: Always `--json` (not --metadata or other variants)
+
+**Reference implementations:**
+- **Simple pattern**: See `stk_tag` `.append tag` command
+- **Validation utility**: See `parse-json` in stk_utility module
+- **Conditional handling**: See `stk_address` `.append address` for AI vs direct JSON
+
 **Key principles:**
-- Parameter name is always `--json` (not --metadata or other variants)
-- Default to empty object `{}` when not provided
-- Parse on input, stringify for database
+- Validate JSON can be parsed before sending to database
+- Let pg_jsonschema handle schema validation
+- Consistent error message: "Invalid JSON format"
 - Available for all creation commands (.append, new, add)
 
-### 9. Dynamic Command Building
+### 10. Dynamic Command Building
 Optional flags are passed via args array to enable clean command composition:
 
 ```nushell
@@ -304,7 +322,7 @@ if $detail {
 
 This pattern avoids nested if/else blocks when combining optional parameters.
 
-### 10. UUID Input Enhancement Pattern
+### 11. UUID Input Enhancement Pattern
 
 Commands accept UUIDs through multiple input types:
 - String UUID (backward compatible)
@@ -315,7 +333,7 @@ Commands accept UUIDs through multiple input types:
 Uses `extract-uu-table-name` and `extract-uu-with-param` utilities from stk_utility.
 Reference: stk_request module for complete implementation.
 
-### 11. Utility Functions Pattern
+### 12. Utility Functions Pattern
 
 Reduce boilerplate with stk_utility functions:
 - `extract-single-uu`: UUID extraction with validation from piped input only
@@ -324,7 +342,7 @@ Reduce boilerplate with stk_utility functions:
 
 Reference: stk_request `.append request` for both utilities.
 
-### 12. Data Enrichment Pattern
+### 13. Data Enrichment Pattern
 
 Chuck-stack provides data enrichment through pipeline commands that add columns containing related records.
 
@@ -350,7 +368,7 @@ Reference implementations:
 - `children` command in stk_psql/mod.nu
 - `tags` command in stk_tag/mod.nu for module pattern
 
-### 13. Template Pattern
+### 14. Template Pattern
 
 Templates provide reusable configurations that serve as starting points for creating new records. They are excluded from normal operational listings to keep the interface focused on active data.
 

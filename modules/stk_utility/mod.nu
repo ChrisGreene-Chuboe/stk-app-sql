@@ -178,3 +178,55 @@ export def extract-uu-with-param [
         ($piped_input | extract-single-uu --error-msg $error_msg)
     }
 }
+
+# Parse and validate JSON string with consistent error handling
+#
+# This helper provides standardized JSON validation across chuck-stack modules.
+# It ensures JSON can be parsed and returns either the parsed data or the original
+# string, depending on the return-parsed flag. This creates a consistent pattern
+# for modules that accept --json parameters.
+#
+# The standard pattern for modules is:
+# 1. Accept --json parameter as string
+# 2. Validate it can be parsed (syntax check)
+# 3. Pass the original string to database for schema validation
+#
+# Examples:
+#   # Basic validation (returns original string for database)
+#   let json_string = ('{"key": "value"}' | parse-json)
+#   
+#   # Get parsed data for inspection
+#   let parsed = ('{"key": "value"}' | parse-json --return-parsed)
+#   
+#   # Handle invalid JSON
+#   try {
+#       '{invalid json}' | parse-json
+#   } catch { |err|
+#       print $err.msg  # "Invalid JSON format"
+#   }
+#
+# Returns: Original JSON string (default) or parsed data (with --return-parsed)
+# Error: Throws standardized error if JSON cannot be parsed
+export def parse-json [
+    --return-parsed  # Return parsed data instead of original string
+] {
+    let json_string = $in
+    
+    if ($json_string | is-empty) {
+        error make { msg: "JSON string cannot be empty" }
+    }
+    
+    # Attempt to parse JSON for validation
+    let parsed = try {
+        $json_string | from json
+    } catch {
+        error make { msg: "Invalid JSON format" }
+    }
+    
+    # Return based on flag
+    if $return_parsed {
+        $parsed
+    } else {
+        $json_string  # Return original string for database
+    }
+}

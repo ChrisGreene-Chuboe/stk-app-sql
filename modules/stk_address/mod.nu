@@ -6,11 +6,23 @@ const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_tag"
 const STK_ADDRESS_TYPE_KEY = "ADDRESS"
 
-# Append an address tag to a record using natural language
+# Address module overview
+export def "address" [] {
+    print "Addresses attach location data to any chuck-stack record as tags.
+Each address is validated against the ADDRESS tag type schema.
+
+Supports both AI-powered natural language input and direct JSON entry.
+Natural language is the default for ease of use.
+
+Type 'address <tab>' to see available commands.
+"
+}
+
+# Append an address tag to a record using natural language or JSON
 #
-# This command uses AI to convert natural language address text into
-# structured JSON that matches the ADDRESS tag type schema, then
-# creates a tag attached to the specified record.
+# This command creates an address tag attached to the specified record.
+# By default, it uses AI to convert natural language address text into
+# structured JSON. With --json, you can provide pre-structured address data.
 #
 # Pipeline Input:
 #   string - UUID of the record to attach the address to
@@ -18,14 +30,18 @@ const STK_ADDRESS_TYPE_KEY = "ADDRESS"
 #   table - Single-row table from commands like 'project list | where'
 #
 # Examples:
-#   # Add address to a project
+#   # Add address using natural language (AI)
 #   $project_uuid | .append address "3508 Galena Hills Loop Round Rock TX 78681"
 #   
-#   # Add address with record input
-#   project list | first | .append address "123 Main St Austin TX"
+#   # Add address with direct JSON input
+#   $project_uuid | .append address --json '{"address1": "123 Main St", "city": "Austin", "postal": "78701"}'
 #   
-#   # Add address with type specification
-#   $contact_uuid | .append address "ship to: 123 Main St Austin TX 78701" --type-search-key ADDRESS_SHIP_TO
+#   # Add address from variable
+#   let addr = {address1: "123 Main St", city: "Austin", postal: "78701"}
+#   project list | first | .append address --json ($addr | to json)
+#   
+#   # Add shipping address with custom type
+#   $contact_uuid | .append address "123 Main St Austin TX" --type-search-key ADDRESS_SHIP_TO
 #   
 #   # Add address with custom AI model
 #   $entity_uuid | .append address "123 Main St" --model gpt-4
@@ -36,33 +52,53 @@ const STK_ADDRESS_TYPE_KEY = "ADDRESS"
 # Errors:
 #   - When no UUID is provided via pipeline
 #   - When ADDRESS tag type is not found
-#   - When AI conversion fails
+#   - When AI conversion fails (if using natural language)
+#   - When JSON is invalid or missing required fields (if using --json)
 #   - When tag creation fails
 export def ".append address" [
-    address_text: string          # Natural language address text
+    address_text?: string         # Natural language address text (required unless --json is provided)
     --type-search-key: string = $STK_ADDRESS_TYPE_KEY  # Tag type search key (default: ADDRESS)
-    --model: string               # AI model to use (optional)
+    --model: string               # AI model to use (optional, ignored with --json)
+    --json: string                # Direct JSON input matching ADDRESS schema (alternative to address_text)
 ] {
     # Extract UUID from piped input (string, record, or table)
     let target_uuid = ($in | extract-single-uu --error-msg "Target UUID required via piped input")
     
-    # Get the tag type and its schema
+    # Validate input: either address_text or --json must be provided
+    if ($address_text | is-empty) and ($json | is-empty) {
+        error make {msg: "Either address text or --json parameter is required"}
+    }
+    
+    if ($address_text | is-not-empty) and ($json | is-not-empty) {
+        error make {msg: "Cannot specify both address text and --json parameter"}
+    }
+    
+    # Get the tag type
     let tag_type = (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key)
     
     if ($tag_type | is-empty) {
         error make {msg: $"Tag type with search key '($type_search_key)' not found"}
     }
     
-    # Extract the JSON schema from tag type
-    let schema = ($tag_type | get record_json)
-    
-    # Convert address text to JSON using AI
-    let structured_address = if ($model | is-not-empty) {
-        ($address_text | ai text-to-json --schema $schema --model $model)
+    # Determine the JSON data to use
+    let address_json = if ($json | is-not-empty) {
+        # Direct JSON input - use standard validation
+        try {
+            $json | parse-json  # Returns validated string
+        } catch {
+            error make {msg: $in.msg}  # Pass through parse-json error
+        }
     } else {
-        ($address_text | ai text-to-json --schema $schema)
+        # AI conversion from natural language
+        let schema = ($tag_type | get record_json)
+        let structured_address = if ($model | is-not-empty) {
+            ($address_text | ai text-to-json --schema $schema --model $model)
+        } else {
+            ($address_text | ai text-to-json --schema $schema)
+        }
+        ($structured_address | to json)
     }
     
     # Create the tag with the structured address data
-    $target_uuid | .append tag --type-search-key $type_search_key --json ($structured_address | to json)
+    $target_uuid | .append tag --type-search-key $type_search_key --json $address_json
 }
