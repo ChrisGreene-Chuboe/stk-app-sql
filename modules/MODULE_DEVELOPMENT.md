@@ -18,11 +18,12 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
   - [6. Header-Line Pattern](#6-header-line-pattern)
   - [7. Parent-Child Pattern](#7-parent-child-pattern)
   - [8. JSON Parameter Pattern](#8-json-parameter-pattern)
-  - [9. Dynamic Command Building](#9-dynamic-command-building)
-  - [10. UUID Input Enhancement Pattern](#10-uuid-input-enhancement-pattern)
-  - [11. Utility Functions Pattern](#11-utility-functions-pattern)
-  - [12. Data Enrichment Pattern](#12-data-enrichment-pattern)
-  - [13. Template Pattern](#13-template-pattern)
+  - [9. JSON Column Convention](#9-json-column-convention)
+  - [10. Dynamic Command Building](#10-dynamic-command-building)
+  - [11. UUID Input Enhancement Pattern](#11-uuid-input-enhancement-pattern)
+  - [12. Utility Functions Pattern](#12-utility-functions-pattern)
+  - [13. Data Enrichment Pattern](#13-data-enrichment-pattern)
+  - [14. Template Pattern](#14-template-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -310,6 +311,20 @@ let record_json = try { $json | parse-json } catch { error make { msg: $in.msg }
 - Let pg_jsonschema handle schema validation
 - Consistent error message: "Invalid JSON format"
 - Available for all creation commands (.append, new, add)
+
+### 9. JSON Column Convention
+
+Chuck-stack uses strict naming conventions for JSON columns that enable automatic JSONB handling:
+
+**Core Rules:**
+- All JSON columns end with `_json` suffix (e.g., `record_json`, `table_name_uu_json`)
+- All JSON columns use PostgreSQL `jsonb` type (never `json`)
+- Never embed SQL in modules - use psql commands which auto-detect `_json` columns
+
+**Reference implementations:**
+- **JSONB auto-detection**: Search for "str ends-with _json" in stk_psql
+- **Usage pattern**: See `.append request` in stk_request for params usage
+- **Migration**: Search for "jsonb" in migrations for table definitions
 
 ### 10. Dynamic Command Building
 Optional flags are passed via args array to enable clean command composition:

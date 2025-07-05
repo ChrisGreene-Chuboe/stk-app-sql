@@ -59,8 +59,12 @@ export def ".append request" [
     
     if ($attach_data | is-empty) {
         # Standalone request - no attachment
-        let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', '($record_json)'::jsonb) RETURNING uu"
-        psql exec $sql
+        let params = {
+            name: $name
+            description: $description
+            record_json: $record_json
+        }
+        psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
     } else {
         # Request with attachment - get table_name_uu as nushell record
         let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
@@ -71,10 +75,15 @@ export def ".append request" [
             psql get-table-name-uu $attach_data.uu
         }
         
-        # Convert to JSON for SQL (until psql new-record handles JSONB better)
+        # Convert to JSON for storage
         let table_name_uu_json = ($table_name_uu | to json)
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', '($table_name_uu_json)'::jsonb, '($record_json)'::jsonb) RETURNING uu"
-        psql exec $sql
+        let params = {
+            name: $name
+            description: $description
+            table_name_uu_json: $table_name_uu_json
+            record_json: $record_json
+        }
+        psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
     }
 }
 

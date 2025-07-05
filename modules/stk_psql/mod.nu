@@ -453,6 +453,8 @@ export def "psql new-record" [
             "NULL"
         } else if ($val | describe) == "bool" {
             $val | into string
+        } else if ($col | str ends-with "_json") {
+            $"'($val)'::jsonb"
         } else {
             $"'($val)'"
         }
@@ -523,6 +525,8 @@ export def "psql new-line-record" [
             "NULL"
         } else if ($val | describe) == "bool" {
             $val | into string
+        } else if ($col | str ends-with "_json") {
+            $"'($val)'::jsonb"
         } else {
             $"'($val)'"
         }

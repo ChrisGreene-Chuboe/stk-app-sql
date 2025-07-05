@@ -57,8 +57,12 @@ export def ".append event" [
     
     if ($attach_data | is-empty) {
         # Standalone event - no attachment
-        let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', '($record_json)'::jsonb) RETURNING uu"
-        psql exec $sql
+        let params = {
+            name: $name
+            description: $description
+            record_json: $record_json
+        }
+        psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
     } else {
         # Event with attachment - auto-populate table_name_uu_json
         # Get table_name_uu as nushell record (not JSON!)
@@ -70,10 +74,15 @@ export def ".append event" [
             psql get-table-name-uu $attach_data.uu
         }
         
-        # Only convert to JSON at the SQL boundary
+        # Convert to JSON for storage
         let table_name_uu_json = ($table_name_uu | to json)
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', '($table_name_uu_json)'::jsonb, '($record_json)'::jsonb) RETURNING uu"
-        psql exec $sql
+        let params = {
+            name: $name
+            description: $description
+            table_name_uu_json: $table_name_uu_json
+            record_json: $record_json
+        }
+        psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
     }
 }
 
