@@ -31,11 +31,11 @@ assert ($ai_address.uu.0 | is-not-empty) "AI address tag should have UUID"
 # Verify AI-created address structure
 let ai_tag_detail = ($ai_address.uu.0 | tag get)
 assert (($ai_tag_detail | columns | any {|col| $col == "record_json"})) "AI tag should have record_json"
-let ai_address_data = ($ai_tag_detail.record_json.0)
+let ai_address_data = ($ai_tag_detail.record_json)
 assert ("address1" in $ai_address_data) "AI address should have address1 field"
 assert ("city" in $ai_address_data) "AI address should have city field"
 assert ("postal" in $ai_address_data) "AI address should have postal field"
-assert ($ai_tag_detail.search_key.0 == "ADDRESS") "AI tag should have ADDRESS search_key"
+assert ($ai_tag_detail.search_key == "ADDRESS") "AI tag should have ADDRESS search_key"
 
 # === Testing .append address-json (Direct JSON) ===
 
@@ -47,7 +47,7 @@ assert ($json_address1.uu.0 | is-not-empty) "JSON address tag should have UUID"
 
 # Verify minimal JSON address
 let json_tag1 = ($json_address1.uu.0 | tag get)
-let json_data1 = ($json_tag1.record_json.0)
+let json_data1 = ($json_tag1.record_json)
 assert ($json_data1.address1 == "123 Main St") "address1 should match"
 assert ($json_data1.city == "Austin") "city should match"
 assert ($json_data1.postal == "78701") "postal should match"
@@ -59,7 +59,7 @@ assert (($json_address2 | length) > 0) "Full JSON address tag should be created"
 
 # Verify full JSON address
 let json_tag2 = ($json_address2.uu.0 | tag get)
-let json_data2 = ($json_tag2.record_json.0)
+let json_data2 = ($json_tag2.record_json)
 assert ($json_data2.address1 == "456 Oak Ave") "address1 should match"
 assert ($json_data2.address2 == "Suite 100") "address2 should match"
 assert ($json_data2.city == "Dallas") "city should match"
@@ -134,7 +134,7 @@ if $has_ship_to {
     let ship_address = ($project_uuid | .append address --json $min_json --type-search-key ADDRESS_SHIP_TO)
     assert (($ship_address | length) > 0) "Should create shipping address"
     let ship_tag = ($ship_address.uu.0 | tag get)
-    assert ($ship_tag.search_key.0 == "ADDRESS_SHIP_TO") "Should have correct type"
+    assert ($ship_tag.search_key == "ADDRESS_SHIP_TO") "Should have correct type"
 }
 
 # === Verify all addresses were created ===

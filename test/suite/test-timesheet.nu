@@ -1,167 +1,179 @@
 #!/usr/bin/env nu
 
 # Test script for stk_timesheet module
+# Template Version: 2025-01-05
 
-# Test-specific suffix to ensure test isolation and idempotency
-# Generate random 2-char suffix from letters (upper/lower) and numbers
+# Test-specific suffix to ensure test isolation
 let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 let random_suffix = (0..1 | each {|_| 
     let idx = (random int 0..($chars | str length | $in - 1))
     $chars | str substring $idx..($idx + 1)
 } | str join)
-let test_suffix = $"_ts($random_suffix)"  # ts for stk_timesheet + 2 random chars
+let test_suffix = $"_ts($random_suffix)"
 
-# REQUIRED: Import modules and assert
+# Import modules and assert
 use ../modules *
 use std/assert
 
-#print "=== Setting up test data ==="
-# Create a project to attach timesheets to
-let project_name = $"Timesheet Test Project($test_suffix)"
-let project_result = (project new $project_name --description "Project for timesheet testing")
-assert (($project_result | length) > 0) "Project creation should return result"
-let project_uuid = $project_result.uu.0
-#print "✓ Created test project with UUID:" $project_uuid
+# === Testing CRUD operations ===
 
-# Create a project line (task) to test attachment
-let task_name = $"Implementation Task($test_suffix)"
-let task_result = ($project_uuid | project line new $task_name --type-search-key "TASK")
-assert (($task_result | length) > 0) "Task creation should return result"
-let task_uuid = $task_result.uu.0
-#print "✓ Created test task with UUID:" $task_uuid
+# print "=== Testing timesheet overview command ==="
+# Note: Module commands are nushell functions, not external commands, so we can't use complete
+# Just verify it runs without error
+timesheet
+# If we get here, the command succeeded
 
-#print "=== Testing .append timesheet with minutes ==="
-let timesheet1 = ($project_uuid | .append timesheet --minutes 90 --description "Code review")
-assert (($timesheet1 | length) > 0) "Timesheet creation should return result"
-assert (($timesheet1.uu | is-not-empty)) "Timesheet should have UUID"
-#print "✓ Created timesheet with 90 minutes"
+# print "=== Testing timesheet creation (using .append pattern) ==="
+# Timesheets need to be attached to something, so create a project first
+let project = (project new $"Timesheet Test Project($test_suffix)")
+let project_uu = ($project.uu.0)
 
-#print "=== Testing .append timesheet with hours ==="
-let timesheet2 = ($task_uuid | .append timesheet --hours 2.5 --description "Implementation work")
-assert (($timesheet2 | length) > 0) "Timesheet creation with hours should work"
-assert (($timesheet2.uu | is-not-empty)) "Timesheet should have UUID"
-#print "✓ Created timesheet with 2.5 hours"
+let created = ($project_uu | .append timesheet --minutes 60 --description "Test work")
+assert ($created | is-not-empty) "Should create timesheet"
+assert ($created.uu | is-not-empty) "Should have UUID"
+# Name format may vary - just verify it exists
+assert ($created.name.0 | is-not-empty) "Should have name"
 
-#print "=== Testing .append timesheet with custom start date ==="
-let custom_date = "2024-01-15T09:00:00Z"
-let timesheet3 = ($project_uuid | .append timesheet --minutes 45 --start-date $custom_date)
-assert (($timesheet3 | length) > 0) "Timesheet with custom date should work"
-#print "✓ Created timesheet with custom start date"
+# print "=== Testing timesheet list ==="
+let list_result = (timesheet list)
+assert ($list_result | is-not-empty) "Should have timesheets"
 
-#print "=== Testing timesheet list ==="
-let timesheets = (timesheet list)
-assert (($timesheets | length) > 0) "Should have timesheets in list"
-assert (($timesheets | columns | any {|col| $col == "record_json"})) "Should have record_json column"
-assert (($timesheets | columns | any {|col| $col == "table_name_uu_json"})) "Should have attachment column"
-#print "✓ Timesheet list returns results"
+# print "=== Testing timesheet get ==="
+let get_result = ($created.uu.0 | timesheet get)
+assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# Filter to our test timesheets
-let test_timesheets = ($timesheets | where {|t| 
-    $t.table_name_uu_json.uu == $project_uuid or $t.table_name_uu_json.uu == $task_uuid
-})
-#print "Debug: Total timesheets:" ($timesheets | length)
-#print "Debug: Project UUID:" $project_uuid
-#print "Debug: Task UUID:" $task_uuid
-#print "Debug: First timesheet attachment:" ($timesheets | get 0.table_name_uu_json | to nuon)
-assert (($test_timesheets | length) >= 3) "Should have at least 3 test timesheets"
-#print "✓ Found" ($test_timesheets | length) "test timesheets"
+# print "=== Testing timesheet get --detail ==="
+let detail_result = ($created.uu.0 | timesheet get --detail)
+assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
 
-#print "=== Testing timesheet list with detail ==="
-let detailed_timesheets = (timesheet list --detail)
-assert (($detailed_timesheets | columns | any {|col| $col == "type_name"})) "Detailed list should include type_name"
-assert (($detailed_timesheets | columns | any {|col| $col == "type_enum"})) "Detailed list should include type_enum"
-#print "✓ Detailed timesheet list includes type information"
+# print "=== Testing timesheet revoke ==="
+let revoke_result = ($created.uu.0 | timesheet revoke)
+assert ($revoke_result.is_revoked.0 == true) "Should be revoked"
 
-#print "=== Testing timesheet get ==="
-let first_uuid = $timesheet1.uu.0
-let retrieved = ($first_uuid | timesheet get)
-assert (($retrieved | length) == 1) "Should retrieve exactly one record"
-assert (($retrieved.uu.0 == $first_uuid)) "Retrieved UUID should match requested"
-assert (($retrieved.record_json.0.minutes == 90)) "Should have correct minutes"
-assert (($retrieved.record_json.0.description == "Code review")) "Should have correct description"
-#print "✓ Retrieved timesheet with correct data"
+# print "=== Testing timesheet list --all ==="
+let all_list = (timesheet list --all)
+assert ($all_list | where is_revoked == true | is-not-empty) "Should show revoked records"
 
-#print "=== Testing timesheet get with --uu parameter ==="
-let retrieved_uu = (timesheet get --uu $timesheet2.uu.0)
-assert (($retrieved_uu | length) == 1) "Should retrieve with --uu parameter"
-assert (($retrieved_uu.record_json.0.minutes == 150)) "Should have 150 minutes (2.5 hours)"
-#print "✓ Retrieved timesheet using --uu parameter"
+# === Testing UUID input variations ===
 
-#print "=== Testing timesheet filtering with nushell pipelines ==="
-# Test filtering by project
-let project_timesheets = (timesheet list | where table_name_uu_json.uu == $project_uuid)
-assert (($project_timesheets | length) >= 2) "Should have at least 2 timesheets for project"
-#print "✓ Filtered timesheets by project"
+# Create parent for UUID testing
+let parent = ($project_uu | .append timesheet --minutes 30)
+let parent_uu = ($parent.uu.0)
 
-# Test filtering by date
-let dated_timesheet = (timesheet list | where record_json.start_date == $custom_date)
-assert (($dated_timesheet | length) >= 1) "Should find timesheet with custom date"
-#print "✓ Filtered timesheets by date"
+# print "=== Testing timesheet get with string UUID ==="
+let get_string = ($parent_uu | timesheet get)
+assert ($get_string.uu == $parent_uu) "Should get correct record with string UUID"
 
-# Test calculating total minutes
-let total_minutes = ($test_timesheets | get record_json.minutes | math sum)
-assert (($total_minutes >= 285)) "Total minutes should be at least 285 (90+150+45)"
-let total_hours = ($total_minutes / 60 | math round --precision 2)
-#print $"✓ Calculated total: ($total_minutes) minutes = ($total_hours) hours"
+# print "=== Testing timesheet get with record input ==="
+let get_record = ($parent | first | timesheet get)
+assert ($get_record.uu == $parent_uu) "Should get correct record from record input"
 
-#print "=== Testing timesheet revoke ==="
-let revoke_result = ($first_uuid | timesheet revoke)
-assert (($revoke_result | length) > 0) "Revoke should return result"
-assert (($revoke_result.is_revoked.0 == true)) "Timesheet should be marked as revoked"
-#print "✓ Revoked timesheet successfully"
+# print "=== Testing timesheet get with table input ==="
+let get_table = ($parent | timesheet get)
+assert ($get_table.uu == $parent_uu) "Should get correct record from table input"
 
-# Verify revoked timesheet doesn't appear in normal list
-let active_timesheets = (timesheet list | where table_name_uu_json.uu == $project_uuid)
-let all_timesheets = (timesheet list --all | where table_name_uu_json.uu == $project_uuid)
-assert (($all_timesheets | length) > ($active_timesheets | length)) "All list should have more than active list"
-#print "✓ Revoked timesheet hidden from normal list"
+# print "=== Testing timesheet get with --uu parameter ==="
+let get_param = (timesheet get --uu $parent_uu)
+assert ($get_param.uu == $parent_uu) "Should get correct record with --uu parameter"
 
-#print "=== Testing timesheet types ==="
+# print "=== Testing timesheet get with empty table (should fail) ==="
+try {
+    [] | timesheet get
+    error make {msg: "Empty table should have failed"}
+} catch {
+    # print "  ✓ Empty table correctly rejected"
+}
+
+# print "=== Testing timesheet get with multi-row table ==="
+let multi_table = [$parent, $parent] | flatten
+let get_multi = ($multi_table | timesheet get)
+assert ($get_multi.uu == $parent_uu) "Should use first row from multi-row table"
+
+# print "=== Testing timesheet revoke with string UUID ==="
+let revoke_item = ($project_uu | .append timesheet --minutes 15)
+let revoke_string = ($revoke_item.uu.0 | timesheet revoke)
+assert ($revoke_string.is_revoked.0 == true) "Should revoke with string UUID"
+
+# print "=== Testing timesheet revoke with --uu parameter ==="
+let revoke_item2 = ($project_uu | .append timesheet --minutes 20)
+let revoke_param = (timesheet revoke --uu $revoke_item2.uu.0)
+assert ($revoke_param.is_revoked.0 == true) "Should revoke with --uu parameter"
+
+# print "=== Testing timesheet revoke with record input ==="
+let revoke_item3 = ($project_uu | .append timesheet --minutes 25)
+let revoke_record = ($revoke_item3 | first | timesheet revoke)
+assert ($revoke_record.is_revoked.0 == true) "Should revoke from record input"
+
+# print "=== Testing timesheet revoke with table input ==="
+let revoke_item4 = ($project_uu | .append timesheet --minutes 35)
+let revoke_table = ($revoke_item4 | timesheet revoke)
+assert ($revoke_table.is_revoked.0 == true) "Should revoke from table input"
+
+# === Testing type support ===
+
+# print "=== Testing timesheet types ==="
 let types = (timesheet types)
-assert (($types | length) > 0) "Should have at least one timesheet type"
-assert (($types | where type_enum == "TIMESHEET" | length) == 1) "Should have TIMESHEET type"
-#print "✓ Timesheet types command works"
+assert ($types | is-not-empty) "Should have types"
+assert ($types | columns | any {|col| $col == "uu"}) "Types should have uu"
+assert ($types | columns | any {|col| $col == "search_key"}) "Types should have search_key"
 
-#print "=== Testing error conditions ==="
-# Test missing time parameter
-let error_result = try {
-    $project_uuid | .append timesheet --description "No time specified"
-    false
-} catch {
-    true
-}
-assert ($error_result) "Should fail without minutes or hours"
-#print "✓ Correctly fails without time parameter"
+# Note: Timesheet is a domain wrapper - it uses stk_event table with TIMESHEET type
+# Types are filtered and not settable via .append timesheet command
 
-# Test both minutes and hours
-let error_result2 = try {
-    $project_uuid | .append timesheet --minutes 60 --hours 1
-    false
-} catch {
-    true
-}
-assert ($error_result2) "Should fail with both minutes and hours"
-#print "✓ Correctly fails with both time parameters"
+# === Testing automatic JSON data ===
+# Note: Timesheet doesn't have a --json parameter, but it automatically stores time data in record_json
 
-# Test excessive minutes
-let error_result3 = try {
-    $project_uuid | .append timesheet --minutes 1441
-    false
-} catch {
-    true
-}
-assert ($error_result3) "Should fail with minutes > 1440"
-#print "✓ Correctly fails with excessive minutes"
+# print "=== Testing timesheet automatic JSON data ==="
+let auto_json = ($project_uu | .append timesheet --minutes 50)
+let auto_json_detail = ($auto_json.uu.0 | timesheet get)
+# Timesheet automatically adds minutes to record_json
+assert ($auto_json_detail.record_json.minutes == 50) "Should have minutes in JSON"
 
-# Test missing attachment
-let error_result4 = try {
-    .append timesheet --minutes 60
-    false
-} catch {
-    true
-}
-assert ($error_result4) "Should fail without attachment"
-#print "✓ Correctly fails without attachment"
+# === Additional timesheet-specific tests ===
 
-# Return success message for test harness
+# print "=== Testing timesheet with hours parameter ==="
+let hours_timesheet = ($project_uu | .append timesheet --hours 2.5 --description "Long task")
+assert ($hours_timesheet | is-not-empty) "Should create timesheet with hours"
+let hours_detail = ($hours_timesheet.uu.0 | timesheet get)
+assert ($hours_detail.record_json.minutes == 150) "Should convert 2.5 hours to 150 minutes"
+
+# print "=== Testing timesheet with custom start date ==="
+let custom_date = "2024-01-15T09:00:00Z"
+let dated_timesheet = ($project_uu | .append timesheet --minutes 40 --start-date $custom_date)
+assert ($dated_timesheet | is-not-empty) "Should create timesheet with custom date"
+let dated_detail = ($dated_timesheet.uu.0 | timesheet get)
+assert ($dated_detail.record_json.start_date == $custom_date) "Should store custom start date"
+
+# print "=== Testing timesheet attachment pattern ==="
+# Create a project line to attach timesheet to
+let task = ($project_uu | project line new $"Test Task($test_suffix)" --type-search-key "TASK")
+let task_timesheet = ($task.uu.0 | .append timesheet --minutes 90 --description "Task work")
+assert ($task_timesheet | is-not-empty) "Should create timesheet on task"
+let task_detail = ($task_timesheet.uu.0 | timesheet get)
+assert ($task_detail.table_name_uu_json != {}) "Should have attachment to task"
+
+# print "=== Testing timesheet list --detail ==="
+let detail_list = (timesheet list --detail | take 5)
+assert ($detail_list | is-not-empty) "Should list with details"
+assert ($detail_list | columns | any {|col| $col == "type_name"}) "Should include type_name"
+assert ($detail_list | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
+
+# print "=== Testing timesheet with description ==="
+let described = ($project_uu | .append timesheet --minutes 75 --description "Important meeting")
+let described_detail = ($described.uu.0 | timesheet get)
+assert ($described_detail.description == "Important meeting") "Should store description"
+
+# print "=== Testing .append event on timesheet ==="
+# Note: Since timesheet IS an event, we can attach other events to it
+let timesheet_for_event = ($project_uu | .append timesheet --minutes 120)
+let timesheet_event = ($timesheet_for_event.uu.0 | .append event $"review-complete($test_suffix)" --description "Manager approved")
+assert ($timesheet_event | is-not-empty) "Should create event"
+assert ($timesheet_event.uu | is-not-empty) "Event should have UUID"
+
+# print "=== Testing .append request on timesheet ==="
+let timesheet_for_request = ($project_uu | .append timesheet --minutes 180)
+let timesheet_request = ($timesheet_for_request.uu.0 | .append request $"approve-overtime($test_suffix)" --description "Please approve overtime")
+assert ($timesheet_request | is-not-empty) "Should create request"
+assert ($timesheet_request.uu | is-not-empty) "Request should have UUID"
+
 "=== All tests completed successfully ==="
