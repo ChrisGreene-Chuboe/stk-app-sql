@@ -61,8 +61,14 @@ export def ".append address" [
     --model: string               # AI model to use (optional, ignored with --json)
     --json: string                # Direct JSON input matching ADDRESS schema (alternative to address_text)
 ] {
-    # Extract UUID from piped input (string, record, or table)
-    let target_uuid = ($in | extract-single-uu --error-msg "Target UUID required via piped input")
+    # Extract attachment data from piped input
+    let attach_data = ($in | extract-attach-from-input)
+    
+    if ($attach_data | is-empty) {
+        error make {msg: "Target UUID required via piped input"}
+    }
+    
+    let target_uuid = $attach_data.uu
     
     # Validate input: either address_text or --json must be provided
     if ($address_text | is-empty) and ($json | is-empty) {
@@ -100,5 +106,6 @@ export def ".append address" [
     }
     
     # Create the tag with the structured address data
-    $target_uuid | .append tag --type-search-key $type_search_key --json $address_json
+    # Pass the full attach_data to preserve table_name if available
+    $attach_data | .append tag --type-search-key $type_search_key --json $address_json
 }

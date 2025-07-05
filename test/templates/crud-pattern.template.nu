@@ -20,7 +20,7 @@ assert ($list_result | where name =~ $test_suffix | is-not-empty) "Should find c
 
 # print "=== Testing MODULE get ==="
 let get_result = ($created.uu.0 | MODULE get)
-assert ($get_result.uu.0 == $created.uu.0) "Should get correct record"
+assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
 # print "=== Testing MODULE get --detail ==="
 let detail_result = ($created.uu.0 | MODULE get --detail)

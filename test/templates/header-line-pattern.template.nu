@@ -26,7 +26,7 @@ assert (($lines | where name =~ $test_suffix | length) >= 3) "Should list all li
 
 # print "=== Testing HEADER LINE get ==="
 let get_line = ($line1.uu.0 | HEADER LINE get)
-assert ($get_line.name.0 | str contains "Line 1") "Should get specific line"
+assert ($get_line.name | str contains "Line 1") "Should get specific line"
 
 # print "=== Testing HEADER LINE revoke ==="
 let revoked = ($line1.uu.0 | HEADER LINE revoke)

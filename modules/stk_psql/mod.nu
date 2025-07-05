@@ -255,11 +255,11 @@ export def "psql get-record" [
             WHERE r.uu = '($uu)' AND t.type_enum IN \('($enum_list)')
         "
         
-        psql exec $sql
+        psql exec $sql | first
     } else {
         # Original simple query (no enum filtering)
         let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-        psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'"
+        psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'" | first
     }
 }
 
@@ -850,7 +850,7 @@ export def "psql detail-record" [
         LEFT JOIN ($type_table) t ON i.type_uu = t.uu
         WHERE i.uu = '($uu)'
     "
-    psql exec $sql
+    psql exec $sql | first
 }
 
 # Elaborate foreign key references in a table by adding resolved columns

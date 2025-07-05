@@ -34,4 +34,4 @@ assert ($all_list | where name =~ "Revoked Template" | is-not-empty) "Should sho
 
 # print "=== Testing direct MODULE get on template ==="
 let get_template = ($template.uu.0 | MODULE get)
-assert ($get_template.is_template.0 == true) "Should get template directly"
+assert ($get_template.is_template == true) "Should get template directly"

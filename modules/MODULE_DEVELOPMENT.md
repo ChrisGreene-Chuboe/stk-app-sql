@@ -677,6 +677,7 @@ UUID extraction patterns:
 - **Escape parentheses in SQL**: `$"SELECT COUNT\(*) FROM table"`  
 - **No mutable captures in closures**: Create immutable copy before closure: `let final = $mutable`
 - **Variable declarations**: Use `let` for immutable, `mut` for mutable (NOT `let mut`)
+- **Optional parameters**: Omit them, don't pass `null` (e.g., use `some-func` not `some-func null`)
 
 ### Design Guidelines
 - **Pipeline-only UUIDs**: Never accept UUID as optional parameter

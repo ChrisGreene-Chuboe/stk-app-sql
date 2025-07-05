@@ -4,19 +4,19 @@
 
 # print "=== Testing MODULE get with string UUID ==="
 let get_string = ($parent_uu | MODULE get)
-assert ($get_string.uu.0 == $parent_uu) "Should get correct record with string UUID"
+assert ($get_string.uu == $parent_uu) "Should get correct record with string UUID"
 
 # print "=== Testing MODULE get with record input ==="
 let get_record = ($parent | first | MODULE get)
-assert ($get_record.uu.0 == $parent_uu) "Should get correct record from record input"
+assert ($get_record.uu == $parent_uu) "Should get correct record from record input"
 
 # print "=== Testing MODULE get with table input ==="
 let get_table = ($parent | MODULE get)
-assert ($get_table.uu.0 == $parent_uu) "Should get correct record from table input"
+assert ($get_table.uu == $parent_uu) "Should get correct record from table input"
 
 # print "=== Testing MODULE get with --uu parameter ==="
 let get_param = (MODULE get --uu $parent_uu)
-assert ($get_param.uu.0 == $parent_uu) "Should get correct record with --uu parameter"
+assert ($get_param.uu == $parent_uu) "Should get correct record with --uu parameter"
 
 # print "=== Testing MODULE get with empty table (should fail) ==="
 try {
@@ -29,7 +29,7 @@ try {
 # print "=== Testing MODULE get with multi-row table ==="
 let multi_table = [$parent, $parent] | flatten
 let get_multi = ($multi_table | MODULE get)
-assert ($get_multi.uu.0 == $parent_uu) "Should use first row from multi-row table"
+assert ($get_multi.uu == $parent_uu) "Should use first row from multi-row table"
 
 # print "=== Testing MODULE revoke with string UUID ==="
 let revoke_item = (MODULE new $"Revoke Test($test_suffix)")

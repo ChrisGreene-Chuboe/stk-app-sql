@@ -29,7 +29,7 @@ assert ($list_result | where name =~ $test_suffix | is-not-empty) "Should find c
 
 # print "=== Testing bp get ==="
 let get_result = ($created.uu.0 | bp get)
-assert ($get_result.uu.0 == $created.uu.0) "Should get correct record"
+assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
 # print "=== Testing bp get --detail ==="
 let detail_result = ($created.uu.0 | bp get --detail)
@@ -50,19 +50,19 @@ let parent_uu = $parent.uu.0
 
 # print "=== Testing bp get with string UUID ==="
 let get_string = ($parent_uu | bp get)
-assert ($get_string.uu.0 == $parent_uu) "Should get correct record with string UUID"
+assert ($get_string.uu == $parent_uu) "Should get correct record with string UUID"
 
 # print "=== Testing bp get with record input ==="
 let get_record = ($parent | first | bp get)
-assert ($get_record.uu.0 == $parent_uu) "Should get correct record from record input"
+assert ($get_record.uu == $parent_uu) "Should get correct record from record input"
 
 # print "=== Testing bp get with table input ==="
 let get_table = ($parent | bp get)
-assert ($get_table.uu.0 == $parent_uu) "Should get correct record from table input"
+assert ($get_table.uu == $parent_uu) "Should get correct record from table input"
 
 # print "=== Testing bp get with --uu parameter ==="
 let get_param = (bp get --uu $parent_uu)
-assert ($get_param.uu.0 == $parent_uu) "Should get correct record with --uu parameter"
+assert ($get_param.uu == $parent_uu) "Should get correct record with --uu parameter"
 
 # print "=== Testing bp get with empty table (should fail) ==="
 try {
@@ -75,7 +75,7 @@ try {
 # print "=== Testing bp get with multi-row table ==="
 let multi_table = [$parent, $parent] | flatten
 let get_multi = ($multi_table | bp get)
-assert ($get_multi.uu.0 == $parent_uu) "Should use first row from multi-row table"
+assert ($get_multi.uu == $parent_uu) "Should use first row from multi-row table"
 
 # print "=== Testing bp revoke with string UUID ==="
 let revoke_item = (bp new $"Revoke Test($test_suffix)")
@@ -123,20 +123,20 @@ assert ($json_created | is-not-empty) "Should create with JSON"
 
 # print "=== Verifying stored JSON ==="
 let json_detail = ($json_created.uu.0 | bp get)
-assert ($json_detail.record_json.0.test == true) "Should store JSON test field"
-assert ($json_detail.record_json.0.value == 42) "Should store JSON value field"
+assert ($json_detail.record_json.test == true) "Should store JSON test field"
+assert ($json_detail.record_json.value == 42) "Should store JSON value field"
 
 # print "=== Testing bp creation without JSON (default) ==="
 let no_json = (bp new $"No JSON Test($test_suffix)")
 let no_json_detail = ($no_json.uu.0 | bp get)
-assert ($no_json_detail.record_json.0 == {}) "Should default to empty object"
+assert ($no_json_detail.record_json == {}) "Should default to empty object"
 
 # print "=== Testing bp creation with complex JSON ==="
 let complex_json = '{"nested": {"deep": {"value": "found"}}, "array": [1, 2, 3]}'
 let complex_created = (bp new $"Complex JSON($test_suffix)" --json $complex_json)
 let complex_detail = ($complex_created.uu.0 | bp get)
-assert ($complex_detail.record_json.0.nested.deep.value == "found") "Should store nested JSON"
-assert (($complex_detail.record_json.0.array | length) == 3) "Should store JSON arrays"
+assert ($complex_detail.record_json.nested.deep.value == "found") "Should store nested JSON"
+assert (($complex_detail.record_json.array | length) == 3) "Should store JSON arrays"
 
 # === Testing template pattern ===
 # print "=== Testing bp template creation ==="
@@ -171,6 +171,6 @@ assert ($all_list | where name =~ "Revoked Template" | is-not-empty) "Should sho
 
 # print "=== Testing direct bp get on template ==="
 let get_template = ($template.uu.0 | bp get)
-assert ($get_template.is_template.0 == true) "Should get template directly"
+assert ($get_template.is_template == true) "Should get template directly"
 
 "=== All tests completed successfully ==="

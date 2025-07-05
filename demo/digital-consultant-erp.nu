@@ -4,7 +4,7 @@
 # This demo shows how to create a business partner with full context:
 # - Basic information and attributes
 # - Business roles via tags
-# - Addresses
+# - Addresses with structured JSON data
 # - Custom data in record_json
 #
 # To run: nu -l -c "source demo/digital-consultant-erp.nu"
@@ -53,19 +53,39 @@ print "✓ Tagged as BP_VENDOR"
 
 print ""
 
+
 # Step 3: Add addresses
 print "3. Adding addresses..."
 
-# Headquarters address - AI will parse the natural language into structured data
-let hq_address = $client | .append address "123 Main Street, Suite 1000, New York, NY 10001"
+# Headquarters address - using structured JSON
+let hq_address = $client | .append address --json '{
+    "address1": "123 Main Street",
+    "address2": "Suite 1000",
+    "city": "New York",
+    "region": "NY",
+    "postal": "10001",
+    "country": "US"
+}'
 print "✓ Added headquarters address"
 
-# Billing address
-let billing_address = $client | .append address "456 Finance Blvd, Jersey City, NJ 07302"
+# Billing address - using structured JSON
+let billing_address = $client | .append address --json '{
+    "address1": "456 Finance Blvd",
+    "city": "Jersey City",
+    "region": "NJ",
+    "postal": "07302",
+    "country": "US"
+}'
 print "✓ Added billing address"
 
-# Shipping address
-let shipping_address = $client | .append address "789 Warehouse Way, Newark, NJ 07102"
+# Shipping address - using structured JSON
+let shipping_address = $client | .append address --json '{
+    "address1": "789 Warehouse Way",
+    "city": "Newark",
+    "region": "NJ",
+    "postal": "07102",
+    "country": "US"
+}'
 print "✓ Added shipping address"
 
 print ""
@@ -75,11 +95,11 @@ print "4. Business Partner Profile"
 print "==========================="
 
 # Get BP with details
-let bp_detail = $client | bp get --detail
+let bp_detail = ($client | bp get --detail)
 print $"Name: ($bp_detail.name)"
 print $"Type: ($bp_detail.type_enum) - ($bp_detail.type_description)"
 print $"Description: ($bp_detail.description)"
-print $"Status: ($bp_detail.is_valid | if $in { 'Valid' } else { 'Invalid' })"
+print $"Status: (if $bp_detail.is_valid { 'Valid' } else { 'Invalid' })"
 print $"Created: ($bp_detail.created)"
 print ""
 

@@ -14,15 +14,26 @@ DECLARE
     sql_query TEXT;
     result_count INTEGER;
 BEGIN
+    -- RAISE NOTICE 'Starting UUID lookup for: %', target_uu;
+    
+    -- Debug: Show all tables we'll check
+    -- RAISE NOTICE 'Tables found in private schema:';
+    -- FOR table_rec IN 
+    --     SELECT tablename FROM pg_tables WHERE schemaname = 'private' ORDER BY tablename
+    -- LOOP
+    --     RAISE NOTICE '  - %', table_rec.tablename;
+    -- END LOOP;
+    
     -- Search through all tables that follow chuck-stack conventions
     -- (have uu primary key and table_name column)
     FOR table_rec IN 
         SELECT schemaname, tablename 
         FROM pg_tables 
-        WHERE schemaname IN ('private', 'api')
-        AND tablename NOT LIKE '%_part_%'  -- Skip partition tables
+        WHERE schemaname IN ('private')
+        AND tablename NOT LIKE '%\_part\_%' ESCAPE '\'  -- Skip partition tables
         ORDER BY schemaname, tablename
     LOOP
+        -- RAISE NOTICE 'Checking table: %.%', table_rec.schemaname, table_rec.tablename;
         -- Check if table has both uu and table_name columns
         IF EXISTS (
             SELECT 1 FROM information_schema.columns 
@@ -35,6 +46,8 @@ BEGIN
             AND table_name = table_rec.tablename 
             AND column_name = 'table_name'
         ) THEN
+            -- RAISE NOTICE 'Table %.% has both uu and table_name columns', table_rec.schemaname, table_rec.tablename;
+            
             -- Build dynamic query to check for UUID
             sql_query := format(
                 'SELECT COUNT(*) FROM %I.%I WHERE uu = $1',
@@ -44,6 +57,8 @@ BEGIN
             
             -- Execute query and get count
             EXECUTE sql_query INTO result_count USING target_uu;
+            
+            -- RAISE NOTICE 'Found % rows in %.%', result_count, table_rec.schemaname, table_rec.tablename;
             
             -- If UUID found, get the table_name and return result
             IF result_count > 0 THEN
@@ -64,6 +79,7 @@ BEGIN
     END LOOP;
     
     -- UUID not found in any table
+    -- RAISE NOTICE 'UUID % not found in any table', target_uu;
     RETURN jsonb_build_object(
         'table_name', '',
         'uu', target_uu::text,

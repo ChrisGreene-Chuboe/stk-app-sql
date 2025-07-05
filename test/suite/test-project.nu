@@ -199,61 +199,61 @@ assert ($detailed_projects_list | columns | any {|col| $col == "type_name"}) "De
 #print "=== Testing project get command ==="
 let first_project_uu = ($projects_list | get uu.0)
 let retrieved_project = ($first_project_uu | project get)
-assert (($retrieved_project | length) == 1) "Should return exactly one project"
+assert ($retrieved_project | describe | str starts-with "record") "Should return a record, not a table"
 assert ($retrieved_project | columns | any {|col| $col == "uu"}) "Retrieved project should contain 'uu' field"
-assert ($retrieved_project.uu.0 == $first_project_uu) "Retrieved UUID should match requested UUID"
+assert ($retrieved_project.uu == $first_project_uu) "Retrieved UUID should match requested UUID"
 #print "✓ Project get verified for UUID:" $first_project_uu
 
 #print "=== Testing project get with --uu parameter ==="
 let uu_param_project = (project get --uu $first_project_uu)
-assert (($uu_param_project | length) == 1) "Should return exactly one project with --uu parameter"
-assert ($uu_param_project.uu.0 == $first_project_uu) "Retrieved UUID should match requested UUID with --uu"
+assert ($uu_param_project | describe | str starts-with "record") "Should return a record with --uu parameter"
+assert ($uu_param_project.uu == $first_project_uu) "Retrieved UUID should match requested UUID with --uu"
 #print "✓ Project get --uu parameter verified"
 
 #print "=== Testing project get with table input ==="
 let table_input_project = ($projects_list | where uu == $first_project_uu | project get)
-assert (($table_input_project | length) == 1) "Should return exactly one project from table input"
-assert ($table_input_project.uu.0 == $first_project_uu) "Retrieved UUID should match from table input"
+assert ($table_input_project | describe | str starts-with "record") "Should return a record from table input"
+assert ($table_input_project.uu == $first_project_uu) "Retrieved UUID should match from table input"
 #print "✓ Project get with table input verified"
 
 #print "=== Testing project get with record input ==="
 let record_input_project = ($projects_list | where uu == $first_project_uu | get 0 | project get)
-assert (($record_input_project | length) == 1) "Should return exactly one project from record input"
-assert ($record_input_project.uu.0 == $first_project_uu) "Retrieved UUID should match from record input"
+assert ($record_input_project | describe | str starts-with "record") "Should return a record from record input"
+assert ($record_input_project.uu == $first_project_uu) "Retrieved UUID should match from record input"
 #print "✓ Project get with record input verified"
 
 #print "=== Testing project get --detail command ==="
 let detailed_project = ($first_project_uu | project get --detail)
-assert (($detailed_project | length) == 1) "Should return exactly one detailed project"
+assert ($detailed_project | describe | str starts-with "record") "Should return a record for detailed project"
 assert ($detailed_project | columns | any {|col| $col == "uu"}) "Detailed project should contain 'uu' field"
 assert ($detailed_project | columns | any {|col| $col == "type_enum"}) "Detailed project should contain 'type_enum' field"
 assert ($detailed_project | columns | any {|col| $col == "type_name"}) "Detailed project should contain 'type_name' field"
-#print "✓ Project get --detail verified with type:" ($detailed_project.type_enum.0)
+#print "✓ Project get --detail verified with type:" ($detailed_project.type_enum)
 
 #print "=== Testing project line get command ==="
 let first_line_uu = ($line_list | get uu.0)
 let retrieved_line = ($first_line_uu | project line get)
-assert (($retrieved_line | length) == 1) "Should return exactly one project line"
+assert ($retrieved_line | describe | str starts-with "record") "Should return a record for project line"
 assert ($retrieved_line | columns | any {|col| $col == "uu"}) "Retrieved line should contain 'uu' field"
-assert ($retrieved_line.uu.0 == $first_line_uu) "Retrieved line UUID should match requested UUID"
+assert ($retrieved_line.uu == $first_line_uu) "Retrieved line UUID should match requested UUID"
 #print "✓ Project line get verified for UUID:" $first_line_uu
 
 #print "=== Testing project line get with --uu parameter ==="
 let uu_param_line = (project line get --uu $first_line_uu)
-assert (($uu_param_line | length) == 1) "Should return exactly one project line with --uu parameter"
-assert ($uu_param_line.uu.0 == $first_line_uu) "Retrieved line UUID should match requested UUID with --uu"
+assert ($uu_param_line | describe | str starts-with "record") "Should return a record with --uu parameter"
+assert ($uu_param_line.uu == $first_line_uu) "Retrieved line UUID should match requested UUID with --uu"
 #print "✓ Project line get --uu parameter verified"
 
 #print "=== Testing project line get with table input ==="
 let table_input_line = ($line_list | where uu == $first_line_uu | project line get)
-assert (($table_input_line | length) == 1) "Should return exactly one project line from table input"
-assert ($table_input_line.uu.0 == $first_line_uu) "Retrieved line UUID should match from table input"
+assert ($table_input_line | describe | str starts-with "record") "Should return a record from table input"
+assert ($table_input_line.uu == $first_line_uu) "Retrieved line UUID should match from table input"
 #print "✓ Project line get with table input verified"
 
 #print "=== Testing project line get with record input ==="
 let record_input_line = ($line_list | where uu == $first_line_uu | get 0 | project line get)
-assert (($record_input_line | length) == 1) "Should return exactly one project line from record input"
-assert ($record_input_line.uu.0 == $first_line_uu) "Retrieved line UUID should match from record input"
+assert ($record_input_line | describe | str starts-with "record") "Should return a record from record input"
+assert ($record_input_line.uu == $first_line_uu) "Retrieved line UUID should match from record input"
 #print "✓ Project line get with record input verified"
 
 #print "=== Testing project line new with table input ==="
@@ -289,11 +289,11 @@ assert (($record_lines | length) == 2) "Should list 2 lines with record input"
 
 #print "=== Testing project line get --detail command ==="
 let detailed_line = ($first_line_uu | project line get --detail)
-assert (($detailed_line | length) == 1) "Should return exactly one detailed project line"
+assert ($detailed_line | describe | str starts-with "record") "Should return a record for detailed line"
 assert ($detailed_line | columns | any {|col| $col == "uu"}) "Detailed line should contain 'uu' field"
 assert ($detailed_line | columns | any {|col| $col == "type_enum"}) "Detailed line should contain 'type_enum' field"
 assert ($detailed_line | columns | any {|col| $col == "type_name"}) "Detailed line should contain 'type_name' field"
-#print "✓ Project line get --detail verified with type:" ($detailed_line.type_enum.0)
+#print "✓ Project line get --detail verified with type:" ($detailed_line.type_enum)
 
 #print "=== Testing project revoke with UUID piping ==="
 let revoke_result = ($project_uuid | project revoke)
@@ -362,9 +362,9 @@ assert ($json_project.uu | is-not-empty) "JSON project UUID should not be empty"
 
 #print "=== Verifying project's record_json field ==="
 let json_project_detail = ($json_project.uu.0 | project get)
-assert (($json_project_detail | length) == 1) "Should retrieve exactly one project"
+assert ($json_project_detail | describe | str starts-with "record") "Should return a record"
 assert ($json_project_detail | columns | any {|col| $col == "record_json"}) "Project should have record_json column"
-let stored_json = ($json_project_detail.record_json.0)
+let stored_json = $json_project_detail.record_json
 assert ($stored_json | columns | any {|col| $col == "priority"}) "JSON should contain priority field"
 assert ($stored_json | columns | any {|col| $col == "estimated_hours"}) "JSON should contain estimated_hours field"
 assert ($stored_json | columns | any {|col| $col == "tech_stack"}) "JSON should contain tech_stack field"
@@ -376,7 +376,7 @@ assert (($stored_json.tech_stack | length) == 3) "Tech stack should have 3 items
 #print "=== Testing project creation without JSON (default behavior) ==="
 let no_json_project = (project new "Simple Project" --description "Project without JSON metadata")
 let no_json_detail = ($no_json_project.uu.0 | project get)
-assert ($no_json_detail.record_json.0 == {}) "record_json should be empty object when no JSON provided"
+assert ($no_json_detail.record_json == {}) "record_json should be empty object when no JSON provided"
 #print "✓ Default behavior verified: no JSON parameter results in empty JSON object"
 
 #print "=== Testing project line creation with JSON data ==="
@@ -389,9 +389,9 @@ assert ($json_line.uu | is-not-empty) "JSON line UUID should not be empty"
 
 #print "=== Verifying project line's record_json field ==="
 let json_line_detail = ($json_line.uu.0 | project line get)
-assert (($json_line_detail | length) == 1) "Should retrieve exactly one project line"
+assert ($json_line_detail | describe | str starts-with "record") "Should return a record"
 assert ($json_line_detail | columns | any {|col| $col == "record_json"}) "Project line should have record_json column"
-let line_stored_json = ($json_line_detail.record_json.0)
+let line_stored_json = $json_line_detail.record_json
 assert ($line_stored_json.estimated_hours == 40) "Line estimated hours should be 40"
 assert ($line_stored_json.priority == "high") "Line priority should be high"
 assert (($line_stored_json.dependencies | length) == 2) "Line should have 2 dependencies"
@@ -401,7 +401,7 @@ assert (($line_stored_json.dependencies | length) == 2) "Line should have 2 depe
 let complex_json = '{"budget": {"initial": 50000, "allocated": 35000, "currency": "USD"}, "team": {"size": 5, "roles": ["PM", "Dev", "QA", "UX", "DevOps"]}, "milestones": [{"name": "Phase 1", "date": "2024-03-01"}, {"name": "Phase 2", "date": "2024-06-01"}]}'
 let complex_project = (project new "Enterprise Project" --json $complex_json --type-search-key "CLIENT")
 let complex_detail = ($complex_project.uu.0 | project get)
-let complex_stored = ($complex_detail.record_json.0)
+let complex_stored = $complex_detail.record_json
 assert ($complex_stored.budget.initial == 50000) "Initial budget should be 50000"
 assert ($complex_stored.budget.currency == "USD") "Currency should be USD"
 assert ($complex_stored.team.size == 5) "Team size should be 5"
