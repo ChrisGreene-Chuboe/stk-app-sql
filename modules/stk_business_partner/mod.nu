@@ -76,12 +76,8 @@ export def "bp new" [
         $type_uu
     }
     
-    # Handle JSON parameter
-    let record_json = if ($json | is-empty) { 
-        {}  # Empty object
-    } else { 
-        ($json | from json)  # Parse JSON string
-    }
+    # Handle JSON parameter - validate if provided, default to empty object
+    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
     
     # Build parameters record
     let params = {
@@ -91,7 +87,7 @@ export def "bp new" [
         is_template: ($template | default false)
         parent_uu: ($parent_uuid | default null)
         stk_entity_uu: ($entity_uu | default null)
-        record_json: ($record_json | to json)  # Convert back to JSON string for psql
+        record_json: $record_json  # Already a JSON string from parse-json
     }
     
     psql new-record $STK_SCHEMA $STK_TABLE_NAME $params

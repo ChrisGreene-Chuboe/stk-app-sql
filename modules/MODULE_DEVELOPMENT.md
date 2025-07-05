@@ -287,19 +287,26 @@ For tables with `record_json` column, provide structured metadata storage:
 --json(-j): string  # Optional JSON data to store in record_json field
 ```
 
-**Standard handling patterns:**
-- **Basic validation**: Use `parse-json` utility from stk_utility module
-- **Default behavior**: Empty object `{}` when not provided
-- **Syntax validation**: In nushell (let database handle schema validation)
-- **Parameter name**: Always `--json` (not --metadata or other variants)
+**Standard one-line implementation:**
+```nushell
+# Handle JSON parameter - validate if provided, default to empty object
+let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+```
+
+**How it works:**
+- `parse-json` validates JSON syntax and returns the original string
+- `--default "{}"` returns empty JSON when input is empty
+- `try/catch` passes through validation errors with consistent messaging
+- Result is a JSON string ready for database storage
 
 **Reference implementations:**
-- **Simple pattern**: See `stk_tag` `.append tag` command
-- **Validation utility**: See `parse-json` in stk_utility module
+- **Simple pattern**: See `stk_tag` `.append tag` command (one-line pattern)
 - **Conditional handling**: See `stk_address` `.append address` for AI vs direct JSON
+- **Validation utility**: See `parse-json` in stk_utility module
 
 **Key principles:**
-- Validate JSON can be parsed before sending to database
+- One line of code for standard JSON handling
+- Validate JSON syntax before sending to database
 - Let pg_jsonschema handle schema validation
 - Consistent error message: "Invalid JSON format"
 - Available for all creation commands (.append, new, add)
@@ -460,11 +467,7 @@ export def "module new" [
     }
     
     # Handle JSON parameter (if table has record_json column)
-    let record_json = if ($json | is-empty) { 
-        {}  # Empty object
-    } else { 
-        ($json | from json)  # Parse JSON string
-    }
+    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
     
     # Build parameters
     let params = {
@@ -473,7 +476,7 @@ export def "module new" [
         description: ($description | default null)
         is_template: ($template | default false)
         entity_uu: ($entity_uu | default null)
-        # record_json: ($record_json | to json)  # Add if table has record_json column
+        # record_json: $record_json  # Add if table has record_json column (already a JSON string)
     }
     
     # For .append commands with attachments, use extract-attach-from-input - see stk_request
@@ -629,14 +632,20 @@ Focus on:
 ## Reference Implementations
 
 ### Database Table Modules
-- **`stk_item`** - Clean single-table module with `--json` parameter
-- **`stk_project`** - Complete header-line pattern with `--json` for both header and lines
-- **`stk_event`** - Specialized attachment patterns with `--json` parameter
-- **`stk_tag`** - Advanced `--json` usage with schema validation (see `stk_address` for implementation)
-- **`stk_request`** - Simple `--json` implementation
+- **`stk_tag`** - Uses new one-line `parse-json` pattern for `--json` parameter ✓
+- **`stk_item`** - Clean single-table module with `--json` parameter ✓
+- **`stk_project`** - Complete header-line pattern with `--json` for both header and lines ✓
+- **`stk_event`** - Specialized attachment patterns with `--json` parameter ✓
+- **`stk_request`** - Uses `--json` with direct SQL construction ✓
+- **`stk_todo`** - Domain wrapper with `--json` parameter ✓
+- **`stk_business_partner`** - Business entity module with `--json` parameter ✓
 
-Modules using modern `extract-uu-with-param` pattern: stk_request, stk_todo, stk_tag
-Modules using older manual pattern: stk_item, stk_project, stk_event
+All modules now use the modern one-line JSON pattern:
+`let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }`
+
+UUID extraction patterns:
+- Modern `extract-uu-with-param`: stk_request, stk_todo, stk_tag
+- Older manual pattern: stk_item, stk_project, stk_event
 
 ### System Wrapper Modules
 - **`stk_psql`** - PostgreSQL command wrapper with structured output parsing

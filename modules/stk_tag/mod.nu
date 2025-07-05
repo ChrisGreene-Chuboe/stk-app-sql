@@ -93,12 +93,8 @@ export def ".append tag" [
     
     let resolved_type_uu = $type_record.uu
     
-    # Handle JSON parameter
-    let record_json = if ($json | is-empty) { 
-        {}  # Empty object
-    } else { 
-        ($json | from json)  # Parse JSON string
-    }
+    # Handle JSON parameter - validate if provided, default to empty object
+    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
     
     # Get table_name_uu as nushell record
     let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
@@ -114,7 +110,7 @@ export def ".append tag" [
         description: ($description | default null)
         type_uu: $resolved_type_uu
         table_name_uu_json: ($table_name_uu | to json)  # Convert to JSON string for psql new-record
-        record_json: ($record_json | to json)  # Convert to JSON string for psql new-record
+        record_json: $record_json  # Already a JSON string from parse-json
     }
     
     # Use provided search_key or default to type's search_key

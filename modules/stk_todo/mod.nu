@@ -59,6 +59,9 @@ export def "todo new" [
         null  # No parent UUID provided
     }
     
+    # Handle json parameter - validate if provided, default to empty object
+    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    
     # Build parameters for psql new-record
     mut params = {
         name: $name,
@@ -67,7 +70,7 @@ export def "todo new" [
     
     # Add record_json if provided
     if ($json | is-not-empty) {
-        $params = ($params | merge {record_json: $json})
+        $params = ($params | merge {record_json: $record_json})
     }
     
     # Use enum-aware psql command with parent UUID piped if available

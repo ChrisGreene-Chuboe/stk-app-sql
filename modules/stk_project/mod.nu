@@ -75,12 +75,8 @@ export def "project new" [
         $type_uu
     }
     
-    # Handle json parameter
-    let record_json = if ($json | is-empty) { 
-        {}  # Empty object
-    } else { 
-        ($json | from json)  # Parse JSON string
-    }
+    # Handle json parameter - validate if provided, default to empty object
+    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
     
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
@@ -90,7 +86,7 @@ export def "project new" [
         parent_uu: ($parent_uuid | default null)
         is_template: ($template | default false)
         stk_entity_uu: ($entity_uu | default null)
-        record_json: ($record_json | to json)  # Convert back to JSON string for psql new-record
+        record_json: $record_json  # Already a JSON string from parse-json
     }
     
     # Single call with all parameters - no more cascading logic
@@ -303,12 +299,8 @@ export def "project line new" [
         $type_uu
     }
     
-    # Handle json parameter
-    let record_json = if ($json | is-empty) { 
-        {}  # Empty object
-    } else { 
-        ($json | from json)  # Parse JSON string
-    }
+    # Handle json parameter - validate if provided, default to empty object
+    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
     
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
@@ -317,7 +309,7 @@ export def "project line new" [
         description: ($description | default null)
         is_template: ($template | default false)
         stk_entity_uu: ($entity_uu | default null)
-        record_json: ($record_json | to json)  # Convert back to JSON string for psql new-record
+        record_json: $record_json  # Already a JSON string from parse-json
     }
     
     # Single call with all parameters - no more cascading logic

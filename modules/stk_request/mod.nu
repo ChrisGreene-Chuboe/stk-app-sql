@@ -54,12 +54,12 @@ export def ".append request" [
     # Extract attachment data from piped input or --attach parameter
     let attach_data = ($in | extract-attach-from-input $attach)
     
-    # Handle json parameter
-    let record_json = if ($json | is-empty) { "'{}'" } else { $"'($json)'" }
+    # Handle json parameter - validate if provided, default to empty object
+    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
     
     if ($attach_data | is-empty) {
         # Standalone request - no attachment
-        let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', ($record_json)::jsonb) RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, record_json) VALUES \('($name)', '($description)', '($record_json)'::jsonb) RETURNING uu"
         psql exec $sql
     } else {
         # Request with attachment - get table_name_uu as nushell record
@@ -73,7 +73,7 @@ export def ".append request" [
         
         # Convert to JSON for SQL (until psql new-record handles JSONB better)
         let table_name_uu_json = ($table_name_uu | to json)
-        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', '($table_name_uu_json)'::jsonb, ($record_json)::jsonb) RETURNING uu"
+        let sql = $"INSERT INTO ($table) \(name, description, table_name_uu_json, record_json) VALUES \('($name)', '($description)', '($table_name_uu_json)'::jsonb, '($record_json)'::jsonb) RETURNING uu"
         psql exec $sql
     }
 }

@@ -198,6 +198,12 @@ export def extract-uu-with-param [
 #   # Get parsed data for inspection
 #   let parsed = ('{"key": "value"}' | parse-json --return-parsed)
 #   
+#   # Handle empty input with default
+#   let record_json = ($json | parse-json --default "{}")
+#   
+#   # One-liner for modules with optional JSON
+#   let record_json = try { $json | parse-json --default "{}" } catch { error make { msg: $in.msg } }
+#   
 #   # Handle invalid JSON
 #   try {
 #       '{invalid json}' | parse-json
@@ -209,11 +215,17 @@ export def extract-uu-with-param [
 # Error: Throws standardized error if JSON cannot be parsed
 export def parse-json [
     --return-parsed  # Return parsed data instead of original string
+    --default: string = "{}"  # Default value when input is empty (typically "{}")
 ] {
     let json_string = $in
     
+    # Handle empty input with default if specified
     if ($json_string | is-empty) {
-        error make { msg: "JSON string cannot be empty" }
+        if ($default | is-not-empty) {
+            return $default  # Return default JSON string
+        } else {
+            error make { msg: "JSON string cannot be empty" }
+        }
     }
     
     # Attempt to parse JSON for validation
