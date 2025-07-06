@@ -105,7 +105,7 @@ print ""
 
 # Show JSON attributes
 print "Company Details:"
-let details = $bp_detail.record_json | from json
+let details = $bp_detail.record_json
 $details | items {|k, v| print $"  ($k): ($v)"}
 print ""
 
