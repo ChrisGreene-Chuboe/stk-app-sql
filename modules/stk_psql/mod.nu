@@ -97,7 +97,7 @@ export def "psql list-records" [
     ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
     --limit: int = 10               # Maximum number of records to return
     --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
-    --detail                        # Include type information (type_enum, type_name, type_description)
+    --detail                        # Include type information (type_enum, type_name, type_description) - kept for backward compatibility but now always included
 ] {
     # Check if --all or --templates flags are present in args
     let has_all = ("--all" in $args)
@@ -118,57 +118,69 @@ export def "psql list-records" [
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($table_name)_type"
     
-    # If enum filtering is requested, use JOIN logic
-    if ($enum | length) > 0 {
-        # Build enum filter
-        let enum_list = $enum | str join "', '"
-        
-        # Build column selection
-        let record_cols = ($specific_columns | each {|col| $"r.($col)"} | str join ", ")
-        let base_cols = ($STK_BASE_COLUMNS | each {|col| $"r.($col)"} | str join ", ")
-        let type_cols = if $detail { ", t.type_enum, t.name as type_name, t.description as type_description" } else { "" }
-        
-        # Build WHERE clause
-        let enum_filter = $"t.type_enum IN \('($enum_list)')"
-        let revoked_filter = if not $has_all { " AND r.is_revoked = false" } else { "" }
-        
-        let sql = $"
-            SELECT ($record_cols), ($base_cols)($type_cols)
-            FROM ($table) r
-            JOIN ($type_table) t ON r.type_uu = t.uu
-            WHERE ($enum_filter)($revoked_filter)
-            ORDER BY r.created DESC
-            LIMIT ($limit)
-        "
-        
-        psql exec $sql
-    } else {
-        # Original simple query (no enum filtering)
-        let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-        
-        # Build WHERE clause based on flags and table capabilities
-        let where_clause = if $has_all {
-            ""  # Show everything
-        } else if $has_templates {
-            # Check if table has is_template column
-            let has_template_col = (column-exists "is_template" $table_name)
-            if $has_template_col {
-                " WHERE is_template = true AND is_revoked = false"
-            } else {
-                ""  # Table doesn't support templates
-            }
+    # Build column selection with aliases
+    let specific_cols = ($specific_columns | each {|col| $"r.($col)"} | str join ", ")
+    let base_cols = ($STK_BASE_COLUMNS | each {|col| $"r.($col)"} | str join ", ")
+    
+    # Always include type columns (matching list-records-with-detail behavior)
+    let type_cols = $STK_TYPE_COLUMNS | each {|col| 
+        if ($col | str starts-with 'type_') {
+            $"t.($col) as ($col)"
         } else {
-            # Default: exclude revoked and templates
-            let has_template_col = (column-exists "is_template" $table_name)
-            if $has_template_col {
-                " WHERE is_revoked = false AND is_template = false"
-            } else {
-                " WHERE is_revoked = false"
-            }
+            $"t.($col) as type_($col)"
         }
-        
-        psql exec $"SELECT ($columns) FROM ($table)($where_clause) ORDER BY created DESC LIMIT ($limit)"
+    } | str join ", "
+    
+    # Build WHERE clause based on flags and table capabilities
+    let base_where = if $has_all {
+        ""  # Show everything
+    } else if $has_templates {
+        # Check if table has is_template column
+        let has_template_col = (column-exists "is_template" $table_name)
+        if $has_template_col {
+            "r.is_template = true AND r.is_revoked = false"
+        } else {
+            "1=1"  # No template support, show all non-revoked
+        }
+    } else {
+        # Default: exclude revoked and templates
+        let has_template_col = (column-exists "is_template" $table_name)
+        if $has_template_col {
+            "r.is_revoked = false AND r.is_template = false"
+        } else {
+            "r.is_revoked = false"
+        }
     }
+    
+    # Add enum filtering if requested
+    let where_clause = if ($enum | length) > 0 {
+        let enum_list = $enum | str join "', '"
+        let enum_filter = $"t.type_enum IN \('($enum_list)')"
+        
+        if ($base_where | is-empty) {
+            $"WHERE ($enum_filter)"
+        } else {
+            $"WHERE ($base_where) AND ($enum_filter)"
+        }
+    } else {
+        if ($base_where | is-empty) {
+            ""
+        } else {
+            $"WHERE ($base_where)"
+        }
+    }
+    
+    # Always use LEFT JOIN to include type information
+    let sql = $"
+        SELECT ($specific_cols), ($base_cols), ($type_cols)
+        FROM ($table) r
+        LEFT JOIN ($type_table) t ON r.type_uu = t.uu
+        ($where_clause)
+        ORDER BY r.created DESC
+        LIMIT ($limit)
+    "
+    
+    psql exec $sql
 }
 
 # Generic list line records filtered by header UUID
