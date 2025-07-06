@@ -1,13 +1,13 @@
 # === Testing CRUD operations ===
 # Template: Replace MODULE with your module name (e.g., item, bp, project)
-# Template Version: 2025-01-05
+# Template Version: 2025-01-06
 # Optional: Add --type-search-key TYPE_KEY if module has types
 
 # print "=== Testing MODULE overview command ==="
 # Note: Module commands are nushell functions, not external commands, so we can't use complete
-# Just verify it runs without error
-MODULE
-# If we get here, the command succeeded
+# Verify command exists and returns non-empty string
+let overview_result = MODULE
+assert (($overview_result | str length) > 0) "Overview command should return non-empty text"
 
 # print "=== Testing MODULE creation ==="
 let created = (MODULE new $"Test MODULE($test_suffix)")

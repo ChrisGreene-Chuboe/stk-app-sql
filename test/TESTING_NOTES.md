@@ -153,6 +153,7 @@ use std/assert
 
 # Test basic functionality
 # === Testing basic command ===
+# print "=== Testing basic command ===" # COMMENTED OUT - uncomment only for debugging
 let result = (command parameters)
 
 # Verify with assertions
@@ -661,12 +662,20 @@ it's the final expression. This makes debugging tests difficult.
 print "Test is running..."  # Use print for debug output to stderr
 print $"Result: ($value)"   # This will always be visible
 
+# IMPORTANT: Print statements policy
+# - All print statements in tests should be COMMENTED OUT by default
+# - Only uncomment print statements when actively debugging
+# - Re-comment print statements before committing
+# - test-all.nu is exempt (it's the test runner and needs output)
+# - WARNING messages in test-ai.nu are exempt (they indicate missing tools)
+
 # Normal test pattern (without debug output)
 #!/usr/bin/env nu
 use ../modules *
 use std/assert
 
 # === Testing Feature X ===
+# print "=== Testing Feature X ===" # COMMENTED OUT - uncomment only for debugging
 let result = (some command)
 assert ($result.field == "expected") "Should match expected value"
 
@@ -679,6 +688,7 @@ use ../modules *
 use std/assert
 
 # === Testing Feature X ===
+print "=== Testing Feature X ===" # TEMPORARILY UNCOMMENTED for debugging
 let result = (some command)
 print $"DEBUG: Result is ($result)"  # Temporary debug output
 assert ($result.field == "expected") "Should match expected value"

@@ -611,23 +611,25 @@ Each module should export a base command (e.g., `bp`, `item`, `project`) that pr
 ```nushell
 # Module overview command (place after module constants)
 export def "module" [] {
-    print "Brief description of what this module manages.
+    r#'Brief description of what this module manages.
 One-line explanation of key concepts or relationships.
 
 Additional context if needed (types, patterns, integrations).
 Keep to 4-6 lines maximum.
 
 Type 'module <tab>' to see available commands.
-"
+'#
 }
 ```
 
 This command:
 - Executes when users type the module name alone
+- Returns a raw string (not prints) for clean test integration
 - Provides immediate context about the module's purpose
 - Guides users to tab completion for command discovery
 - Keeps output minimal (under 8 lines total)
 - Includes trailing newline for visual spacing
+- Uses raw string syntax `r#'...'#` for clean multiline text
 
 ### Command Help
 Each command must include:

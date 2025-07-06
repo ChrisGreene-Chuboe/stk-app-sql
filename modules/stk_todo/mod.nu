@@ -9,14 +9,14 @@ const STK_TODO_COLUMNS = [name, description, table_name_uu_json, record_json, is
 
 # Todo module overview
 export def "todo" [] {
-    print "Todos are lightweight tasks built on the request system.
+    r#'Todos are lightweight tasks built on the request system.
 Each todo can have sub-todos for breaking down complex work.
 
 Todos support attachments to link tasks to any chuck-stack record.
 Use hierarchical todos to organize work at any level of detail.
 
 Type 'todo <tab>' to see available commands.
-"
+'#
 }
 
 # Create a new todo item with optional attachment to parent todo

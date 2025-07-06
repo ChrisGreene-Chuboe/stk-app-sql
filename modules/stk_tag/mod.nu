@@ -8,14 +8,14 @@ const STK_TAG_COLUMNS = [search_key, description, table_name_uu_json, record_jso
 
 # Tag module overview
 export def "tag" [] {
-    print "Tags attach flexible metadata to any chuck-stack record.
+    r#'Tags attach flexible metadata to any chuck-stack record.
 Each tag type defines validation rules through JSON Schema.
 
 Tags enable cross-cutting concerns like business roles, classifications,
 and custom attributes without modifying core tables.
 
 Type 'tag <tab>' to see available commands.
-"
+'#
 }
 
 # Create a new tag to attach metadata to any record

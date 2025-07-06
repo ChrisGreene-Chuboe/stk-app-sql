@@ -8,14 +8,14 @@ const STK_EVENT_COLUMNS = [name, description, table_name_uu_json, record_json]
 
 # Event module overview
 export def "event" [] {
-    print "Events capture significant occurrences in your system:
+    r#'Events capture significant occurrences in your system:
 logins, errors, transactions, and other activities worth recording.
 
 Events are append-only and immutable for audit integrity.
 Use .append event pattern to attach events to any record.
 
 Type 'event <tab>' to see available commands.
-"
+'#
 }
 
 # Create a new event with optional attachment to another record

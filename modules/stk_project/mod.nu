@@ -10,14 +10,14 @@ const STK_PROJECT_LINE_COLUMNS = [name, description, is_template, is_valid, reco
 
 # Project module overview
 export def "project" [] {
-    print "Projects organize work and financial activities with hierarchical structure.
+    r#'Projects organize work and financial activities with hierarchical structure.
 Projects can contain sub-projects and line items for detailed tracking.
 
 Templates enable reusable project structures.
 Projects integrate with timesheets and financial reporting.
 
 Type 'project <tab>' to see available commands.
-"
+'#
 }
 
 # Create a new project with specified name and type

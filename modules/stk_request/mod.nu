@@ -11,14 +11,14 @@ const STK_REQUEST_COLUMNS = [name, description, table_name_uu_json, is_processed
 
 # Request module overview
 export def "request" [] {
-    print "Requests track follow-up actions and hierarchical work items.
+    r#'Requests track follow-up actions and hierarchical work items.
 Requests can be attached to any record and organized in parent-child trees.
 
 The request system forms the foundation for todos, approvals, and workflows.
 Use .append request pattern to attach requests to any record.
 
 Type 'request <tab>' to see available commands.
-"
+'#
 }
 
 # Create a new request with optional attachment to another record

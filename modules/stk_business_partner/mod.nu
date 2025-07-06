@@ -8,14 +8,14 @@ const STK_BUSINESS_PARTNER_COLUMNS = [name, description, is_template, is_valid, 
 
 # Business Partner module overview
 export def "bp" [] {
-    print "Business Partners represent anyone you engage with financially:
+    r#'Business Partners represent anyone you engage with financially:
 customers, vendors, employees, contractors, or partners.
 
 Types define entity structure (ORGANIZATION, INDIVIDUAL, GROUP).
 Business roles are assigned through tags (BP_CUSTOMER, BP_VENDOR, etc.).
 
 Type 'bp <tab>' to see available commands.
-"
+'#
 }
 
 

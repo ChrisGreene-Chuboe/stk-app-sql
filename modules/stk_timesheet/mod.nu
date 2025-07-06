@@ -9,14 +9,14 @@ const STK_TIMESHEET_COLUMNS = [name, description, table_name_uu_json, record_jso
 
 # Timesheet module overview
 export def "timesheet" [] {
-    print "Timesheets track work hours against projects, tasks, and requests.
+    r#'Timesheets track work hours against projects, tasks, and requests.
 Time entries are immutable events for audit compliance.
 
 Timesheets support flexible time formats and can be attached to any record.
 Use for project billing, payroll, and productivity analysis.
 
 Type 'timesheet <tab>' to see available commands.
-"
+'#
 }
 
 # Create a new timesheet entry with attachment to another record

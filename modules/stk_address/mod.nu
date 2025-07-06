@@ -8,14 +8,14 @@ const STK_ADDRESS_TYPE_KEY = "ADDRESS"
 
 # Address module overview
 export def "address" [] {
-    print "Addresses attach location data to any chuck-stack record as tags.
+    r#'Addresses attach location data to any chuck-stack record as tags.
 Each address is validated against the ADDRESS tag type schema.
 
 Supports both AI-powered natural language input and direct JSON entry.
 Natural language is the default for ease of use.
 
 Type 'address <tab>' to see available commands.
-"
+'#
 }
 
 # Append an address tag to a record using natural language or JSON

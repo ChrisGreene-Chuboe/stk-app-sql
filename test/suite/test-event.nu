@@ -19,9 +19,9 @@ use std/assert
 
 # print "=== Testing event overview command ==="
 # Note: Module commands are nushell functions, not external commands, so we can't use complete
-# Just verify it runs without error
-event
-# If we get here, the command succeeded
+# Verify command exists and returns non-empty string
+let overview_result = event
+assert (($overview_result | str length) > 0) "Overview command should return non-empty text"
 
 # print "=== Testing event creation (using .append pattern) ==="
 let created = (.append event $"Test event($test_suffix)" --description "Test description")
