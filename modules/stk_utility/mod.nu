@@ -242,3 +242,137 @@ export def parse-json [
         $json_string  # Return original string for database
     }
 }
+
+# Generate interactive nushell commands from markdown
+#
+# Converts a markdown file into an interactive nushell script following the
+# nu-tutor2 pattern. This enables creating tutorials that work both as web
+# documentation and interactive command-line experiences.
+#
+# Markdown Structure:
+# - H1 (#) defines the tutor name (typically ignored for command generation)
+# - H2 (##) and deeper define commands and subcommands
+# - First word after # symbols becomes the command name
+# - Content after the heading becomes the command body
+# - Don't skip heading levels when going deeper
+#
+# Examples:
+#   # Convert tutorial markdown to nushell commands
+#   open tutorial.md | tutor-generate | save -f tutorial.nu
+#   
+#   # Generate from chuck-stack cli-tutor.md
+#   open cli-tutor.md | tutor-generate | save -f stk_tutor/mod.nu
+#   
+#   # Validate markdown structure
+#   open tutorial.md | tutor-generate --validate-only
+#
+# Markdown Example:
+#   ## stk
+#   ### tutor
+#   Welcome to the tutorial
+#   #### ops
+#   Operations tutorial content
+#
+# Generated Commands:
+#   export def "stk" [] { ... }
+#   export def "stk tutor" [] { ... }
+#   export def "stk tutor ops" [] { ... }
+#   export def "stk list" [] { ... }  # Auto-generated list command
+#
+# Returns: String containing generated nushell code
+# Error: Throws error if markdown structure is invalid
+#
+# Based on: https://github.com/chuckstack/nu-tutor2
+export def tutor-generate [
+    --validate-only  # Only validate structure, don't generate code
+] {
+    let markdown = $in
+    
+    if ($markdown | is-empty) {
+        error make { msg: "No markdown content provided" }
+    }
+    
+    # Split markdown into headings and create info columns
+    let list_indent_char = "  "
+    let list_indent_id = "- "
+    
+    mut table_source = $markdown
+    | split row -r '(?m)(?<=^)(?=#)' 
+    | enumerate 
+    | where (($it.item | str length) > 0)
+    | insert indent { |row|
+        ($row.item | split row ' ' | first | str length) - 1
+    }
+    | insert command { |row|
+        $row.item | str replace -r '^#+\s' '' | split words | first
+    } 
+    | insert body { |row|
+        $row.item | lines | skip 1 | str join "\n"
+    }
+    | insert list { |row|
+        (0..$row.indent | each {$list_indent_char} | str join) | append $list_indent_id | append $row.command | str join
+    }
+    | insert command-prefix []
+    
+    # Validate structure
+    mut previous_indent = 0
+    for row in $table_source {
+        if $row.indent > $previous_indent {
+            if ($row.indent - $previous_indent) > 1 {
+                error make { msg: $"Invalid markdown: jumped from H($previous_indent + 1) to H($row.indent + 1) at '($row.command)'" }
+            }
+        }
+        $previous_indent = $row.indent
+    }
+    
+    if $validate_only {
+        return "Markdown structure is valid"
+    }
+    
+    # Build command hierarchy
+    mut result = []
+    mut previous_command = ""
+    mut previous_command_list = []
+    $previous_indent = 0
+    
+    for row in $table_source {
+        let new_row = if $row.indent > $previous_indent {
+            $previous_command_list = ($previous_command_list | append $previous_command)
+            $row | update command-prefix $previous_command_list
+        } else if $row.indent < $previous_indent {
+            $previous_command_list = ($previous_command_list | drop ($previous_indent - $row.indent))
+            $row | update command-prefix $previous_command_list
+        } else {
+            $row | update command-prefix $previous_command_list
+        }
+        
+        $previous_command = $row.command
+        $previous_indent = $row.indent
+        $result = ($result | append $new_row)
+    }
+    
+    # Helper function for syntax highlighting
+    let nu_light = r#'
+        def nu-light [] {
+            $in
+            | split row '`'
+            | enumerate
+            | each { if $in.index mod 2 == 1 { $in.item | nu-highlight } else { $in.item } }
+            | str join
+        } '#
+    
+    # Generate commands
+    let nu_command = $result 
+    | each { |row| 
+        $"export def \"($row.command-prefix | str join ' ')($row.command-prefix | length | if $in > 0 { ' ' } else { '' })($row.command)\" [] {r#' ($row.body)'#\n | nu-light \n}\n"
+    } 
+    | str join "\n"
+    
+    # Generate list command
+    let title_command = $result | first | get command
+    let list_command = $result | get list | str join "\n"
+    let list_command_def = $"export def \"($title_command) list\" [] {r#'($list_command)'#\n | nu-light \n}\n"
+    
+    # Combine all parts
+    $"($nu_light)\n\n($nu_command)\n($list_command_def)"
+}
