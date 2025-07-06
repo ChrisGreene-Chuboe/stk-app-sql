@@ -107,22 +107,20 @@ export def "psql list-records" [
     let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
     
     # Validate minimum arguments
-    if ($positional_args | length) < 3 {
-        error make {msg: "Expected at least 3 arguments: schema, table_name, and at least one column"}
+    if ($positional_args | length) < 2 {
+        error make {msg: "Expected at least 2 arguments: schema and table_name"}
     }
     
     let schema = $positional_args.0
     let table_name = $positional_args.1
-    let specific_columns = ($positional_args | skip 2)  # All remaining args are columns
+    # Note: specific_columns is ignored now but kept for backward compatibility
+    let specific_columns = ($positional_args | skip 2)  # Ignored - using SELECT * instead
     
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($table_name)_type"
     
-    # Build column selection with aliases
-    let specific_cols = ($specific_columns | each {|col| $"r.($col)"} | str join ", ")
-    let base_cols = ($STK_BASE_COLUMNS | each {|col| $"r.($col)"} | str join ", ")
-    
-    # Always include type columns (matching list-records-with-detail behavior)
+    # Use SELECT * for the primary table to get all API columns
+    # Type columns still need explicit selection with aliases
     let type_cols = $STK_TYPE_COLUMNS | each {|col| 
         if ($col | str starts-with 'type_') {
             $"t.($col) as ($col)"
@@ -171,8 +169,9 @@ export def "psql list-records" [
     }
     
     # Always use LEFT JOIN to include type information
+    # Using r.* to get all columns from the primary table
     let sql = $"
-        SELECT ($specific_cols), ($base_cols), ($type_cols)
+        SELECT r.*, ($type_cols)
         FROM ($table) r
         LEFT JOIN ($type_table) t ON r.type_uu = t.uu
         ($where_clause)
@@ -180,7 +179,22 @@ export def "psql list-records" [
         LIMIT ($limit)
     "
     
-    psql exec $sql
+    let result = (psql exec $sql)
+    
+    # If specific columns were provided (for priority), move them to the front
+    if ($specific_columns | length) > 0 {
+        # Filter to only columns that exist in the result
+        let existing_priority = ($specific_columns | where { |col| $col in ($result | columns) })
+        
+        if ($existing_priority | length) > 0 {
+            # Move priority columns to the beginning
+            $result | move ...$existing_priority --before ($result | columns | first)
+        } else {
+            $result
+        }
+    } else {
+        $result
+    }
 }
 
 # Generic list line records filtered by header UUID
@@ -754,69 +768,9 @@ export def "psql list-records-with-detail" [
     ...args: string          # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
     --limit: int = 10        # Maximum number of records to return
 ] {
-    # Check if --all or --templates flags are present in args
-    let has_all = ("--all" in $args)
-    let has_templates = ("--templates" in $args)
-    
-    # Filter out any flags from the args to get only positional arguments
-    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
-    
-    # Validate minimum arguments
-    if ($positional_args | length) < 3 {
-        error make {msg: "Expected at least 3 arguments: schema, table_name, and at least one column"}
-    }
-    
-    let schema = $positional_args.0
-    let table_name = $positional_args.1
-    let specific_columns = ($positional_args | skip 2)  # All remaining args are columns
-    let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($table_name)_type"
-    # Prefix columns with table aliases properly
-    let specific_cols = $specific_columns | each {|col| $"i.($col)"} | str join ", "
-    let base_cols = $STK_BASE_COLUMNS | each {|col| $"i.($col)"} | str join ", "
-    
-    # Build type columns with 'type_' prefix dynamically from STK_TYPE_COLUMNS
-    # Don't prefix if column already starts with 'type_'
-    let type_cols = $STK_TYPE_COLUMNS | each {|col| 
-        if ($col | str starts-with 'type_') {
-            $"t.($col) as ($col)"
-        } else {
-            $"t.($col) as type_($col)"
-        }
-    } | str join ", "
-    
-    # Build WHERE clause based on flags and table capabilities
-    let where_clause = if $has_all {
-        ""  # Show everything
-    } else if $has_templates {
-        # Check if table has is_template column
-        let has_template_col = (column-exists "is_template" $table_name)
-        if $has_template_col {
-            "WHERE i.is_template = true"
-        } else {
-            ""  # Table doesn't support templates
-        }
-    } else {
-        # Default: exclude revoked and templates
-        let has_template_col = (column-exists "is_template" $table_name)
-        if $has_template_col {
-            "WHERE i.is_revoked = false AND i.is_template = false"
-        } else {
-            "WHERE i.is_revoked = false"
-        }
-    }
-    
-    let sql = $"
-        SELECT 
-            ($specific_cols), ($base_cols),
-            ($type_cols)
-        FROM ($table) i
-        LEFT JOIN ($type_table) t ON i.type_uu = t.uu
-        ($where_clause)
-        ORDER BY i.created DESC
-        LIMIT ($limit)
-    "
-    psql exec $sql
+    # This function is now just a wrapper for list-records since it always includes details
+    # Kept for backward compatibility
+    psql list-records ...$args --limit $limit
 }
 
 # Generic get detailed record information including type
