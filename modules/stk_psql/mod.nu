@@ -226,19 +226,37 @@ export def "psql list-line-records" [
     let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
     
     # Validate minimum arguments
-    if ($positional_args | length) < 4 {
-        error make {msg: "Expected at least 4 arguments: schema, line_table_name, header_uu, and at least one column"}
+    if ($positional_args | length) < 3 {
+        error make {msg: "Expected at least 3 arguments: schema, line_table_name, and header_uu"}
     }
     
     let schema = $positional_args.0
     let line_table_name = $positional_args.1
     let header_uu = $positional_args.2
-    let specific_columns = ($positional_args | skip 3)  # All remaining args are columns
+    # Note: specific_columns is ignored now but kept for backward compatibility
+    let specific_columns = ($positional_args | skip 3)  # Ignored - using SELECT * instead
     
     let table = $"($schema).($line_table_name)"
-    let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
     let revoked_clause = if $has_all { "" } else { " AND is_revoked = false" }
-    psql exec $"SELECT ($columns) FROM ($table) WHERE header_uu = '($header_uu)'($revoked_clause) ORDER BY created DESC LIMIT ($limit)"
+    
+    # Use SELECT * to get all columns
+    let sql = $"SELECT * FROM ($table) WHERE header_uu = '($header_uu)'($revoked_clause) ORDER BY created DESC LIMIT ($limit)"
+    let result = (psql exec $sql)
+    
+    # If specific columns were provided (for priority), move them to the front
+    if ($specific_columns | length) > 0 {
+        # Filter to only columns that exist in the result
+        let existing_priority = ($specific_columns | where { |col| $col in ($result | columns) })
+        
+        if ($existing_priority | length) > 0 {
+            # Move priority columns to the beginning
+            $result | move ...$existing_priority --before ($result | columns | first)
+        } else {
+            $result
+        }
+    } else {
+        $result
+    }
 }
 
 # Generic get single record by UUID from a table
@@ -256,36 +274,58 @@ export def "psql list-line-records" [
 export def "psql get-record" [
     schema: string                # Database schema (e.g., "api")
     table_name: string            # Table name (e.g., "stk_event")
-    specific_columns: list        # Module-specific columns (e.g., [name, record_json])
+    specific_columns: list        # Module-specific columns (kept for backward compatibility, used for prioritization)
     uu: string                    # UUID of the record to retrieve
     --enum: list<string> = []     # Type enum constraint(s) to validate against (optional)
-    --detail                      # Include type information
+    --detail                      # Include type information (kept for backward compatibility, now always included)
 ] {
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($table_name)_type"
     
-    # If enum filtering is requested, use JOIN logic
-    if ($enum | length) > 0 {
-        # Build enum filter
+    # Always include type columns (matching detail-record behavior)
+    let type_cols = $STK_TYPE_COLUMNS | each {|col| 
+        if ($col | str starts-with 'type_') {
+            $"t.($col) as ($col)"
+        } else {
+            $"t.($col) as type_($col)"
+        }
+    } | str join ", "
+    
+    # Build SQL based on enum filtering
+    let sql = if ($enum | length) > 0 {
+        # With enum filtering - use JOIN
         let enum_list = $enum | str join "', '"
-        
-        # Build column selection
-        let record_cols = ($specific_columns | each {|col| $"r.($col)"} | str join ", ")
-        let base_cols = ($STK_BASE_COLUMNS | each {|col| $"r.($col)"} | str join ", ")
-        let type_cols = if $detail { ", t.type_enum, t.name as type_name, t.description as type_description" } else { "" }
-        
-        let sql = $"
-            SELECT ($record_cols), ($base_cols)($type_cols)
+        $"
+            SELECT r.*, ($type_cols)
             FROM ($table) r
             JOIN ($type_table) t ON r.type_uu = t.uu
             WHERE r.uu = '($uu)' AND t.type_enum IN \('($enum_list)')
         "
-        
-        psql exec $sql | first
     } else {
-        # Original simple query (no enum filtering)
-        let columns = ($specific_columns | append $STK_BASE_COLUMNS | str join ", ")
-        psql exec $"SELECT ($columns) FROM ($table) WHERE uu = '($uu)'" | first
+        # Without enum filtering - use LEFT JOIN
+        $"
+            SELECT r.*, ($type_cols)
+            FROM ($table) r
+            LEFT JOIN ($type_table) t ON r.type_uu = t.uu
+            WHERE r.uu = '($uu)'
+        "
+    }
+    
+    let result = (psql exec $sql | first)
+    
+    # If specific columns were provided (for priority), move them to the front
+    if ($specific_columns | length) > 0 and (not ($result | is-empty)) {
+        # Filter to only columns that exist in the result
+        let existing_priority = ($specific_columns | where { |col| $col in ($result | columns) })
+        
+        if ($existing_priority | length) > 0 {
+            # Move priority columns to the beginning
+            $result | move ...$existing_priority --before ($result | columns | first)
+        } else {
+            $result
+        }
+    } else {
+        $result
     }
 }
 
@@ -794,29 +834,10 @@ export def "psql detail-record" [
     table_name: string          # Main table name (e.g., "stk_item")
     uu: string                  # UUID of the record to get details for
 ] {
-    let table = $"($schema).($table_name)"
-    let type_table = $"($schema).($table_name)_type"
-    
-    # Build type columns with 'type_' prefix dynamically from STK_TYPE_COLUMNS
-    # Don't prefix if column already starts with 'type_'
-    let type_cols = $STK_TYPE_COLUMNS | each {|col| 
-        if ($col | str starts-with 'type_') {
-            $"t.($col) as ($col)"
-        } else {
-            $"t.($col) as type_($col)"
-        }
-    } | str join ", "
-    
-    # Use SELECT * to avoid hardcoding column names that may not exist across all tables
-    let sql = $"
-        SELECT 
-            i.*,
-            ($type_cols)
-        FROM ($table) i
-        LEFT JOIN ($type_table) t ON i.type_uu = t.uu
-        WHERE i.uu = '($uu)'
-    "
-    psql exec $sql | first
+    # This function is now just a wrapper for get-record since it always includes details
+    # Kept for backward compatibility
+    # Pass empty list for columns since we don't have specific columns here
+    psql get-record $schema $table_name [] $uu
 }
 
 # Elaborate foreign key references in a table by adding resolved columns
