@@ -97,7 +97,6 @@ export def "psql list-records" [
     ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
     --limit: int = 10               # Maximum number of records to return
     --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
-    --detail                        # Include type information (type_enum, type_name, type_description) - kept for backward compatibility but now always included
 ] {
     # Check if --all or --templates flags are present in args
     let has_all = ("--all" in $args)
@@ -277,12 +276,11 @@ export def "psql get-record" [
     specific_columns: list        # Module-specific columns (kept for backward compatibility, used for prioritization)
     uu: string                    # UUID of the record to retrieve
     --enum: list<string> = []     # Type enum constraint(s) to validate against (optional)
-    --detail                      # Include type information (kept for backward compatibility, now always included)
 ] {
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($table_name)_type"
     
-    # Always include type columns (matching detail-record behavior)
+    # Always include type columns for comprehensive record information
     let type_cols = $STK_TYPE_COLUMNS | each {|col| 
         if ($col | str starts-with 'type_') {
             $"t.($col) as ($col)"
@@ -964,13 +962,15 @@ def column-exists [column: string, table: string] {
 #
 # Examples:
 # > project list | lines                    # Default columns: name, description, search_key
-# > project list | lines --all              # All columns (select *)
+# > project list | lines --detail           # All columns (select *)
+# > project list | lines --all              # Include revoked line records
 # > project list | lines name type_uu       # Specific columns
 # > todo list | lines name description created  # Custom column selection
 #
 # Parameters:
 # - ...columns: Specific columns to include in line records (optional)
-# - --all: Include all columns from line records (overrides column selection)
+# - --detail: Include all columns from line records (overrides column selection)
+# - --all: Include revoked line records (by default only active records are shown)
 #
 # Returns:
 # - Original table with an additional 'lines' column
@@ -983,7 +983,8 @@ def column-exists [column: string, table: string] {
 # - Returns error object if database query fails
 export def lines [
     ...columns: string  # Specific columns to include in line records
-    --all               # Include all columns (select *)
+    --detail           # Include all columns (select *)
+    --all              # Include revoked line records
 ] {
     let input = $in
     
@@ -1027,11 +1028,13 @@ export def lines [
                     $columns | str join ", "
                 }
                 
-                let lines_query = $"SELECT ($select_clause) FROM api.($line_table_name) WHERE header_uu = '($record.uu)' ORDER BY created"
+                # Add revoked filter based on --all flag
+                let revoked_clause = if $all { "" } else { " AND is_revoked = false" }
+                let lines_query = $"SELECT ($select_clause) FROM api.($line_table_name) WHERE header_uu = '($record.uu)'($revoked_clause) ORDER BY created"
                 let lines_data = (psql exec $lines_query)
                 
-                # If no columns specified and not --all, filter to default columns
-                let final_data = if (not $all) and ($columns | is-empty) and (not ($lines_data | is-empty)) {
+                # If no columns specified and not --detail, filter to default columns
+                let final_data = if (not $detail) and ($columns | is-empty) and (not ($lines_data | is-empty)) {
                     let available_columns = ($lines_data | columns)
                     let default_cols = ["name", "description", "search_key"]
                     let cols_to_keep = $default_cols | where { |col| $col in $available_columns }

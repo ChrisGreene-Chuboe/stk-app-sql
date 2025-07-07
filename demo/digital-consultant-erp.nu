@@ -11,7 +11,9 @@
 
 use ../modules *
 
+print "============================================"
 print "=== Building a Complete Business Partner ==="
+print "============================================"
 print ""
 
 # Step 1: Create the business partner
@@ -95,8 +97,9 @@ print "✓ Added shipping address"
 print ""
 
 # Step 4: Show the complete business partner profile
-print "4. Business Partner Profile"
-print "==========================="
+print "================================"
+print "=== Business Partner Profile ==="
+print "================================"
 
 # Get BP with details
 let bp_detail = ($client | bp get --detail)
@@ -123,6 +126,7 @@ print ""
 
 # Show addresses (which are stored as ADDRESS tags)
 #TODO: concerned there is so much code below. should be able to use nushell to format for us
+#NOTE: this is an important section because it is our first example of how to iterate across tags
 print "Addresses:"
 let bp_addresses = $client | tags | where type_enum == "ADDRESS"
 $bp_addresses | each {|a|

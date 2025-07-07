@@ -40,22 +40,22 @@ assert ("created" not-in $line_columns) "Should NOT include created in default v
 assert ("header_uu" not-in $line_columns) "Should NOT include header_uu in default view"
 #print "✓ Default behavior verified - showing only default columns that exist"
 
-#print "=== Test 2: --all flag (all columns) ==="
-let all_result = (project list | where name == "Lines Column Test Project" | lines --all)
+#print "=== Test 2: --detail flag (all columns) ==="
+let all_result = (project list | where name == "Lines Column Test Project" | lines --detail)
 let all_lines_data = ($all_result | get lines.0)
 let all_columns = ($all_lines_data | get 0 | columns)
-#print $"Columns with --all flag: ($all_columns)"
+#print $"Columns with --detail flag: ($all_columns)"
 
 # Verify we have all standard columns
-assert ("uu" in $all_columns) "Should include uu with --all"
-assert ("created" in $all_columns) "Should include created with --all"
-assert ("header_uu" in $all_columns) "Should include header_uu with --all"
-assert ("table_name" in $all_columns) "Should include table_name with --all"
-assert ("type_uu" in $all_columns) "Should include type_uu with --all"
+assert ("uu" in $all_columns) "Should include uu with --detail"
+assert ("created" in $all_columns) "Should include created with --detail"
+assert ("header_uu" in $all_columns) "Should include header_uu with --detail"
+assert ("table_name" in $all_columns) "Should include table_name with --detail"
+assert ("type_uu" in $all_columns) "Should include type_uu with --detail"
 
 # Verify we have more columns than default
-assert (($all_columns | length) > ($line_columns | length)) "--all should return more columns than default"
-#print "✓ --all flag verified - showing all columns"
+assert (($all_columns | length) > ($line_columns | length)) "--detail should return more columns than default"
+#print "✓ --detail flag verified - showing all columns"
 
 #print "=== Test 3: Custom column selection ==="
 let custom_result = (project list | where name == "Lines Column Test Project" | lines name created uu)
@@ -126,5 +126,24 @@ assert ($lines_result | describe | str contains "record") "Lines should contain 
 assert ("error" in ($lines_result | columns)) "Should have error field"
 assert (($lines_result.error | str length) > 0) "Should have error message"
 #print "✓ Lines command handles errors gracefully"
+
+#print "=== Test 10: --all flag (include revoked records) ==="
+# Create a project line and then revoke it
+let revoked_line = ($project_uuid | project line new "Revoked Line" --description "Will be revoked")
+let revoked_uuid = ($revoked_line.uu.0)
+$revoked_uuid | project line revoke
+
+# Without --all, should not see revoked line
+let active_only = (project list | where name == "Lines Column Test Project" | lines)
+let active_lines = ($active_only | get lines.0)
+assert (($active_lines | where name == "Revoked Line" | length) == 0) "Default should not show revoked lines"
+assert (($active_lines | length) == 3) "Should still have 3 active lines"
+
+# With --all, should see revoked line
+let all_including_revoked = (project list | where name == "Lines Column Test Project" | lines --all)
+let all_lines = ($all_including_revoked | get lines.0)
+assert (($all_lines | where name == "Revoked Line" | length) == 1) "--all should show revoked lines"
+assert (($all_lines | length) == 4) "Should have 4 lines total (3 active + 1 revoked)"
+#print "✓ --all flag verified - includes revoked records"
 
 "=== All tests completed successfully ==="
