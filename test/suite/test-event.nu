@@ -37,9 +37,6 @@ assert ($list_result | where name =~ $test_suffix | is-not-empty) "Should find c
 let get_result = ($created.uu.0 | event get)
 assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# print "=== Testing event get --detail ==="
-let detail_result = ($created.uu.0 | event get --detail)
-assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
 
 # print "=== Testing event revoke ==="
 let revoke_result = ($created.uu.0 | event revoke)
@@ -158,11 +155,11 @@ assert ($param_attached | is-not-empty) "Should create event with --attach"
 let param_detail = ($param_attached.uu.0 | event get)
 assert ($param_detail.table_name_uu_json != {}) "Should have attachment data via --attach"
 
-# print "=== Testing event list --detail ==="
-let detail_list = (event list --detail | where name =~ $test_suffix)
-assert ($detail_list | is-not-empty) "Should list with details"
-assert ($detail_list | columns | any {|col| $col == "type_name"}) "Should include type_name"
-assert ($detail_list | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
+# print "=== Testing event list includes type info ==="
+let list_with_types = (event list | where name =~ $test_suffix)
+assert ($list_with_types | is-not-empty) "Should list events"
+assert ($list_with_types | columns | any {|col| $col == "type_name"}) "Should include type_name"
+assert ($list_with_types | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
 
 # print "=== Testing events enrichment command ==="
 let enriched = (project list | where name =~ $test_suffix | events)

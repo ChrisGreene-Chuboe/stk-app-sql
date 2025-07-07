@@ -201,10 +201,9 @@ For consistent implementation across all commands:
 All modules use standardized commands from `stk_psql`:
 - `psql new-record` - Create with parameters record
 - `psql new-line-record` - Create header-line records  
-- `psql list-records` - List with optional --detail
+- `psql list-records` - List records (always includes type information)
 - `psql list-line-records` - List lines for header
-- `psql get-record` - Retrieve single record
-- `psql detail-record` - Get with type information
+- `psql get-record` - Retrieve single record (always includes type information)
 - `psql revoke-record` - Soft delete
 - `psql list-types` - List available types
 - `psql get-type` - Resolve type by key or name
@@ -219,6 +218,8 @@ const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
 # const STK_MODULE_COLUMNS = [name, description, is_template, is_valid, record_json]
 ```
 
+**Column Priority Pattern**: The STK_MODULE_COLUMNS constant defines column display priority, not data filtering. All commands return complete data (SELECT *), but columns listed here appear first in the output. This ensures important business data is immediately visible while maintaining access to all fields.
+
 Note: Base columns (created, updated, uu, etc.) are handled by psql commands.
 
 ### 6. Type Support
@@ -226,7 +227,7 @@ Note: Base columns (created, updated, uu, etc.) are handled by psql commands.
 Modules with business classification include:
 - Type resolution in creation (--type-uu or --type-search-key)
 - `module types` command to list available types
-- `--detail` flag on get/list commands for type information
+- Type information is always included in get/list commands (no flag needed)
 
 ### 7. Header-Line Pattern
 
@@ -330,16 +331,13 @@ Chuck-stack uses strict naming conventions for JSON columns that enable automati
 Optional flags are passed via args array to enable clean command composition:
 
 ```nushell
-# Build args array with optional flag
+# Build args array with optional flags
 let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
 let args = if $all { $args | append "--all" } else { $args }
+let args = if $templates { $args | append "--templates" } else { $args }
 
 # Single invocation point
-if $detail {
-    psql list-records-with-detail ...$args
-} else {
-    psql list-records ...$args
-}
+psql list-records ...$args
 ```
 
 This pattern avoids nested if/else blocks when combining optional parameters.
@@ -401,7 +399,7 @@ Templates provide reusable configurations that serve as starting points for crea
 4. **Direct Access**: Templates can be retrieved by UUID with `get` command
 
 #### Implementation in psql
-The `psql list-records` and `psql list-records-with-detail` commands handle template filtering automatically:
+The `psql list-records` command handles template filtering automatically:
 - Default: `WHERE is_revoked = false AND is_template = false`
 - `--templates`: `WHERE is_template = true`
 - `--all`: No WHERE clause (shows everything)
@@ -411,7 +409,6 @@ Tables without an `is_template` column continue to work normally.
 #### Module Implementation
 ```nushell
 export def "module list" [
-    --detail(-d)    # Include detailed type information
     --all(-a)       # Include revoked records AND templates
     --templates     # Show only templates
 ] {
@@ -423,11 +420,7 @@ export def "module list" [
     let args = if $templates { $args | append "--templates" } else { $args }
     
     # Execute query
-    if $detail {
-        psql list-records-with-detail ...$args
-    } else {
-        psql list-records ...$args
-    }
+    psql list-records ...$args
 }
 ```
 
@@ -502,34 +495,24 @@ export def "module new" [
 #### List Command  
 ```nushell
 export def "module list" [
-    --detail(-d)
-    --all(-a)
+    --all(-a)       # Include revoked records
 ] {
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
     let args = if $all { $args | append "--all" } else { $args }
     
-    if $detail {
-        psql list-records-with-detail ...$args
-    } else {
-        psql list-records ...$args
-    }
+    psql list-records ...$args
 }
 ```
 
 #### Get Command
 ```nushell
 export def "module get" [
-    --detail(-d)
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
     let uu = ($in | extract-uu-with-param $uu)
     
-    if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
-    } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_MODULE_COLUMNS $uu
-    }
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_MODULE_COLUMNS $uu
 }
 ```
 
@@ -571,7 +554,7 @@ Choose the appropriate checklist based on your module category:
 - [ ] If yes, include `record_json` in column constants
 - [ ] Implement `new` command with parameters record
 - [ ] If table has `record_json`, add `--json` parameter to creation commands
-- [ ] Implement `list` command with --detail and --all flags
+- [ ] Implement `list` command with --all flag
 - [ ] Implement `get` command with pipeline UUID input
 - [ ] Implement `revoke` command with pipeline UUID input
 - [ ] Add --uu parameter to get/revoke commands

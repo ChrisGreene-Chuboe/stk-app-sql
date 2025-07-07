@@ -99,11 +99,9 @@ export def "item new" [
 #   item list | elaborate name type_enum                             # Show item names with type
 #   item list | elaborate --all | select name type_uu_resolved.name  # Show items with type names
 #
-# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Only shows the 10 most recent items - use direct SQL for larger queries
 export def "item list" [
-    --detail(-d)  # Include detailed type information for all items
     --all(-a)     # Include revoked items
 ] {
     # Build complete arguments array including flags
@@ -112,12 +110,8 @@ export def "item list" [
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
     
-    # Choose command and execute with spread - no nested if/else!
-    if $detail {
-        psql list-records-with-detail ...$args
-    } else {
-        psql list-records ...$args
-    }
+    # Execute query
+    psql list-records ...$args
 }
 
 # Retrieve a specific item by its UUID
@@ -125,7 +119,7 @@ export def "item list" [
 # Fetches complete details for a single item when you need to
 # inspect its properties, verify its state, or extract specific
 # data. Use this when you have a UUID from item list or from
-# other system outputs. Use --detail to include type information.
+# other system outputs. Type information is always included.
 #
 # Accepts piped input:
 #   string - The UUID of the item to retrieve (required via pipe or --uu parameter)
@@ -138,14 +132,12 @@ export def "item list" [
 #   item list | get uu.0 | item get
 #   item list | get 0 | item get
 #   $item_uuid | item get | get description
-#   item get --uu $item_uuid --detail | get type_enum
+#   item get --uu $item_uuid | get type_enum
 #   $uu | item get | if $in.is_revoked { print "Item was revoked" }
 #
-# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, and other type information
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "item get" [
-    --detail(-d)  # Include detailed type information
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
@@ -158,11 +150,7 @@ export def "item get" [
         ($in | extract-single-uu)
     }
     
-    if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
-    } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $uu
-    }
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_ITEM_COLUMNS $uu
 }
 
 # Revoke an item by setting its revoked timestamp

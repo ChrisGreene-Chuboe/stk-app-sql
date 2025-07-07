@@ -37,9 +37,6 @@ assert ($list_result | where name =~ $test_suffix | is-not-empty) "Should find c
 let get_result = ($created.uu.0 | request get)
 assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# print "=== Testing request get --detail ==="
-let detail_result = ($created.uu.0 | request get --detail)
-assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
 
 # print "=== Testing request revoke ==="
 let revoke_result = ($created.uu.0 | request revoke)
@@ -162,11 +159,11 @@ let process_request = (.append request $"Process Test($test_suffix)")
 let process_result = (request process $process_request.uu.0)
 assert ($process_result.is_processed.0 == true) "Should be marked as processed"
 
-# print "=== Testing request list --detail ==="
-let detail_list = (request list --detail | where name =~ $test_suffix)
-assert ($detail_list | is-not-empty) "Should list with details"
-assert ($detail_list | columns | any {|col| $col == "type_name"}) "Should include type_name"
-assert ($detail_list | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
+# print "=== Testing request list includes type info ==="
+let list_with_types = (request list | where name =~ $test_suffix)
+assert ($list_with_types | is-not-empty) "Should list requests"
+assert ($list_with_types | columns | any {|col| $col == "type_name"}) "Should include type_name"
+assert ($list_with_types | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
 
 # print "=== Testing requests enrichment command ==="
 let enriched = (project list | where name =~ $test_suffix | requests)

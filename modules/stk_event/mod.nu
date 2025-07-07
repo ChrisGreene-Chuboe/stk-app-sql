@@ -92,15 +92,14 @@ export def ".append event" [
 # monitor recent activity, debug issues, or track system behavior.
 # This is typically your starting point for event investigation.
 # Use the returned UUIDs with other event commands for detailed work.
-# Use --detail to include type information for all events.
+# Type information is always included for all events.
 #
 # Accepts piped input: none
 #
 # Examples:
 #   event list
-#   event list --detail
 #   event list | where name == "authentication" 
-#   event list --detail | where type_enum == "ACTION"
+#   event list | where type_enum == "ACTION"
 #   event list | where is_revoked == false
 #   event list | select name created | table
 #
@@ -109,11 +108,9 @@ export def ".append event" [
 #   event list | elaborate name table_name                               # Show referenced table names
 #   event list | elaborate --all | select name table_name_uu_json_resolved.name  # Show referenced record names
 #
-# Returns: name, description, table_name_uu_json, record_json, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
+# Returns: name, description, table_name_uu_json, record_json, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Only shows the 10 most recent events - use direct SQL for larger queries
 export def "event list" [
-    --detail(-d)  # Include detailed type information for all events
     --all(-a)     # Include revoked events
 ] {
     # Build complete arguments array including flags
@@ -122,12 +119,8 @@ export def "event list" [
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
     
-    # Choose command and execute with spread - no nested if/else!
-    if $detail {
-        psql list-records-with-detail ...$args
-    } else {
-        psql list-records ...$args
-    }
+    # Execute query
+    psql list-records ...$args
 }
 
 # Retrieve a specific event by its UUID
@@ -136,7 +129,7 @@ export def "event list" [
 # inspect its contents, verify its state, or extract specific
 # data from the record_json field. Use this when you have a
 # UUID from event list or from other system outputs.
-# Use --detail to include type information.
+# Type information is always included.
 #
 # Accepts piped input:
 #   string - The UUID of the event to retrieve
@@ -151,28 +144,22 @@ export def "event list" [
 #   
 #   # Using --uu parameter
 #   event get --uu "12345678-1234-5678-9012-123456789abc"
-#   event get --uu $event_uuid --detail
+#   event get --uu $event_uuid
 #   
 #   # Practical examples
 #   $event_uuid | event get | get description
 #   event get --uu $uu | get record_json
 #   $uu | event get | if $in.is_revoked { print "Event was revoked" }
 #
-# Returns: name, description, record_json, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, and other type information
+# Returns: name, description, record_json, created, updated, is_revoked, uu, type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "event get" [
-    --detail(-d)  # Include detailed type information
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
     let uu = ($in | extract-uu-with-param $uu)
     
-    if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
-    } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $uu
-    }
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_EVENT_COLUMNS $uu
 }
 
 # Revoke an event by setting its revoked timestamp

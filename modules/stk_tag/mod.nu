@@ -128,25 +128,22 @@ export def ".append tag" [
 # List tags with optional filtering
 #
 # Displays tags to help you view metadata attachments and their associated records.
-# Use --detail to include type information for all tags.
+# Type information is always included for all tags.
 #
 # Accepts piped input: none
 #
 # Examples:
 #   tag list                              # List recent tags
-#   tag list --detail                     # Include type information
 #   tag list --all                        # Include revoked tags
 #   tag list | where search_key =~ "address"
-#   tag list --detail | where type_enum == "ADDRESS"
+#   tag list | where type_enum == "ADDRESS"
 #
 # Using elaborate to resolve foreign key references:
 #   tag list | elaborate                  # Resolve with default columns
 #   tag list | elaborate search_key table_name  # Show referenced table names
 #
-# Returns: search_key, description, table_name_uu_json, record_json, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
+# Returns: search_key, description, table_name_uu_json, record_json, created, updated, is_revoked, uu, type_enum, type_name, type_description
 export def "tag list" [
-    --detail(-d)  # Include detailed type information for all tags
     --all(-a)     # Include revoked tags
 ] {
     # Build complete arguments array including flags
@@ -155,12 +152,8 @@ export def "tag list" [
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
     
-    # Choose command and execute with spread - no nested if/else!
-    if $detail {
-        psql list-records-with-detail ...$args
-    } else {
-        psql list-records ...$args
-    }
+    # Execute query
+    psql list-records ...$args
 }
 
 # Get detailed information about a specific tag
@@ -183,22 +176,16 @@ export def "tag list" [
 #   
 #   # Using --uu parameter
 #   tag get --uu "12345678-1234-5678-9012-123456789abc"
-#   tag get --uu $tag_uuid --detail
+#   tag get --uu $tag_uuid
 #
-# Returns: Tag record fields
-# Returns (with --detail): Includes type information
+# Returns: Tag record fields including type information
 export def "tag get" [
-    --detail(-d)  # Include type information
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
     let uu = ($in | extract-uu-with-param $uu)
     
-    if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
-    } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TAG_COLUMNS $uu
-    }
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TAG_COLUMNS $uu
 }
 
 # Revoke (soft delete) a tag

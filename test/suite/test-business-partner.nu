@@ -31,10 +31,6 @@ assert ($list_result | where name =~ $test_suffix | is-not-empty) "Should find c
 let get_result = ($created.uu.0 | bp get)
 assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# print "=== Testing bp get --detail ==="
-let detail_result = ($created.uu.0 | bp get --detail)
-assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
-
 # print "=== Testing bp revoke ==="
 let revoke_result = ($created.uu.0 | bp revoke)
 assert ($revoke_result.is_revoked.0 == true) "Should be revoked"
@@ -111,10 +107,10 @@ let test_type = ($types | first)
 let typed = (bp new $"Typed($test_suffix)" --type-search-key $test_type.search_key)
 assert ($typed.type_uu.0 == $test_type.uu) "Should have correct type"
 
-# print "=== Testing bp get --detail shows type ==="
-let typed_detail = ($typed.uu.0 | bp get --detail)
-assert ($typed_detail.type_name | is-not-empty) "Should show type name"
-assert ($typed_detail.type_enum | is-not-empty) "Should show type enum"
+# print "=== Testing bp get shows type ==="
+let typed_get = ($typed.uu.0 | bp get)
+assert ($typed_get.type_name | is-not-empty) "Should show type name"
+assert ($typed_get.type_enum | is-not-empty) "Should show type enum"
 
 # === Testing JSON parameter ===
 # print "=== Testing bp creation with JSON ==="

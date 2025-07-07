@@ -103,20 +103,17 @@ export def "bp new" [
 #
 # Examples:
 #   bp list
-#   bp list --detail
 #   bp list --all                                    # Include revoked BPs
 #   bp list --templates                              # Show only templates  
 #   bp list | where name =~ "corp"
 #   bp list | where is_template == false
-#   bp list --detail | where type_enum == "ORGANIZATION"
+#   bp list | where type_enum == "ORGANIZATION"
 #   
 #   # Find BPs with specific roles using tags
 #   bp list | tags | where type_enum == "BP_CUSTOMER" | get table_name_uu_json | bp get
 #
-# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, parent_uu from joined tables
+# Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, type_enum, type_name, parent_uu
 export def "bp list" [
-    --detail(-d)    # Include detailed type information
     --all(-a)       # Include revoked business partners and templates
     --templates     # Show only templates
 ] {
@@ -128,11 +125,7 @@ export def "bp list" [
     let args = if $templates { $args | append "--templates" } else { $args }
     
     # Execute query
-    if $detail {
-        psql list-records-with-detail ...$args
-    } else {
-        psql list-records ...$args
-    }
+    psql list-records ...$args
 }
 
 # Retrieve a specific business partner by UUID
@@ -150,25 +143,19 @@ export def "bp list" [
 #   "12345678-1234-5678-9012-123456789abc" | bp get
 #   bp get --uu "12345678-1234-5678-9012-123456789abc"
 #   bp list | where name == "ACME Corp" | bp get
-#   bp list | get 0 | bp get --detail
+#   bp list | get 0 | bp get
 #   
 #   # Get BP and check roles
 #   $bp_uuid | bp get | tags | where type_enum =~ "^BP_"
 #
-# Returns: name, description, is_template, is_valid, record_json, created, updated, uu
-# Returns (with --detail): Includes type information and parent relationships
+# Returns: name, description, is_template, is_valid, record_json, created, updated, uu, type information and parent relationships
 export def "bp get" [
-    --detail(-d)  # Include detailed type information
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
     let uu = ($in | extract-uu-with-param $uu)
     
-    if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
-    } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BUSINESS_PARTNER_COLUMNS $uu
-    }
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_BUSINESS_PARTNER_COLUMNS $uu
 }
 
 # Revoke a business partner (soft delete)

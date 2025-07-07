@@ -37,9 +37,9 @@ assert ($list_result | where name =~ $test_suffix | is-not-empty) "Should find c
 let get_result = ($created.uu.0 | todo get)
 assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# print "=== Testing todo get --detail ==="
-let detail_result = ($created.uu.0 | todo get --detail)
-assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
+# print "=== Testing todo get (type info always included) ==="
+let get_with_type = ($created.uu.0 | todo get)
+assert ($get_with_type | columns | any {|col| $col | str contains "type"}) "Should include type info"
 
 # print "=== Testing todo revoke ==="
 let revoke_result = ($created.uu.0 | todo revoke)
@@ -164,11 +164,11 @@ let described = (todo new $"Described todo($test_suffix)" --description "Importa
 let described_detail = ($described.uu.0 | todo get)
 assert ($described_detail.description == "Important task details") "Should store description"
 
-# print "=== Testing todo list --detail ==="
-let detail_list = (todo list --detail | where name =~ $test_suffix)
-assert ($detail_list | is-not-empty) "Should list with details"
-assert ($detail_list | columns | any {|col| $col == "type_name"}) "Should include type_name"
-assert ($detail_list | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
+# print "=== Testing todo list (type info always included) ==="
+let list_with_type = (todo list | where name =~ $test_suffix)
+assert ($list_with_type | is-not-empty) "Should list with type info"
+assert ($list_with_type | columns | any {|col| $col == "type_name"}) "Should include type_name"
+assert ($list_with_type | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
 
 # print "=== Testing .append event on todo ==="
 let todo_for_event = (todo new $"Event Test Todo($test_suffix)")

@@ -133,7 +133,6 @@ export def ".append timesheet" [
 #
 # Examples:
 #   timesheet list
-#   timesheet list --detail
 #   timesheet list --all
 #   
 #   # Pipeline filtering examples:
@@ -150,11 +149,9 @@ export def ".append timesheet" [
 #   # With elaborate to see attached records:
 #   timesheet list | elaborate name table_name
 #
-# Returns: name, description, table_name_uu_json, record_json, processed, is_processed, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
-# Note: Results are ordered by creation time and filtered to type_enum = 'TIMESHEET'
+# Returns: name, description, table_name_uu_json, record_json, processed, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
+# Note: Results are ordered by creation time and filtered to type_enum = 'TIMESHEET'. Type information is always included.
 export def "timesheet list" [
-    --detail(-d)  # Include detailed type information
     --all(-a)     # Include revoked (cancelled) timesheets
 ] {
     # Build args list with optional --all flag
@@ -164,7 +161,7 @@ export def "timesheet list" [
         [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TIMESHEET_COLUMNS
     }
     
-    psql list-records ...$args --enum $STK_TIMESHEET_TYPE_ENUM --detail=$detail
+    psql list-records ...$args --enum $STK_TIMESHEET_TYPE_ENUM
 }
 
 # Retrieve a specific timesheet entry by its UUID
@@ -186,24 +183,22 @@ export def "timesheet list" [
 #   
 #   # Using --uu parameter
 #   timesheet get --uu "12345678-1234-5678-9012-123456789abc"
-#   timesheet get --uu $timesheet_uuid --detail
+#   timesheet get --uu $timesheet_uuid
 #   
 #   # Extract timesheet data
 #   $timesheet_uuid | timesheet get | get record_json.minutes
 #   timesheet get --uu $uu | get record_json | $in.minutes / 60  # Get hours
 #
-# Returns: name, description, table_name_uu_json, record_json, processed, is_processed, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, and other type information
+# Returns: name, description, table_name_uu_json, record_json, processed, is_processed, created, updated, is_revoked, uu, type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist or type_enum != 'TIMESHEET'
 export def "timesheet get" [
-    --detail(-d)  # Include detailed type information
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
     let uu = ($in | extract-uu-with-param $uu)
     
     # Get the record with enum filter
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TIMESHEET_COLUMNS $uu --enum $STK_TIMESHEET_TYPE_ENUM --detail=$detail
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TIMESHEET_COLUMNS $uu --enum $STK_TIMESHEET_TYPE_ENUM
 }
 
 # Mark a timesheet entry as cancelled (revoke)

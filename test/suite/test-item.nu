@@ -37,9 +37,6 @@ assert ($list_result | where name =~ $test_suffix | is-not-empty) "Should find c
 let get_result = ($created.uu.0 | item get)
 assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# print "=== Testing item get --detail ==="
-let detail_result = ($created.uu.0 | item get --detail)
-assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
 
 # print "=== Testing item revoke ==="
 let revoke_result = ($created.uu.0 | item revoke)
@@ -119,10 +116,10 @@ let test_type = ($types | first)
 let typed = (item new $"Typed($test_suffix)" --type-search-key $test_type.search_key)
 assert ($typed.type_uu.0 == $test_type.uu) "Should have correct type"
 
-# print "=== Testing item get --detail shows type ==="
-let typed_detail = ($typed.uu.0 | item get --detail)
-assert ($typed_detail.type_name | is-not-empty) "Should show type name"
-assert ($typed_detail.type_enum | is-not-empty) "Should show type enum"
+# print "=== Testing item get shows type ==="
+let typed_get = ($typed.uu.0 | item get)
+assert ($typed_get.type_name | is-not-empty) "Should show type name"
+assert ($typed_get.type_enum | is-not-empty) "Should show type enum"
 
 # === Testing JSON parameter ===
 
@@ -154,11 +151,11 @@ let described = (item new $"Described item($test_suffix)" --description "Test de
 let described_detail = ($described.uu.0 | item get)
 assert ($described_detail.description == "Test description") "Should store description"
 
-# print "=== Testing item list --detail ==="
-let detail_list = (item list --detail | where name =~ $test_suffix)
-assert ($detail_list | is-not-empty) "Should list with details"
-assert ($detail_list | columns | any {|col| $col == "type_name"}) "Should include type_name"
-assert ($detail_list | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
+# print "=== Testing item list includes type info ==="
+let list_with_types = (item list | where name =~ $test_suffix)
+assert ($list_with_types | is-not-empty) "Should list items"
+assert ($list_with_types | columns | any {|col| $col == "type_name"}) "Should include type_name"
+assert ($list_with_types | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
 
 # print "=== Testing .append event with item UUID ==="
 let event_item = (item new $"Event Test($test_suffix)")

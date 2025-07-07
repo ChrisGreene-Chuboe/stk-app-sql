@@ -785,61 +785,6 @@ export def "psql get-table-name-uu" [
     return $parsed
 }
 
-
-# Generic list records with detailed type information
-#
-# Executes a SELECT query with joins to type table for detailed views.
-# Returns records with type information ordered by created DESC with configurable limit.
-# Used by module-specific list --detail commands to reduce code duplication.
-#
-# Examples:
-#   psql list-records-with-detail "api" "stk_item" "name" "description" "is_template" "is_valid"
-#   psql list-records-with-detail "api" "stk_item" "name" "description" --all
-#   psql list-records-with-detail "api" "stk_item" "name" "description" --limit 20
-#   
-# With spread operator:
-#   let args = ["api", "stk_item", "name", "description", "is_template", "is_valid"]
-#   psql list-records-with-detail ...$args
-#   psql list-records-with-detail ...$args --all
-#
-# Returns: All specified columns plus type_enum, type_name, type_description from joined type table
-# Note: Uses LEFT JOIN to include records without type assignments
-export def "psql list-records-with-detail" [
-    ...args: string          # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
-    --limit: int = 10        # Maximum number of records to return
-] {
-    # This function is now just a wrapper for list-records since it always includes details
-    # Kept for backward compatibility
-    psql list-records ...$args --limit $limit
-}
-
-# Generic get detailed record information including type
-#
-# Provides a comprehensive view of any STK record by joining with its type
-# table to show classification and context. This is a standard pattern across
-# all chuck-stack concepts that have associated type tables.
-# 
-# This function dynamically selects columns that exist in the table to handle
-# different table schemas across STK modules.
-#
-# Examples:
-#   psql detail-record "api" "stk_item" $uuid
-#   psql detail-record "api" "stk_request" $uuid
-#   psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
-#
-# Returns: Complete record details with type_enum, type_name, and other joined information
-# Error: Returns empty result if UUID doesn't exist
-export def "psql detail-record" [
-    schema: string              # Database schema (e.g., "api")
-    table_name: string          # Main table name (e.g., "stk_item")
-    uu: string                  # UUID of the record to get details for
-] {
-    # This function is now just a wrapper for get-record since it always includes details
-    # Kept for backward compatibility
-    # Pass empty list for columns since we don't have specific columns here
-    psql get-record $schema $table_name [] $uu
-}
-
 # Elaborate foreign key references in a table by adding resolved columns
 #
 # Takes a table with UUID references and adds new columns containing the full

@@ -1,9 +1,9 @@
 # === Testing type support ===
 # Template: Replace MODULE with your module name (e.g., item, bp, project)
-# Template Version: 2025-01-05
+# Template Version: 2025-01-07
 # Note: This pattern assumes MODULE new accepts type parameters
 #       For modules like event that have types but don't accept them during creation,
-#       just test the types command and verify get --detail shows type info
+#       just test the types command and verify get shows type info
 
 # print "=== Testing MODULE types ==="
 let types = (MODULE types)
@@ -20,8 +20,8 @@ let test_type = ($types | first)
 let typed = (MODULE new $"Typed($test_suffix)" --type-search-key $test_type.search_key)
 assert ($typed.type_uu.0 == $test_type.uu) "Should have correct type"
 
-# print "=== Testing MODULE get --detail shows type ==="
+# print "=== Testing MODULE get shows type ==="
 # Note: This should work even if types aren't settable during creation
-let typed_detail = ($typed.uu.0 | MODULE get --detail)
-assert ($typed_detail.type_name | is-not-empty) "Should show type name"
-assert ($typed_detail.type_enum | is-not-empty) "Should show type enum"
+let typed_get = ($typed.uu.0 | MODULE get)
+assert ($typed_get.type_name | is-not-empty) "Should show type name"
+assert ($typed_get.type_enum | is-not-empty) "Should show type enum"

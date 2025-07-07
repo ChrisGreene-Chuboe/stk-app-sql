@@ -93,15 +93,14 @@ export def ".append request" [
 # monitor recent activity, track outstanding requests, or review request
 # history. This is typically your starting point for request investigation.
 # Use the returned UUIDs with other request commands for detailed work.
-# Use --detail to include type information for all requests.
+# Type information is always included for all requests.
 #
 # Accepts piped input: none
 #
 # Examples:
 #   request list
-#   request list --detail
 #   request list | where name == "urgent"
-#   request list --detail | where type_enum == "TODO"
+#   request list | where type_enum == "TODO"
 #   request list | where is_revoked == false
 #   request list | where is_processed == false
 #   request list | select name description created | table
@@ -111,11 +110,9 @@ export def ".append request" [
 #   request list | elaborate name table_name                              # Show referenced table names
 #   request list | elaborate --all | select name table_name_uu_json_resolved.name  # Show referenced record names
 #
-# Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
+# Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Only shows the 10 most recent requests - use direct SQL for larger queries
 export def "request list" [
-    --detail(-d)  # Include detailed type information for all requests
     --all(-a)     # Include revoked requests
 ] {
     # Build complete arguments array including flags
@@ -124,12 +121,8 @@ export def "request list" [
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
     
-    # Choose command and execute with spread - no nested if/else!
-    if $detail {
-        psql list-records-with-detail ...$args
-    } else {
-        psql list-records ...$args
-    }
+    # Execute query
+    psql list-records ...$args
 }
 
 # Retrieve a specific request by its UUID
@@ -138,7 +131,7 @@ export def "request list" [
 # inspect its contents, verify its state, check attachments, or
 # extract specific data. Use this when you have a UUID from
 # request list or from other system outputs.
-# Use --detail to include type information.
+# Type information is always included.
 #
 # Accepts piped input:
 #   string - The UUID of the request to retrieve
@@ -153,27 +146,21 @@ export def "request list" [
 #   
 #   # Using --uu parameter
 #   request get --uu "12345678-1234-5678-9012-123456789abc"
-#   request get --uu $request_uuid --detail
+#   request get --uu $request_uuid
 #   
 #   # Practical examples
 #   $request_uuid | request get | get table_name_uu_json
 #   request get --uu $uu | if $in.is_processed { print "Request completed" }
 #
-# Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, and other type information
+# Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "request get" [
-    --detail(-d)  # Include detailed type information
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
     let uu = ($in | extract-uu-with-param $uu)
     
-    if $detail {
-        psql detail-record $STK_SCHEMA $STK_TABLE_NAME $uu
-    } else {
-        psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $uu
-    }
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_REQUEST_COLUMNS $uu
 }
 
 # Mark a request as processed by setting its processed timestamp

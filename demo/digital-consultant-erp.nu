@@ -16,6 +16,7 @@ print ""
 
 # Step 1: Create the business partner
 print "1. Creating business partner..."
+print ""
 
 # Create a client company with detailed information
 let client = (bp new "ACME Corporation" 
@@ -42,20 +43,22 @@ print ""
 
 # Step 2: Add business roles via tags
 print "2. Assigning business roles..."
+print ""
 
 # Mark as customer
-let customer_tag = $client | .append tag --type-search-key "BP_CUSTOMER" --description "Premium customer since 2020"
+let customer_tag = $client | .append tag --type-search-key "BP_CUSTOMER"
 print "✓ Tagged as BP_CUSTOMER"
+print ""
 
 # Could also be a vendor if they provide services to us
-let vendor_tag = $client | .append tag --type-search-key "BP_VENDOR" --description "Also provides consulting services to us"
+let vendor_tag = $client | .append tag --type-search-key "BP_VENDOR"
 print "✓ Tagged as BP_VENDOR"
-
 print ""
 
 
 # Step 3: Add addresses
 print "3. Adding addresses..."
+print ""
 
 # Headquarters address - using structured JSON
 let hq_address = $client | .append address --json '{
@@ -67,6 +70,7 @@ let hq_address = $client | .append address --json '{
     "country": "US"
 }'
 print "✓ Added headquarters address"
+print ""
 
 # Billing address - using structured JSON
 let billing_address = $client | .append address --json '{
@@ -77,6 +81,7 @@ let billing_address = $client | .append address --json '{
     "country": "US"
 }'
 print "✓ Added billing address"
+print ""
 
 # Shipping address - using structured JSON
 let shipping_address = $client | .append address --json '{
@@ -87,7 +92,6 @@ let shipping_address = $client | .append address --json '{
     "country": "US"
 }'
 print "✓ Added shipping address"
-
 print ""
 
 # Step 4: Show the complete business partner profile
@@ -118,6 +122,7 @@ $bp_tags | select type_enum description created | each {|t|
 print ""
 
 # Show addresses (which are stored as ADDRESS tags)
+#TODO: concerned there is so much code below. should be able to use nushell to format for us
 print "Addresses:"
 let bp_addresses = $client | tags | where type_enum == "ADDRESS"
 $bp_addresses | each {|a|

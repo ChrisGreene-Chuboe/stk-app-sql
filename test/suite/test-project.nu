@@ -189,12 +189,12 @@ assert ($projects_list | columns | any {|col| $col == "uu"}) "List should contai
 assert ($projects_list | columns | any {|col| $col == "name"}) "List should contain 'name' field"
 #print "✓ Project list verified successfully"
 
-#print "=== Testing project list --detail command ==="
-let detailed_projects_list = (project list --detail)
-assert (($detailed_projects_list | length) >= 1) "Should return at least one detailed project"
-assert ($detailed_projects_list | columns | any {|col| $col == "type_enum"}) "Detailed list should contain 'type_enum' field"
-assert ($detailed_projects_list | columns | any {|col| $col == "type_name"}) "Detailed list should contain 'type_name' field"
-#print "✓ Project list --detail verified successfully"
+#print "=== Testing project list includes type info ==="
+let projects_list = (project list)
+assert (($projects_list | length) >= 1) "Should return at least one project"
+assert ($projects_list | columns | any {|col| $col == "type_enum"}) "List should contain 'type_enum' field"
+assert ($projects_list | columns | any {|col| $col == "type_name"}) "List should contain 'type_name' field"
+#print "✓ Project list verified successfully with type info"
 
 #print "=== Testing project get command ==="
 let first_project_uu = ($projects_list | get uu.0)
@@ -222,13 +222,6 @@ assert ($record_input_project | describe | str starts-with "record") "Should ret
 assert ($record_input_project.uu == $first_project_uu) "Retrieved UUID should match from record input"
 #print "✓ Project get with record input verified"
 
-#print "=== Testing project get --detail command ==="
-let detailed_project = ($first_project_uu | project get --detail)
-assert ($detailed_project | describe | str starts-with "record") "Should return a record for detailed project"
-assert ($detailed_project | columns | any {|col| $col == "uu"}) "Detailed project should contain 'uu' field"
-assert ($detailed_project | columns | any {|col| $col == "type_enum"}) "Detailed project should contain 'type_enum' field"
-assert ($detailed_project | columns | any {|col| $col == "type_name"}) "Detailed project should contain 'type_name' field"
-#print "✓ Project get --detail verified with type:" ($detailed_project.type_enum)
 
 #print "=== Testing project line get command ==="
 let first_line_uu = ($line_list | get uu.0)
@@ -287,13 +280,6 @@ let record_lines = (project list | where name == "Project for Line Table Test" |
 assert (($record_lines | length) == 2) "Should list 2 lines with record input"
 #print "✓ Project line list with record input verified"
 
-#print "=== Testing project line get --detail command ==="
-let detailed_line = ($first_line_uu | project line get --detail)
-assert ($detailed_line | describe | str starts-with "record") "Should return a record for detailed line"
-assert ($detailed_line | columns | any {|col| $col == "uu"}) "Detailed line should contain 'uu' field"
-assert ($detailed_line | columns | any {|col| $col == "type_enum"}) "Detailed line should contain 'type_enum' field"
-assert ($detailed_line | columns | any {|col| $col == "type_name"}) "Detailed line should contain 'type_name' field"
-#print "✓ Project line get --detail verified with type:" ($detailed_line.type_enum)
 
 #print "=== Testing project revoke with UUID piping ==="
 let revoke_result = ($project_uuid | project revoke)

@@ -94,23 +94,20 @@ export def "todo new" [
 #
 # Examples:
 #   todo list
-#   todo list --detail
 #   todo list --all
 #   todo list | where name =~ "Weekend"
 #   todo list | where ($it.table_name_uu_json.uu | is-not-empty)  # Show only todo items
 #   todo list | where ($it.table_name_uu_json.uu | is-empty)  # Show only todo lists
-#   todo list --detail | where type_name == "work-todo"
+#   todo list | where type_name == "work-todo"
 #
 # Using elaborate to resolve foreign key references:
 #   todo list | elaborate                                               # Resolve with default columns
 #   todo list | elaborate name table_name                               # Show parent todo names
 #   todo list | elaborate --all | select name table_name_uu_json_resolved.name  # Show parent names
 #
-# Returns: name, description, table_name_uu_json, record_json, is_processed, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, type_description from joined type table
-# Note: Results are ordered by creation time and filtered to type_enum in ['TODO']
+# Returns: name, description, table_name_uu_json, record_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
+# Note: Results are ordered by creation time and filtered to type_enum in ['TODO']. Type information is always included.
 export def "todo list" [
-    --detail(-d)  # Include detailed type information for all todos
     --all(-a)     # Include revoked (completed) todos
 ] {
     # Build args list with optional --all flag
@@ -120,7 +117,7 @@ export def "todo list" [
         [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TODO_COLUMNS
     }
     
-    psql list-records ...$args --enum $STK_TODO_TYPE_ENUM --detail=$detail
+    psql list-records ...$args --enum $STK_TODO_TYPE_ENUM
 }
 
 # Retrieve a specific todo by its UUID
@@ -146,25 +143,23 @@ export def "todo list" [
 #   
 #   # Using --uu parameter
 #   todo get --uu "12345678-1234-5678-9012-123456789abc"
-#   todo get --uu $todo_uuid --detail
+#   todo get --uu $todo_uuid
 #   
 #   # Practical examples
 #   $todo_uuid | todo get | get description
 #   todo get --uu $uu | get record_json
 #   $uu | todo get | if $in.is_revoked { print "Todo was completed" }
 #
-# Returns: name, description, table_name_uu_json, record_json, is_processed, created, updated, is_revoked, uu
-# Returns (with --detail): Includes type_enum, type_name, and other type information
+# Returns: name, description, table_name_uu_json, record_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist or type_enum not in ['TODO']
 export def "todo get" [
-    --detail(-d)  # Include detailed type information
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
     let uu = ($in | extract-uu-with-param $uu)
     
     # Note: psql get-record takes uu as parameter, not piped input
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS $uu --enum $STK_TODO_TYPE_ENUM --detail=$detail
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_TODO_COLUMNS $uu --enum $STK_TODO_TYPE_ENUM
 }
 
 # Mark a todo item as done (revoke)

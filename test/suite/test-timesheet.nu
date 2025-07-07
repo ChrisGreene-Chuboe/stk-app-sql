@@ -42,9 +42,9 @@ assert ($list_result | is-not-empty) "Should have timesheets"
 let get_result = ($created.uu.0 | timesheet get)
 assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# print "=== Testing timesheet get --detail ==="
-let detail_result = ($created.uu.0 | timesheet get --detail)
-assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
+# print "=== Testing timesheet get (type info always included) ==="
+let get_with_type = ($created.uu.0 | timesheet get)
+assert ($get_with_type | columns | any {|col| $col | str contains "type"}) "Should include type info"
 
 # print "=== Testing timesheet revoke ==="
 let revoke_result = ($created.uu.0 | timesheet revoke)
@@ -152,11 +152,11 @@ assert ($task_timesheet | is-not-empty) "Should create timesheet on task"
 let task_detail = ($task_timesheet.uu.0 | timesheet get)
 assert ($task_detail.table_name_uu_json != {}) "Should have attachment to task"
 
-# print "=== Testing timesheet list --detail ==="
-let detail_list = (timesheet list --detail | take 5)
-assert ($detail_list | is-not-empty) "Should list with details"
-assert ($detail_list | columns | any {|col| $col == "type_name"}) "Should include type_name"
-assert ($detail_list | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
+# print "=== Testing timesheet list (type info always included) ==="
+let list_with_type = (timesheet list | take 5)
+assert ($list_with_type | is-not-empty) "Should list with type info"
+assert ($list_with_type | columns | any {|col| $col == "type_name"}) "Should include type_name"
+assert ($list_with_type | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
 
 # print "=== Testing timesheet with description ==="
 let described = ($project_uu | .append timesheet --minutes 75 --description "Important meeting")

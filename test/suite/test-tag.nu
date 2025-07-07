@@ -42,9 +42,6 @@ assert ($list_result | where search_key =~ $test_suffix | is-not-empty) "Should 
 let get_result = ($created.uu.0 | tag get)
 assert ($get_result.uu == $created.uu.0) "Should get correct record"
 
-# print "=== Testing tag get --detail ==="
-let detail_result = ($created.uu.0 | tag get --detail)
-assert ($detail_result | columns | any {|col| $col | str contains "type"}) "Should include type info"
 
 # print "=== Testing tag revoke ==="
 let revoke_result = ($created.uu.0 | tag revoke)
@@ -125,10 +122,10 @@ let test_type = ($types | first)
 let typed = ($project_uu | .append tag --search-key $"typed($test_suffix)" --type-search-key $test_type.search_key)
 assert ($typed.type_uu.0 == $test_type.uu) "Should have correct type"
 
-# print "=== Testing tag get --detail shows type ==="
-let typed_detail = ($typed.uu.0 | tag get --detail)
-assert ($typed_detail.type_name | is-not-empty) "Should show type name"
-assert ($typed_detail.type_enum | is-not-empty) "Should show type enum"
+# print "=== Testing tag get shows type ==="
+let typed_get = ($typed.uu.0 | tag get)
+assert ($typed_get.type_name | is-not-empty) "Should show type name"
+assert ($typed_get.type_enum | is-not-empty) "Should show type enum"
 
 # === Testing JSON parameter ===
 
@@ -166,11 +163,11 @@ assert ($address_tag.type_uu.0 == $address_type.uu) "Should have ADDRESS type"
 let tag_detail = ($address_tag.uu.0 | tag get)
 assert ($tag_detail.table_name_uu_json != {}) "Should have attachment data"
 
-# print "=== Testing tag list --detail ==="
-let detail_list = (tag list --detail | where search_key =~ $test_suffix)
-assert ($detail_list | is-not-empty) "Should list with details"
-assert ($detail_list | columns | any {|col| $col == "type_name"}) "Should include type_name"
-assert ($detail_list | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
+# print "=== Testing tag list includes type info ==="
+let list_with_types = (tag list | where search_key =~ $test_suffix)
+assert ($list_with_types | is-not-empty) "Should list tags"
+assert ($list_with_types | columns | any {|col| $col == "type_name"}) "Should include type_name"
+assert ($list_with_types | columns | any {|col| $col == "type_enum"}) "Should include type_enum"
 
 # print "=== Testing tags enrichment command ==="
 let enriched = (project list | where name =~ $test_suffix | tags)
