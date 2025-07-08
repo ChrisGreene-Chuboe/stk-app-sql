@@ -665,7 +665,7 @@ export def "psql list-types" [
     }
     
     let sql = $"
-        SELECT uu, type_enum, search_key, name, description, record_json, is_default, created
+        SELECT uu, type_enum, search_key, name, description, record_json, is_default, created, table_name
         FROM ($table)
         ($where_clause)
         ORDER BY type_enum, name

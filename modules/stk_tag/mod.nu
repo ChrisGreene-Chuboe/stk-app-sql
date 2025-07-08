@@ -39,6 +39,10 @@ Type 'tag <tab>' to see available commands.
 #   item list | get uu.0 | .append tag --type-uu $email_type_uu --json '{"email": "support@example.com"}'
 #   "12345678-1234-5678-9012-123456789abc" | .append tag --type-search-key NONE --description "Special handling required"
 #   invoice list | get uu.0 | .append tag --search-key "billing-addr" --type-name "Physical Address" --json $address_data
+#   
+#   # Interactive examples:
+#   project list | first | .append tag --type-search-key ADDRESS --interactive
+#   $project_uu | .append tag --type-name "Physical Address" --interactive --description "Main office"
 #
 # Returns: The UUID of the newly created tag record
 # Note: Exactly one type parameter (--type-name, --type-search-key, or --type-uu) must be provided
@@ -49,6 +53,7 @@ export def ".append tag" [
     --type-search-key: string           # Lookup type by search_key field  
     --type-uu: string                   # Lookup type by UUID
     --json(-j): string                  # JSON data to store in record_json field (validated against type schema)
+    --interactive                       # Interactively build JSON data using the type's schema
 ] {
     # Extract attachment data from piped input (required for tags)
     let attach_data = ($in | extract-attach-from-input)
@@ -93,8 +98,18 @@ export def ".append tag" [
     
     let resolved_type_uu = $type_record.uu
     
-    # Handle JSON parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Handle interactive mode vs direct JSON
+    let record_json = if $interactive {
+        # Check that --json wasn't also provided
+        if ($json | is-not-empty) {
+            error make {msg: "Cannot use both --interactive and --json flags"}
+        }
+        # Use interactive JSON builder
+        $type_record | interactive-json
+    } else {
+        # Handle JSON parameter - validate if provided, default to empty object
+        try { $json | parse-json } catch { error make { msg: $in.msg } }
+    }
     
     # Get table_name_uu as nushell record
     let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
