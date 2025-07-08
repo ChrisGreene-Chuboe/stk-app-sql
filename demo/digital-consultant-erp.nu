@@ -25,14 +25,12 @@ let client = (bp new "ACME Corporation"
     --type-search-key "ORGANIZATION" 
     --description "Enterprise retail company - our largest client" 
     --json '{
-        "legal_name": "ACME Corporation Inc.",
         "tax_id": "12-3456789",
         "duns_number": "123456789",
         "website": "www.acme-corp.com",
         "industry": "Retail",
         "annual_revenue": "500M",
         "employee_count": 2500,
-        "fiscal_year_end": "12/31",
         "payment_terms": "Net 30",
         "credit_limit": 100000,
         "primary_contact": "John Smith",
@@ -100,50 +98,38 @@ print ""
 print "================================"
 print "=== Business Partner Profile ==="
 print "================================"
-
-# Get BP with details
-let bp_detail = ($client | bp get --detail)
-print $"Name: ($bp_detail.name)"
-print $"Type: ($bp_detail.type_enum) - ($bp_detail.type_description)"
-print $"Description: ($bp_detail.description)"
-print $"Status: (if $bp_detail.is_valid { 'Valid' } else { 'Invalid' })"
-print $"Created: ($bp_detail.created)"
 print ""
 
-# Show JSON attributes
+# Get BP with details and display as a record
+print "Business Partner: returned from new"
+$client | first | print 
+print ""
+
+print "Business Partner: returned from get"
+$client | bp get | print
+print ""
+
+# Show JSON attributes as a formatted table
 print "Company Details:"
-let details = $bp_detail.record_json
-$details | items {|k, v| print $"  ($k): ($v)"}
+let bp_detail = ($client | bp get )
+$bp_detail.record_json | print
 print ""
 
-# Show tags
+# Show tags as a table
 print "Business Roles & Classifications:"
-let bp_tags = $client | tags
-$bp_tags | select type_enum description created | each {|t| 
-    print $"  - ($t.type_enum): ($t.description)"
-}
+$client | bp get | tags | select type_enum description created | print
 print ""
 
-# Show addresses (which are stored as ADDRESS tags)
-#TODO: concerned there is so much code below. should be able to use nushell to format for us
-#NOTE: this is an important section because it is our first example of how to iterate across tags
+# Show addresses with their JSON data
 print "Addresses:"
-let bp_addresses = $client | tags | where type_enum == "ADDRESS"
-$bp_addresses | each {|a|
-    let addr_data = $a.record_json | from json
-    print $"  Address:"
-    if ($addr_data.address1? | is-not-empty) {
-        print $"    ($addr_data.address1) ($addr_data.address2? | default '')"
-    }
-    if ($addr_data.city? | is-not-empty) {
-        print $"    ($addr_data.city), ($addr_data.region) ($addr_data.postal)"
-    }
-    print $"    Created: ($a.created)"
-    print ""
-}
-
-print "=== Complete Business Partner Created ==="
+$client | bp get | tags | get tags | where {$in.search_key =~ ADDRESS} | table -e | print
 print ""
+
+print "========================================="
+print "=== Complete Business Partner Created ==="
+print "========================================="
+print ""
+
 print "This business partner now has:"
 print "- Core company information with legal and financial details"
 print "- Multiple business role tags (customer and vendor)"
