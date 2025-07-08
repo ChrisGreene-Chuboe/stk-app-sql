@@ -45,6 +45,13 @@ Type 'address <tab>' to see available commands.
 #   
 #   # Add address with custom AI model
 #   $entity_uuid | .append address "123 Main St" --model gpt-4
+#   
+#   # Build address JSON interactively then attach
+#   let addr_json = (tag types | where search_key == "ADDRESS" | first | interactive-json)
+#   $project_uuid | .append address --json $addr_json
+#   
+#   # Use new interactive tag creation
+#   project list | first | .append tag --type-search-key ADDRESS --interactive
 #
 # Returns:
 #   record - The created address tag with structured data

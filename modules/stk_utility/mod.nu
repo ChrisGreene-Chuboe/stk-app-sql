@@ -400,6 +400,19 @@ export def tutor-generate [
 #   
 #   # Select type interactively then build JSON
 #   project types | input list "Select type:" --fuzzy | interactive-json
+#   
+#   # Build various type schemas
+#   bp types | where search_key == "ORGANIZATION" | first | interactive-json
+#   bp types | where search_key == "INDIVIDUAL" | first | interactive-json
+#   event types | where search_key == "TIMESHEET" | first | interactive-json
+#   
+#   # Edit existing address with interactive prompts
+#   let addr = '{"address1": "123 Main", "city": "Austin", "postal": "78701"}'
+#   tag types | where search_key == "ADDRESS" | first | interactive-json --edit $addr
+#   
+#   # Complete workflow: build JSON then use it
+#   let json = (tag types | where search_key == "ADDRESS" | first | interactive-json)
+#   $project_uuid | .append tag --type-search-key ADDRESS --json $json
 #
 # Returns:
 #   string - Valid JSON string matching the type's schema
