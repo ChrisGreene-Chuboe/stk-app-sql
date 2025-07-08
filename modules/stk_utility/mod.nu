@@ -418,11 +418,11 @@ export def "interactive-json" [
         error make {msg: "Type record required via piped input"}
     }
     
-    # Extract schema
-    let schema = ($type_record.record_json.pg_jsonschema? | default {})
+    # Extract schema from json_schema field
+    let schema = ($type_record.record_json.json_schema? | default {})
     
     if ($schema | is-empty) {
-        error make {msg: "Type has no pg_jsonschema defined"}
+        error make {msg: "Type has no JSON schema defined"}
     }
     
     # Extract type info

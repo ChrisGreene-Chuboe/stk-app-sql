@@ -32,17 +32,19 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
 ('stk_tag_type_enum', 'COLUMN', 'Column attributes with no automation or validation', false, NULL),
 ('stk_tag_type_enum', 'ADDRESS', 'Physical or mailing address information including street, city, postal code', false, 
     '{
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "properties": {
-            "address1": {"type": "string"},
-            "address2": {"type": "string"},
-            "city": {"type": "string"},
-            "state": {"type": "string"},
-            "postal": {"type": "string"},
-            "country": {"type": "string"}
-        },
-        "required": ["address1", "city", "postal"]
+        "json_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+                "address1": {"type": "string"},
+                "address2": {"type": "string"},
+                "city": {"type": "string"},
+                "state": {"type": "string"},
+                "postal": {"type": "string"},
+                "country": {"type": "string"}
+            },
+            "required": ["address1", "city", "postal"]
+        }
     }'::jsonb)
 ;
 

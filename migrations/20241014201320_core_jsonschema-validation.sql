@@ -47,12 +47,13 @@ BEGIN
     v_type_table_name := v_base_table_name || '_type';
     
     -- Get the schema from the corresponding _type table (always in private schema)
-    EXECUTE format('SELECT record_json FROM private.%I WHERE uu = $1', v_type_table_name)
+    -- Schema is now nested under json_schema key
+    EXECUTE format('SELECT record_json->''json_schema'' FROM private.%I WHERE uu = $1', v_type_table_name)
     INTO v_schema
     USING NEW.type_uu;
     
-    -- If no schema is defined (empty object or NULL), allow any JSON
-    IF v_schema IS NULL OR v_schema = '{}'::jsonb THEN
+    -- If no schema is defined (empty object, NULL, or missing json_schema key), allow any JSON
+    IF v_schema IS NULL OR v_schema = 'null'::jsonb OR v_schema = '{}'::jsonb THEN
         RETURN NEW;
     END IF;
     

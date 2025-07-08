@@ -43,23 +43,11 @@ SELECT private.stk_table_type_create('stk_tag_type');
 
 ### Type Tables and Enums
 
-**Key Pattern**: Store JSON schemas in `enum_comment.record_json`:
+**Key Pattern**: Store JSON schemas nested under `json_schema` key in `enum_comment.record_json`.
 
-```sql
-INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, record_json) VALUES
-('stk_business_partner_type_enum', 'ORGANIZATION', 'Company or corporation', true, 
-    '{
-        "pg_jsonschema": {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "object",
-            "properties": {
-                "tax_id": {"type": "string"},
-                "legal_name": {"type": "string"}
-            },
-            "required": ["legal_name"]
-        }
-    }'::jsonb);
-```
+**Example**: Search for "ADDRESS" in `20241104143010_core_stk-tag.sql` to see the standard pattern.
+
+**Important**: Always nest schemas under `json_schema` key. This allows `record_json` to store additional metadata beyond just the schema.
 
 The system automatically creates type records via `stk_table_type_create()`.
 

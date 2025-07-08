@@ -12,7 +12,7 @@ COMMENT ON TYPE private.stk_business_partner_type_enum IS 'Enum used in code to 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, record_json) VALUES
 ('stk_business_partner_type_enum', 'ORGANIZATION', 'Company, corporation, or other legal entity', true, 
     '{
-        "pg_jsonschema": {
+        "json_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
@@ -22,12 +22,12 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
                 "dba_name": {"type": "string"},
                 "website": {"type": "string"}
             },
-            "required": ["legal_name"]
+            "required": []
         }
     }'::jsonb),
 ('stk_business_partner_type_enum', 'INDIVIDUAL', 'Individual person or sole proprietor', false,
     '{
-        "pg_jsonschema": {
+        "json_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
@@ -37,12 +37,12 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
                 "last_name": {"type": "string"},
                 "date_of_birth": {"type": "string", "format": "date"}
             },
-            "required": ["legal_name"]
+            "required": []
         }
     }'::jsonb),
 ('stk_business_partner_type_enum', 'GROUP', 'Group of related entities or consolidated partners', false,
     '{
-        "pg_jsonschema": {
+        "json_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
@@ -50,7 +50,7 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
                 "legal_name": {"type": "string"},
                 "consolidated": {"type": "boolean"}
             },
-            "required": ["legal_name"]
+            "required": []
         }
     }'::jsonb)
 ;
@@ -131,7 +131,7 @@ ALTER TYPE private.stk_tag_type_enum ADD VALUE IF NOT EXISTS 'BP_CONTRACTOR';
 INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, record_json) VALUES
 ('stk_tag_type_enum', 'BP_CUSTOMER', 'Business Partner customer role with payment terms and credit information', false,
     '{
-        "pg_jsonschema": {
+        "json_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
@@ -145,7 +145,7 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
     }'::jsonb),
 ('stk_tag_type_enum', 'BP_VENDOR', 'Business Partner vendor role with payment terms and vendor categories', false,
     '{
-        "pg_jsonschema": {
+        "json_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
@@ -159,7 +159,7 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
     }'::jsonb),
 ('stk_tag_type_enum', 'BP_EMPLOYEE', 'Business Partner employee role with employment information', false,
     '{
-        "pg_jsonschema": {
+        "json_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
@@ -173,7 +173,7 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
     }'::jsonb),
 ('stk_tag_type_enum', 'BP_CONTRACTOR', 'Business Partner contractor role with contract terms', false,
     '{
-        "pg_jsonschema": {
+        "json_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {

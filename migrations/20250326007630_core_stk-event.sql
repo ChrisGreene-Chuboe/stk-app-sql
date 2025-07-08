@@ -14,27 +14,29 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
 ('stk_event_type_enum', 'ACTION', 'Action purpose with no automation or validation', false, NULL),
 ('stk_event_type_enum', 'TIMESHEET', 'Time entry record with minutes worked and optional description', false,
     '{
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "required": ["start_date", "minutes"],
-        "properties": {
-            "start_date": {
-                "type": "string",
-                "format": "date-time",
-                "description": "The start date and time of the work period"
+        "json_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["start_date", "minutes"],
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "The start date and time of the work period"
+                },
+                "minutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1440,
+                    "description": "Duration of work in minutes (max 24 hours = 1440 minutes)"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Optional description of the work performed"
+                }
             },
-            "minutes": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 1440,
-                "description": "Duration of work in minutes (max 24 hours = 1440 minutes)"
-            },
-            "description": {
-                "type": "string",
-                "description": "Optional description of the work performed"
-            }
-        },
-        "additionalProperties": false
+            "additionalProperties": false
+        }
     }'::jsonb)
 ;
 
