@@ -376,3 +376,268 @@ export def tutor-generate [
     # Combine all parts
     $"($nu_light)\n\n($nu_command)\n($list_command_def)"
 }
+
+# Interactively build JSON data based on a type's schema
+#
+# This command reads the pg_jsonschema from a type record and guides
+# the user through building valid JSON data interactively. It supports
+# both creating new JSON and editing existing JSON data.
+#
+# The type record must contain:
+# - record_json.pg_jsonschema: The JSON schema definition
+# - name: The type name (for display)
+# - table_name: The type table name (e.g., 'stk_tag_type')
+#
+# Pipeline Input:
+#   record - Type record containing schema (from 'xxx types' commands)
+#
+# Examples:
+#   # Build JSON for a specific type
+#   tag types | where search_key == "ADDRESS" | first | interactive-json
+#   
+#   # Edit existing JSON data
+#   tag types | where search_key == "ADDRESS" | first | interactive-json --edit $current_json
+#   
+#   # Select type interactively then build JSON
+#   project types | input list "Select type:" --fuzzy | interactive-json
+#
+# Returns:
+#   string - Valid JSON string matching the type's schema
+#
+# Errors:
+#   - When no type record is provided via pipeline
+#   - When type has no pg_jsonschema defined
+#   - When user cancels the operation
+export def "interactive-json" [
+    --edit: string        # Existing JSON string to edit (optional)
+] {
+    let type_record = $in
+    
+    # Validate input
+    if ($type_record | is-empty) {
+        error make {msg: "Type record required via piped input"}
+    }
+    
+    # Extract schema
+    let schema = ($type_record.record_json.pg_jsonschema? | default {})
+    
+    if ($schema | is-empty) {
+        error make {msg: "Type has no pg_jsonschema defined"}
+    }
+    
+    # Extract type info
+    let type_name = ($type_record.name | default "Data")
+    let table_name = ($type_record.table_name | default "unknown")
+    
+    # Determine primary table name (strip _type suffix if present)
+    let primary_table = if ($table_name | str ends-with "_type") {
+        $table_name | str replace "_type" ""
+    } else {
+        $table_name
+    }
+    
+    # Build or edit JSON interactively
+    let result = if ($edit | is-not-empty) {
+        let current = ($edit | from json)
+        interactive-build-json $schema --current $current --type-name $type_name
+    } else {
+        interactive-build-json $schema --type-name $type_name
+    }
+    
+    # Return as JSON string
+    $result | to json
+}
+
+# Helper: Build JSON interactively from schema
+def interactive-build-json [
+    schema: record
+    --current: record = {}
+    --type-name: string = "Data"
+] {
+    print $"=== ($type_name) Entry ==="
+    if not ($current | is-empty) {
+        print "(Editing existing data - press Enter to keep current values)"
+    }
+    print "Required fields marked with *"
+    print ""
+    
+    let properties = ($schema.properties | default {})
+    let required = ($schema.required | default [])
+    
+    # Build prompts from schema
+    let prompts = (
+        $properties 
+        | transpose field spec
+        | each {|prop|
+            {
+                field: $prop.field
+                spec: $prop.spec
+                required: ($prop.field in $required)
+                current: ($current | get -i $prop.field)
+            }
+        }
+    )
+    
+    # Collect values
+    let result = (
+        $prompts 
+        | reduce -f {} {|prompt, acc|
+            let value = interactive-collect-field $prompt
+            
+            if ($value | describe) == "nothing" {
+                $acc  # Skip null values
+            } else {
+                $acc | insert $prompt.field $value
+            }
+        }
+    )
+    
+    # Validate required fields
+    let missing = $required | where {|field| 
+        ($result | get -i $field | is-empty)
+    }
+    
+    if ($missing | length) > 0 {
+        print ""
+        print $"Missing required fields: ($missing | str join ', ')"
+        print "Please provide all required fields."
+        print ""
+        # Recursive call to try again
+        interactive-build-json $schema --current $result --type-name $type_name
+    } else {
+        # Review and confirm
+        print ""
+        print "=== Review ==="
+        let required_fields = $required  # Capture for use in closure
+        $result 
+        | transpose field value 
+        | each {|row|
+            let is_required = ($row.field in $required_fields)
+            {
+                Field: $"($row.field)(if $is_required { '*' } else { '' })"
+                Value: ($row.value | to text | str substring 0..50)
+            }
+        }
+        | table
+        print ""
+        
+        let action = ["accept" "edit" "cancel"] | input list "Action: "
+        
+        match $action {
+            "accept" => $result
+            "edit" => {
+                interactive-build-json $schema --current $result --type-name $type_name
+            }
+            "cancel" => {
+                error make {msg: "Cancelled by user"}
+            }
+        }
+    }
+}
+
+# Helper: Collect value for a single field
+def interactive-collect-field [prompt: record] {
+    let field_name = $prompt.field
+    let is_required = $prompt.required
+    let current_value = $prompt.current
+    let spec = $prompt.spec
+    
+    # Build prompt text
+    let prompt_text = if ($current_value | is-not-empty) {
+        $"($field_name)(if $is_required { '*' } else { '' }) [($current_value)]: "
+    } else {
+        $"($field_name)(if $is_required { '*' } else { '' }): "
+    }
+    
+    # Handle different field types
+    let value = match ($spec.type | default "string") {
+        "string" => {
+            if ($spec.enum? | is-not-empty) {
+                # Enum field - use list selection
+                if ($current_value | is-not-empty) {
+                    let choices = $spec.enum | prepend $"[current] ($current_value)"
+                    let choice = ($choices | input list $"Select ($field_name):" --fuzzy)
+                    if ($choice | str starts-with "[current]") {
+                        $current_value
+                    } else {
+                        $choice
+                    }
+                } else {
+                    $spec.enum | input list $"Select ($field_name):" --fuzzy
+                }
+            } else {
+                # Regular string input
+                let val = (input $prompt_text)
+                if ($val | is-empty) and ($current_value | is-not-empty) {
+                    $current_value  # Keep current
+                } else if $val == "delete" and not $is_required {
+                    null  # Remove field
+                } else if ($val | is-empty) and $is_required {
+                    # Required field needs a value
+                    print $"  ($field_name) is required"
+                    interactive-collect-field $prompt  # Retry
+                } else {
+                    $val
+                }
+            }
+        }
+        "number" => {
+            # Numeric input with validation
+            let val = (input $prompt_text)
+            if ($val | is-empty) and ($current_value | is-not-empty) {
+                $current_value
+            } else if ($val | is-empty) and not $is_required {
+                null
+            } else {
+                try {
+                    $val | into float
+                } catch {
+                    print "  Invalid number"
+                    interactive-collect-field $prompt  # Retry
+                }
+            }
+        }
+        "integer" => {
+            # Integer input with validation
+            let val = (input $prompt_text)
+            if ($val | is-empty) and ($current_value | is-not-empty) {
+                $current_value
+            } else if ($val | is-empty) and not $is_required {
+                null
+            } else {
+                try {
+                    $val | into int
+                } catch {
+                    print "  Invalid integer"
+                    interactive-collect-field $prompt  # Retry
+                }
+            }
+        }
+        "boolean" => {
+            # Boolean selection
+            let current_str = if ($current_value | is-not-empty) { 
+                $current_value | to text 
+            } else { 
+                "none" 
+            }
+            let choices = if ($current_value | is-not-empty) {
+                ["true" "false" $"[current] ($current_str)"]
+            } else {
+                ["true" "false"]
+            }
+            let choice = ($choices | input list $"($field_name): ")
+            
+            if ($choice | str starts-with "[current]") {
+                $current_value
+            } else {
+                $choice | into bool
+            }
+        }
+        _ => {
+            # Default to string for unknown types
+            input $prompt_text
+        }
+    }
+    
+    $value
+}

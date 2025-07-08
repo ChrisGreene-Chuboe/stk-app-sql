@@ -624,7 +624,7 @@ export def "psql new-line-record" [
 #   psql list-types ...$args
 #   psql list-types ...$args --all
 #
-# Returns: uu, type_enum, search_key, name, description, record_json, is_default, created for types
+# Returns: All columns from the type table including table_name
 # Note: By default shows only active types, use --all to include revoked
 export def "psql list-types" [
     ...args: string                 # Positional arguments: schema, table_name [, --all]
