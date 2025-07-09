@@ -379,14 +379,14 @@ Modules wrap the generic pattern:
 
 #### Key Principles
 - Graceful degradation (empty arrays for unsupported patterns)
-- Consistent column selection: default, specific columns, or --all
+- Consistent column selection: default, specific columns via variadic params, or --detail
 - Pipeline composability
 - Automatic capability detection
+- Use `--all` flag to include revoked records (consistent with list commands)
 
 Reference implementations:
-- `lines` command in stk_psql/mod.nu
-- `children` command in stk_psql/mod.nu
-- `tags` command in stk_tag/mod.nu for module pattern
+- `lines` command in stk_psql/mod.nu (correct pattern: --detail for columns, --all for revoked)
+- `tags` command in stk_tag/mod.nu (module wrapper pattern)
 
 ### 14. Template Pattern
 
@@ -670,6 +670,7 @@ UUID extraction patterns:
 - **Include type support**: If table has `_type` companion
 - **Support bulk operations**: Accept lists where logical
 - **Type handling**: PostgreSQL results may return `list<any>` - extract-uu-table-name handles this automatically
+- **Flag consistency**: Use `--all` only for including revoked records (see List Command), use `--detail` for all columns (see `lines` command in stk_psql)
 
 ## Document Maintenance Guidelines
 
