@@ -10,7 +10,7 @@ use std/assert
 #print "=== Setting up test data ==="
 # Create a test project with lines
 let test_project = (project new "Lines Column Test Project" --description "Testing enhanced lines command")
-let project_uuid = ($test_project.uu.0)
+let project_uuid = $test_project.uu
 #print $"Created project with UUID: ($project_uuid)"
 
 # Create project lines with various data
@@ -23,7 +23,7 @@ let line3 = ($project_uuid | project line new "Line Three" --type-search-key "DE
 let default_result = (project list | where name == "Lines Column Test Project" | lines)
 assert ($default_result | columns | any {|col| $col == "lines"}) "Should have lines column"
 
-let lines_data = ($default_result | get lines.0)
+let lines_data = ($default_result.lines.0)
 assert (($lines_data | length) == 3) "Should have 3 lines"
 
 # Check that we have the default columns (that exist in the table)
@@ -42,7 +42,7 @@ assert ("header_uu" not-in $line_columns) "Should NOT include header_uu in defau
 
 #print "=== Test 2: --detail flag (all columns) ==="
 let all_result = (project list | where name == "Lines Column Test Project" | lines --detail)
-let all_lines_data = ($all_result | get lines.0)
+let all_lines_data = ($all_result.lines.0)
 let all_columns = ($all_lines_data | get 0 | columns)
 #print $"Columns with --detail flag: ($all_columns)"
 
@@ -59,7 +59,7 @@ assert (($all_columns | length) > ($line_columns | length)) "--detail should ret
 
 #print "=== Test 3: Custom column selection ==="
 let custom_result = (project list | where name == "Lines Column Test Project" | lines name created uu)
-let custom_lines_data = ($custom_result | get lines.0)
+let custom_lines_data = ($custom_result.lines.0)
 let custom_columns = ($custom_lines_data | get 0 | columns)
 #print $"Custom columns: ($custom_columns)"
 
@@ -86,14 +86,14 @@ assert ($line_three.description == "null") "Line Three should have null descript
 let test_item = (item new "Test Item for Lines")
 let item_with_lines = ($test_item | lines)
 assert ($item_with_lines | columns | any {|col| $col == "lines"}) "Should have lines column"
-assert (($item_with_lines | get lines.0) == null) "Items should have null lines (no item_line table)"
+assert ($item_with_lines.lines == null) "Items should have null lines (no item_line table)"
 #print "✓ Tables without line tables return null"
 
 #print "=== Test 6: Empty lines (project with no lines) ==="
 let empty_project = (project new "Empty Lines Project")
 let empty_result = ($empty_project | lines)
 assert ($empty_result | columns | any {|col| $col == "lines"}) "Should have lines column"
-assert (($empty_result | get lines.0) == []) "Should have empty array for project with no lines"
+assert ($empty_result.lines == []) "Should have empty array for project with no lines"
 #print "✓ Empty lines array verified"
 
 #print "=== Test 7: Multiple records in pipeline ==="
@@ -108,18 +108,18 @@ $multi_result | each { |record|
 #print "✓ Multiple records with lines verified"
 
 #print "=== Test 8: Working with single records ==="
-# When you need lines for a single record, wrap it in a list
+# lines command now handles both records and tables
 let single_project = ($project_uuid | project get)
-let single_with_lines = ([$single_project] | flatten | lines)
-assert (($single_with_lines | length) == 1) "Should have one record"
+let single_with_lines = ($single_project | lines)
+assert (($single_with_lines | describe | str starts-with "record")) "Should return a record when given a record"
 assert ($single_with_lines | columns | any {|col| $col == "lines"}) "Should have lines column"
-assert (($single_with_lines | get lines.0 | length) == 3) "Should have 3 lines"
-#print "✓ Single record handling verified (wrap in list)"
+assert (($single_with_lines.lines | length) == 3) "Should have 3 lines"
+#print "✓ Single record handling verified (direct record input)"
 
 #print "=== Test 9: Error handling - invalid column ==="
 # The lines command gracefully handles errors by returning an error object
 let result_with_error = (project list | where name == "Lines Column Test Project" | lines name fake_column)
-let lines_result = ($result_with_error | get lines.0)
+let lines_result = ($result_with_error.lines.0)
 
 # Verify that an error was caught and handled
 assert ($lines_result | describe | str contains "record") "Lines should contain error record"
@@ -130,20 +130,29 @@ assert (($lines_result.error | str length) > 0) "Should have error message"
 #print "=== Test 10: --all flag (include revoked records) ==="
 # Create a project line and then revoke it
 let revoked_line = ($project_uuid | project line new "Revoked Line" --description "Will be revoked")
-let revoked_uuid = ($revoked_line.uu.0)
+let revoked_uuid = $revoked_line.uu
 $revoked_uuid | project line revoke
 
 # Without --all, should not see revoked line
 let active_only = (project list | where name == "Lines Column Test Project" | lines)
-let active_lines = ($active_only | get lines.0)
+let active_lines = ($active_only.lines.0)
 assert (($active_lines | where name == "Revoked Line" | length) == 0) "Default should not show revoked lines"
 assert (($active_lines | length) == 3) "Should still have 3 active lines"
 
 # With --all, should see revoked line
 let all_including_revoked = (project list | where name == "Lines Column Test Project" | lines --all)
-let all_lines = ($all_including_revoked | get lines.0)
+let all_lines = ($all_including_revoked.lines.0)
 assert (($all_lines | where name == "Revoked Line" | length) == 1) "--all should show revoked lines"
 assert (($all_lines | length) == 4) "Should have 4 lines total (3 active + 1 revoked)"
 #print "✓ --all flag verified - includes revoked records"
+
+#print "=== Test 11: --table flag forces table output ==="
+# Test that --table flag always returns a table, even for single record
+let single_for_table = ($project_uuid | project get)
+let forced_table = ($single_for_table | lines --table)
+assert (($forced_table | describe | str starts-with "table")) "Should return a table with --table flag"
+assert (($forced_table | length) == 1) "Table should have one row"
+assert (($forced_table.lines.0 | length) == 3) "Should have 3 active lines"
+#print "✓ --table flag forces table output verified"
 
 "=== All tests completed successfully ==="

@@ -2,7 +2,7 @@
 
 # Test script for stk_address module
 # Note: stk_address is a domain wrapper module that provides .append commands
-# Template Version: 2025-01-05
+# Template Version: 2025-01-08
 
 # Test-specific suffix to ensure test isolation
 let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -18,18 +18,18 @@ use std/assert
 
 # Create test project for attaching addresses
 let project = (project new $"Address Test Project($test_suffix)")
-let project_uuid = ($project.uu.0)
+let project_uuid = $project.uu
 
 # === Testing .append address (AI-powered) ===
 # Note: This test assumes AI is available - run test-ai.nu first
 
 # Basic address creation with AI
 let ai_address = ($project_uuid | .append address "3508 Galena Hills Loop Round Rock TX 78681")
-assert (($ai_address | length) > 0) "AI address tag should be created"
-assert ($ai_address.uu.0 | is-not-empty) "AI address tag should have UUID"
+assert (($ai_address | describe | str starts-with "record")) "AI address tag should be created"
+assert ($ai_address.uu | is-not-empty) "AI address tag should have UUID"
 
 # Verify AI-created address structure
-let ai_tag_detail = ($ai_address.uu.0 | tag get)
+let ai_tag_detail = ($ai_address.uu | tag get)
 assert (($ai_tag_detail | columns | any {|col| $col == "record_json"})) "AI tag should have record_json"
 let ai_address_data = ($ai_tag_detail.record_json)
 assert ("address1" in $ai_address_data) "AI address should have address1 field"
@@ -42,11 +42,11 @@ assert ($ai_tag_detail.search_key == "ADDRESS") "AI tag should have ADDRESS sear
 # Test with minimal required fields
 let min_json = '{"address1": "123 Main St", "city": "Austin", "postal": "78701"}'
 let json_address1 = ($project_uuid | .append address --json $min_json)
-assert (($json_address1 | length) > 0) "JSON address tag should be created"
-assert ($json_address1.uu.0 | is-not-empty) "JSON address tag should have UUID"
+assert (($json_address1 | describe | str starts-with "record")) "JSON address tag should be created"
+assert ($json_address1.uu | is-not-empty) "JSON address tag should have UUID"
 
 # Verify minimal JSON address
-let json_tag1 = ($json_address1.uu.0 | tag get)
+let json_tag1 = ($json_address1.uu | tag get)
 let json_data1 = ($json_tag1.record_json)
 assert ($json_data1.address1 == "123 Main St") "address1 should match"
 assert ($json_data1.city == "Austin") "city should match"
@@ -55,10 +55,10 @@ assert ($json_data1.postal == "78701") "postal should match"
 # Test with all fields
 let full_json = '{"address1": "456 Oak Ave", "address2": "Suite 100", "city": "Dallas", "state": "TX", "postal": "75201", "country": "USA"}'
 let json_address2 = ($project_uuid | .append address --json $full_json)
-assert (($json_address2 | length) > 0) "Full JSON address tag should be created"
+assert (($json_address2 | describe | str starts-with "record")) "Full JSON address tag should be created"
 
 # Verify full JSON address
-let json_tag2 = ($json_address2.uu.0 | tag get)
+let json_tag2 = ($json_address2.uu | tag get)
 let json_data2 = ($json_tag2.record_json)
 assert ($json_data2.address1 == "456 Oak Ave") "address1 should match"
 assert ($json_data2.address2 == "Suite 100") "address2 should match"
@@ -76,27 +76,27 @@ let address_record = {
 }
 let record_json = ($address_record | to json)
 let json_address3 = ($project_uuid | .append address --json $record_json)
-assert (($json_address3 | length) > 0) "Record-based JSON address should be created"
+assert (($json_address3 | describe | str starts-with "record")) "Record-based JSON address should be created"
 
 # === Testing UUID input variations (adapted from uuid-input-pattern) ===
 
 # Test with record input
-let project_record = (project list | where uu == $project_uuid | get 0)
+let project_record = (project list | where uu == $project_uuid | first)
 let record_address = ($project_record | .append address --json $min_json)
-assert (($record_address | length) > 0) "Address tag should be created from record input"
-assert ($record_address.uu.0 | is-not-empty) "Address tag from record should have UUID"
+assert (($record_address | describe | str starts-with "record")) "Address tag should be created from record input"
+assert ($record_address.uu | is-not-empty) "Address tag from record should have UUID"
 
 # Test with table input
 let project_table = (project list | where uu == $project_uuid)
 let table_address = ($project_table | .append address --json $min_json)
-assert (($table_address | length) > 0) "Address tag should be created from table input"
-assert ($table_address.uu.0 | is-not-empty) "Address tag from table should have UUID"
+assert (($table_address | describe | str starts-with "record")) "Address tag should be created from table input"
+assert ($table_address.uu | is-not-empty) "Address tag from table should have UUID"
 
 # Test with multi-row table (should use first row)
 let bp = (bp new $"Test Company($test_suffix)")
-let multi_table = [($project | first), ($bp | first)] | flatten
+let multi_table = [$project, $bp]
 let multi_address = ($multi_table | .append address --json $min_json)
-assert (($multi_address | length) > 0) "Should create address from multi-row table"
+assert (($multi_address | describe | str starts-with "record")) "Should create address from multi-row table"
 
 # === Testing error conditions ===
 
@@ -132,8 +132,8 @@ let has_ship_to = ($type_list | where search_key == "ADDRESS_SHIP_TO" | length) 
 
 if $has_ship_to {
     let ship_address = ($project_uuid | .append address --json $min_json --type-search-key ADDRESS_SHIP_TO)
-    assert (($ship_address | length) > 0) "Should create shipping address"
-    let ship_tag = ($ship_address.uu.0 | tag get)
+    assert (($ship_address | describe | str starts-with "record")) "Should create shipping address"
+    let ship_tag = ($ship_address.uu | tag get)
     assert ($ship_tag.search_key == "ADDRESS_SHIP_TO") "Should have correct type"
 }
 

@@ -1,14 +1,14 @@
 # === Testing template pattern ===
 # Template: Replace MODULE with your module name (e.g., item, bp, project)
-# Template Version: 2025-01-04
+# Template Version: 2025-01-08
 
 # print "=== Testing MODULE template creation ==="
 let template = (MODULE new $"Template($test_suffix)" --template)
-assert ($template.is_template.0 == true) "Should create as template"
+assert ($template.is_template == true) "Should create as template"
 
 # print "=== Testing MODULE regular creation ==="
 let regular = (MODULE new $"Regular($test_suffix)")
-assert (($regular.is_template?.0 | default false) == false) "Should not be template"
+assert (($regular.is_template? | default false) == false) "Should not be template"
 
 # print "=== Testing default MODULE list excludes templates ==="
 let default_list = (MODULE list | where name =~ $test_suffix)
@@ -22,7 +22,7 @@ assert ($template_list | where name =~ "Regular" | is-empty) "Should hide regula
 
 # print "=== Testing revoked template not in --templates list ==="
 let revoked_template = (MODULE new $"Revoked Template($test_suffix)" --template)
-let revoked = ($revoked_template.uu.0 | MODULE revoke)
+let revoked = ($revoked_template.uu | MODULE revoke)
 let template_list_after = (MODULE list --templates | where name =~ $test_suffix)
 assert ($template_list_after | where name =~ "Revoked Template" | is-empty) "Should not show revoked templates"
 
@@ -33,5 +33,5 @@ assert ($all_list | where name =~ "Template" | is-not-empty) "Should show templa
 assert ($all_list | where name =~ "Revoked Template" | is-not-empty) "Should show revoked templates with --all"
 
 # print "=== Testing direct MODULE get on template ==="
-let get_template = ($template.uu.0 | MODULE get)
+let get_template = ($template.uu | MODULE get)
 assert ($get_template.is_template == true) "Should get template directly"

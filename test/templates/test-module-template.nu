@@ -4,7 +4,7 @@
 # Template: Replace MODULE with your module name
 #          Replace PREFIX with 2-letter prefix (e.g., si for stk_item)
 #          Replace TYPE_KEY with a valid type key if module has types
-# Template Version: 2025-01-04
+# Template Version: 2025-01-08
 
 # Test-specific suffix to ensure test isolation
 let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

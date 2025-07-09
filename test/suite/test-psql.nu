@@ -1,6 +1,7 @@
 #!/usr/bin/env nu
 
 # Test script for stk_psql module
+# Template version: 2025-01-08
 # print "=== Testing stk_psql Module ==="
 
 # Test-specific suffix to ensure test isolation and idempotency
@@ -20,7 +21,7 @@ use std/assert
 
 # Create a test project to get a valid UUID
 let test_project = (project new $"Test Project($test_suffix)")
-let project_uuid = ($test_project.uu.0)
+let project_uuid = ($test_project.uu)
 
 # Test the new psql get-table-name-uu command
 let result = (psql get-table-name-uu $project_uuid)
@@ -33,7 +34,7 @@ assert (($result.uu == $project_uuid)) "UUID should match input"
 
 # Test with different table types
 let test_item = (item new $"Test Item($test_suffix)")
-let item_uuid = ($test_item.uu.0)
+let item_uuid = ($test_item.uu)
 let item_result = (psql get-table-name-uu $item_uuid)
 assert (($item_result.table_name == "stk_item")) "Should identify stk_item table"
 assert (($item_result.uu == $item_uuid)) "UUID should match"
@@ -41,7 +42,7 @@ assert (($item_result.uu == $item_uuid)) "UUID should match"
 
 # Test with request
 let test_request = (.append request $"Test Request($test_suffix)")
-let request_uuid = ($test_request.uu.0)
+let request_uuid = ($test_request.uu)
 let request_result = (psql get-table-name-uu $request_uuid)
 assert (($request_result.table_name == "stk_request")) "Should identify stk_request table"
 assert (($request_result.uu == $request_uuid)) "UUID should match"

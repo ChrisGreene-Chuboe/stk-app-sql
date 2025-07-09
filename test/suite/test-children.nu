@@ -22,7 +22,7 @@ use std/assert
 let parent_name = $"Parent Project($test_suffix)"
 let parent = (project new $parent_name --description "Top-level project")
 assert (($parent | columns | any {|col| $col == "uu"})) "Parent creation should return UUID"
-let parent_uuid = $parent.uu.0
+let parent_uuid = $parent.uu
 # print $"✓ Created parent project: ($parent_name), UUID: ($parent_uuid)"
 
 # Create child projects
@@ -108,7 +108,7 @@ assert (($childless_count) >= 2) "Should have at least 2 childless projects"
 # Create a child and then revoke it
 let revoked_child_name = $"Revoked Child($test_suffix)"
 let revoked_child = ($parent_uuid | project new $revoked_child_name)
-let revoked_uuid = $revoked_child.uu.0
+let revoked_uuid = $revoked_child.uu
 
 # Revoke the child
 project revoke --uu $revoked_uuid

@@ -9,7 +9,7 @@ const STK_PRIVATE_SCHEMA = "private"
 export const STK_BASE_COLUMNS = [created, created_by_uu, updated, updated_by_uu, is_revoked, uu, table_name]
 export const STK_REVOKED_COLUMNS = [revoked, is_revoked]
 export const STK_PROCESSED_COLUMNS = [processed, is_processed]
-export const STK_TYPE_COLUMNS = [name, description, search_key, type_enum, is_revoked, is_default, record_json, uu]
+export const STK_TYPE_COLUMNS = [name, description, search_key, type_enum, is_revoked, is_default, record_json]
 
 # Helper function to convert PostgreSQL boolean values (t/f) to nushell booleans
 def "into bool ext" [] {
@@ -424,11 +424,9 @@ export def "psql process-record" [
 
 # Generic create new record in a table
 #
-# Executes an INSERT query to create a new record using a parameter record approach.
-# This provides a standard way to create records in STK tables with automatic defaults.
-# The system automatically assigns default values via database triggers for any
-# columns not provided (e.g., type_uu, stk_entity_uu).
-# Dynamically handles any columns provided in the params record.
+# Creates a new record in the specified table and returns the complete record
+# with all columns populated, including database-generated defaults and type information.
+# Uses a parameter record approach for flexible column specification.
 #
 # Examples:
 #   let params = {name: "Product Name"}
@@ -443,7 +441,7 @@ export def "psql process-record" [
 # Parameters record can contain any valid column names for the target table
 # The calling module determines which columns are required
 #
-# Returns: All provided columns plus STK_BASE_COLUMNS (mandatory columns)
+# Returns: Single record with all columns and type information
 # Error: Command fails if database constraints are violated
 export def "psql new-record" [
     schema: string                # Database schema (e.g., "api")
@@ -528,13 +526,14 @@ export def "psql new-record" [
     let columns_str = ($columns | str join ", ")
     let values_str = ($values | str join ", ")
     
-    # Return all provided columns plus mandatory STK_BASE_COLUMNS
-    let returning_columns = ($columns | append $STK_BASE_COLUMNS | uniq)
-    let returning_str = ($returning_columns | str join ", ")
+    # Only return the UUID - we'll use get-record for the complete data
+    let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING uu"
     
-    let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING ($returning_str)"
+    let insert_result = psql exec $sql
+    let new_uu = $insert_result | get uu.0
     
-    psql exec $sql
+    # Return the complete record using get-record
+    psql get-record $schema $table_name [] $new_uu --enum=$enum
 }
 
 
@@ -563,7 +562,7 @@ export def "psql new-record" [
 # The calling module determines which columns are required
 # The header_uu is automatically added to link the line to its header
 #
-# Returns: All provided columns plus header_uu and STK_BASE_COLUMNS
+# Returns: Single record with all columns populated
 # Error: Command fails if database constraints are violated
 export def "psql new-line-record" [
     schema: string           # Database schema (e.g., "api")
@@ -600,13 +599,15 @@ export def "psql new-line-record" [
     let columns_str = ($columns | str join ", ")
     let values_str = ($values | str join ", ")
     
-    # Return all provided columns plus mandatory STK_BASE_COLUMNS
-    let returning_columns = ($columns | append $STK_BASE_COLUMNS | uniq)
-    let returning_str = ($returning_columns | str join ", ")
+    # Only return the UUID - we'll use get-record for the complete data
+    let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING uu"
     
-    let sql = $"INSERT INTO ($table) \(($columns_str)) VALUES \(($values_str)) RETURNING ($returning_str)"
+    let insert_result = psql exec $sql
+    let new_uu = $insert_result | get uu.0
     
-    psql exec $sql
+    # Return the complete record using get-record
+    # Note: line tables typically don't have types, so we don't pass --enum
+    psql get-record $schema $line_table_name [] $new_uu
 }
 
 # Generic list types for a specific table concept
@@ -812,15 +813,23 @@ export def "psql get-table-name-uu" [
 export def elaborate [
     ...columns: string  # Specific columns to include in resolved records
     --all               # Include all columns from resolved records
+    --table            # Always return a table format (useful for scripts)
 ] {
-    let input_table = $in
+    let input = $in
     
     # Return empty if input is empty
-    if ($input_table | is-empty) {
-        return $input_table
+    if ($input | is-empty) {
+        return $input
     }
     
-    mut result = $input_table
+    # Normalize input - convert single record to table
+    let normalized_input = if ($input | describe | str starts-with "record") {
+        [$input]
+    } else {
+        $input
+    }
+    
+    mut result = $normalized_input
     
     # Process table_name_uu_json columns
     let table_uu_json_cols = $result 
@@ -913,7 +922,14 @@ export def elaborate [
         }
     }
     
-    $result
+    # Return in the same format as input (unless --table is specified)
+    if $table {
+        $result  # Always return table format
+    } else if ($input | describe | str starts-with "record") {
+        $result | first  # Return single record if input was a record
+    } else {
+        $result  # Return table if input was a table
+    }
 }
 
 # Helper function to check if a table exists in the api schema
@@ -985,6 +1001,7 @@ export def lines [
     ...columns: string  # Specific columns to include in line records
     --detail           # Include all columns (select *)
     --all              # Include revoked line records
+    --table            # Always return a table format (useful for scripts)
 ] {
     let input = $in
     
@@ -993,9 +1010,16 @@ export def lines [
         return []
     }
     
+    # Normalize input - convert single record to table
+    let normalized_input = if ($input | describe | str starts-with "record") {
+        [$input]
+    } else {
+        $input
+    }
+    
     # Build cache of table existence checks upfront
     # This avoids mutable variable capture in closures
-    let unique_tables = $input 
+    let unique_tables = $normalized_input 
         | where { |record| 'table_name' in ($record | columns) }
         | get table_name
         | uniq
@@ -1006,7 +1030,7 @@ export def lines [
     }
     
     # Process each record using the immutable cache
-    let result = $input | each { |record|
+    let result = $normalized_input | each { |record|
         # Check if record has table_name column
         if 'table_name' not-in ($record | columns) {
             return $record | insert lines null
@@ -1060,7 +1084,14 @@ export def lines [
         }
     }
     
-    $result
+    # Return in the same format as input (unless --table is specified)
+    if $table {
+        $result  # Always return table format
+    } else if ($input | describe | str starts-with "record") {
+        $result | first  # Return single record if input was a record
+    } else {
+        $result  # Return table if input was a table
+    }
 }
 
 # Add a 'children' column to records, fetching child records via parent_uu
@@ -1101,6 +1132,7 @@ export def lines [
 export def children [
     ...columns: string  # Specific columns to include in child records
     --all               # Include all columns (select *)
+    --table            # Always return a table format (useful for scripts)
 ] {
     let input = $in
     
@@ -1108,6 +1140,8 @@ export def children [
     if ($input | is-empty) {
         return []
     }
+    
+    # Normalize input - not needed because 'each' works on both records and tables
     
     # Process each record
     let result = $input | each { |record|
@@ -1167,7 +1201,12 @@ export def children [
         }
     }
     
-    $result
+    # Handle --table flag for consistent output format
+    if $table and ($input | describe | str starts-with "record") {
+        [$result]  # Wrap single record in table if --table specified
+    } else {
+        $result  # Otherwise preserve input format (each preserves format naturally)
+    }
 }
 
 
