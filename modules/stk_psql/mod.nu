@@ -1397,8 +1397,8 @@ export def links [
                     let linked_query = $"SELECT ($select_clause) FROM api.($target_table) WHERE uu = '($target_uu)'"
                     let linked_data = psql exec $linked_query | first
                     
-                    # Return link with target data
-                    $link | reject target_table_name_uu_json | insert target_table $target_table | insert target_uu $target_uu | merge $linked_data
+                    # Return link with target data - merge first to prioritize content columns
+                    $linked_data | merge ($link | reject target_table_name_uu_json | insert target_table $target_table | insert target_uu $target_uu)
                 } catch {
                     # If fetch fails, just return basic link info
                     $link | reject target_table_name_uu_json | insert target_table $target_table | insert target_uu $target_uu
