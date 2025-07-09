@@ -18,54 +18,68 @@ use std/assert
 
 # === Testing extract-uu-table-name function ===
 
-# Test 1: String UUID input
-let string_uuid = "12345678-1234-5678-9012-123456789abc"
-let string_result = ($string_uuid | extract-uu-table-name)
+# Create a real record to test with
+let test_item = (item new $"Test Item($test_suffix)" --description "For utility testing")
+let real_uuid = $test_item.uu
+
+# Test 1: String UUID input (now with real UUID that exists in database)
+let string_result = ($real_uuid | extract-uu-table-name)
 assert ((($string_result | describe) | str starts-with "table")) "Should return table"
 assert (($string_result | length) == 1) "Should have one row"
-assert (($string_result.0.uu == $string_uuid)) "UUID should match input"
-assert (($string_result.0.table_name | is-empty)) "table_name should be null"
-# Test 2: Record with uu field
-let record_input = {uu: "87654321-4321-8765-2109-cba987654321", name: "Test Record", table_name: "stk_project"}
+assert (($string_result.0.uu == $real_uuid)) "UUID should match input"
+assert (($string_result.0.table_name == "stk_item")) "table_name should be looked up"
+# Test 2: Record with uu field and table_name already provided
+let record_input = {uu: $real_uuid, name: "Test Record", table_name: "stk_project"}
 let record_result = ($record_input | extract-uu-table-name)
 assert ((($record_result | describe) | str starts-with "table")) "Should return table"
 assert (($record_result | length) == 1) "Should have one row"
 assert (($record_result.0.uu == $record_input.uu)) "UUID should match"
-assert (($record_result.0.table_name == "stk_project")) "table_name should match"
-# Test 3: Record without table_name
-let record_no_table = {uu: "11111111-1111-1111-1111-111111111111", other_field: "data"}
+assert (($record_result.0.table_name == "stk_project")) "table_name should be preserved"
+# Test 3: Record without table_name (should lookup)
+let record_no_table = {uu: $real_uuid, other_field: "data"}
 let record_no_table_result = ($record_no_table | extract-uu-table-name)
 assert (($record_no_table_result | length) == 1) "Should have one row"
 assert (($record_no_table_result.0.uu == $record_no_table.uu)) "UUID should match"
-assert (($record_no_table_result.0.table_name | is-empty)) "table_name should be null"
-# Test 4: Single-row table
-let table_input = [[uu, name, table_name]; ["22222222-2222-2222-2222-222222222222", "Table Item", "stk_item"]]
+assert (($record_no_table_result.0.table_name == "stk_item")) "table_name should be looked up"
+# Test 4: Single-row table with table_name provided
+let table_input = [[uu, name, table_name]; [$real_uuid, "Table Item", "stk_item"]]
 let table_result = ($table_input | extract-uu-table-name)
 assert (($table_result | length) == 1) "Should have one row"
-assert (($table_result.0.uu == "22222222-2222-2222-2222-222222222222")) "UUID should match"
+assert (($table_result.0.uu == $real_uuid)) "UUID should match"
 assert (($table_result.0.table_name == "stk_item")) "table_name should match"
-# Test 5: Multi-row table
+# Test 5: Multi-row table with real items
+# Create additional test records
+let test_item2 = (item new $"Test Item 2($test_suffix)")
+let test_item3 = (item new $"Test Item 3($test_suffix)")
 let multi_table = [
     [uu, name]; 
-    ["33333333-3333-3333-3333-333333333333", "First"]
-    ["44444444-4444-4444-4444-444444444444", "Second"]
-    ["55555555-5555-5555-5555-555555555555", "Third"]
+    [$real_uuid, "First"]
+    [$test_item2.uu, "Second"]
+    [$test_item3.uu, "Third"]
 ]
 let multi_result = ($multi_table | extract-uu-table-name)
 assert (($multi_result | length) == 3) "Should have three rows"
-assert (($multi_result.0.uu == "33333333-3333-3333-3333-333333333333")) "First UUID should match"
-assert (($multi_result.1.uu == "44444444-4444-4444-4444-444444444444")) "Second UUID should match"
-assert (($multi_result.2.uu == "55555555-5555-5555-5555-555555555555")) "Third UUID should match"
-# Test 6: Empty table
+assert (($multi_result.0.uu == $real_uuid)) "First UUID should match"
+assert (($multi_result.0.table_name == "stk_item")) "First table_name should be looked up"
+assert (($multi_result.1.uu == $test_item2.uu)) "Second UUID should match"
+assert (($multi_result.1.table_name == "stk_item")) "Second table_name should be looked up"
+assert (($multi_result.2.uu == $test_item3.uu)) "Third UUID should match"
+assert (($multi_result.2.table_name == "stk_item")) "Third table_name should be looked up"
+# Test 6: Empty table should now throw error
 let empty_table = ([] | where false)  # Create empty table
-let empty_result = ($empty_table | extract-uu-table-name)
-assert (($empty_result | length) == 0) "Should return empty list"
-# Empty list returns as list<any>, not table - this is expected behavior
-assert ((($empty_result | describe) | str starts-with "list")) "Empty result is a list"
-# Test 7: Null/empty input
-let null_result = (null | extract-uu-table-name)
-assert (($null_result | length) == 0) "Null should return empty list"
-assert ((($null_result | describe) | str starts-with "list")) "Null result is a list"
+try {
+    $empty_table | extract-uu-table-name
+    assert false "Should have thrown error for empty table"
+} catch { |err|
+    assert (($err.msg | str contains "Input required")) "Should show correct error message for empty table"
+}
+# Test 7: Null/empty input should now throw error
+try {
+    null | extract-uu-table-name
+    assert false "Should have thrown error for null input"
+} catch { |err|
+    assert (($err.msg | str contains "Input required")) "Should show correct error message"
+}
 # === Testing error cases ===
 # Test 8: Record without uu field
 let bad_record = {name: "No UUID", other: "data"}
