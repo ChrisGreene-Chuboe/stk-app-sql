@@ -27,6 +27,9 @@ export use stk_project *
 # Tag system for flexible metadata attachment with JSON Schema validation
 export use stk_tag *
 
+# Link system for many-to-many relationships between any chuck-stack records
+export use stk_link *
+
 # AI-powered text transformation utilities for chuck-stack
 export use stk_ai *
 

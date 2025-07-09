@@ -1305,3 +1305,112 @@ export def "psql append-table-name-uu-json" [
     
     $result
 }
+
+# Add links data to records (for use in pipelines)
+#
+# Enriches records with their associated links in a new 'links' column.
+# Similar to the 'lines' command but for many-to-many relationships via stk_link.
+#
+# The 'links' column contains an array of link records showing all outgoing links
+# (where the input record is the source).
+#
+# Examples:
+#   # Add links to contacts
+#   contact list | links
+#   
+#   # Include all columns from linked records
+#   contact list | links --detail
+#   
+#   # Include revoked links
+#   contact list | links --all
+#
+# Error handling:
+# - Returns empty array if no links exist
+# - Returns empty array if input has no uu/table_name
+export def links [
+    --detail(-d)           # Include all columns from linked records
+    --all(-a)              # Include revoked links
+] {
+    let input = $in
+    
+    # Return empty if no input
+    if ($input | is-empty) {
+        return []
+    }
+    
+    # Normalize input - convert single record to table
+    let normalized_input = if ($input | describe | str starts-with "record") {
+        [$input]
+    } else {
+        $input
+    }
+    
+    # Process each record
+    let result = $normalized_input | each { |record|
+        # Skip if no uu or table_name
+        if (not ('uu' in ($record | columns))) or (not ('table_name' in ($record | columns))) {
+            return ($record | insert links [])
+        }
+        
+        # Build table_name_uu JSON for SQL comparison
+        let record_json = ({table_name: $record.table_name, uu: $record.uu} | to json)
+        
+        # Build query for outgoing links
+        let revoked_clause = if $all { "" } else { " AND l.is_revoked = false" }
+        let links_query = $"
+            SELECT 
+                l.uu as link_uu,
+                l.description as link_description,
+                l.target_table_name_uu_json,
+                t.name as link_type
+            FROM api.stk_link l
+            JOIN api.stk_link_type t ON l.type_uu = t.uu
+            WHERE l.source_table_name_uu_json = '($record_json)'::jsonb($revoked_clause)
+            ORDER BY l.created DESC
+        "
+        
+        try {
+            let links_data = psql exec $links_query
+            
+            # Return empty array if no links
+            if ($links_data | is-empty) {
+                return ($record | insert links [])
+            }
+            
+            # For each link, fetch the linked record data
+            let enriched_links = $links_data | each { |link|
+                # Parse the target JSON to get table_name and uu
+                let target_info = $link.target_table_name_uu_json
+                let target_table = $target_info.table_name
+                let target_uu = $target_info.uu
+                
+                # Build query for linked record - use same default columns as lines
+                let select_clause = if $detail {
+                    "*"
+                } else {
+                    # Default columns - same as lines command
+                    "name, description, search_key"
+                }
+                
+                # Fetch linked record
+                try {
+                    let linked_query = $"SELECT ($select_clause) FROM api.($target_table) WHERE uu = '($target_uu)'"
+                    let linked_data = psql exec $linked_query | first
+                    
+                    # Return link with target data
+                    $link | reject target_table_name_uu_json | insert target_table $target_table | insert target_uu $target_uu | merge $linked_data
+                } catch {
+                    # If fetch fails, just return basic link info
+                    $link | reject target_table_name_uu_json | insert target_table $target_table | insert target_uu $target_uu
+                }
+            }
+            
+            $record | insert links $enriched_links
+        } catch {
+            # Error occurred, return empty links
+            $record | insert links []
+        }
+    }
+    
+    $result
+}

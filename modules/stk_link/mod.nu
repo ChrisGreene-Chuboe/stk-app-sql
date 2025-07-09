@@ -68,8 +68,7 @@ export def "link new" [
     } else if ($type_uu | is-not-empty) {
         $type_uu
     } else {
-        # Default to BIDIRECTIONAL
-        (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key "BIDIRECTIONAL" | get uu)
+        null
     }
     
     # Convert table_name_uu objects to JSON strings
@@ -77,88 +76,50 @@ export def "link new" [
     let target_json = ($target_table_name_uu | to json)
     
     # Build parameters
-    let params = {
+    mut params = {
         description: $description
         source_table_name_uu_json: $source_json
         target_table_name_uu_json: $target_json
-        type_uu: $resolved_type_uu
+    }
+    
+    # Only add type_uu if resolved
+    if ($resolved_type_uu != null) {
+        $params = ($params | insert type_uu $resolved_type_uu)
     }
     
     psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 }
 
-# List links for a record
+# List all links in the system
 #
-# Shows links associated with a record. By default shows links FROM the record
-# (where it is the source). Use --incoming to see links TO the record (only
-# shows bidirectional links). Use --all-directions to see both.
-#
-# Accepts piped input:
-#   string - UUID of record to list links for
-#   record - Record with 'uu' field
-#   table - Table of records, uses first row's 'uu' field
+# Returns all link records. Use --all to include revoked links.
+# Results can be filtered using standard nushell operations.
 #
 # Examples:
-#   # List all links from a contact
-#   $contact_uu | link list
-#   
-#   # List incoming links (bidirectional only)
-#   $business_partner_uu | link list --incoming
-#   
-#   # List all links in both directions
-#   project get --uu $uuid | link list --all-directions
-#   
-#   # Filter results
-#   $contact_uu | link list | where description =~ "employer"
+#   # List all active links
+#   link list
 #   
 #   # Include revoked links
-#   $contact_uu | link list --all
+#   link list --all
+#   
+#   # Filter by description
+#   link list | where description =~ "consultant"
+#   
+#   # Count links by type
+#   link list | group-by type_name | transpose key count | update count { get count | length }
 #
-# Returns: search_key, description, source_table_name_uu_json, target_table_name_uu_json, created, updated, is_revoked, uu, type_enum, type_name
+# Returns: search_key, description, source_table_name_uu_json, target_table_name_uu_json, created, updated, is_revoked, uu
 export def "link list" [
     --all(-a)           # Include revoked links
-    --incoming          # Show links TO this record (bidirectional only)
-    --all-directions    # Show both incoming and outgoing links
 ] {
-    # Extract record data with automatic error checking and table_name lookup
-    let record = ($in | extract-uu-table-name).0
+    # Build complete arguments array including flags
+    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_LINK_COLUMNS
     
-    # Build table_name_uu object directly - table_name is always populated
-    let record_table_name_uu = {table_name: $record.table_name, uu: $record.uu}
+    # Add --all flag to args if needed  
+    let args = if $all { $args | append "--all" } else { $args }
     
-    # Convert to JSON for SQL comparison
-    let record_json = ($record_table_name_uu | to json)
-    
-    # Build SQL conditions based on direction flags
-    let conditions = if $all_directions {
-        # Both directions - source OR target
-        $"source_table_name_uu_json = '($record_json)'::jsonb OR \(target_table_name_uu_json = '($record_json)'::jsonb AND type_enum = 'BIDIRECTIONAL')"
-    } else if $incoming {
-        # Incoming only - target AND bidirectional
-        $"target_table_name_uu_json = '($record_json)'::jsonb AND type_enum = 'BIDIRECTIONAL'"
-    } else {
-        # Default: outgoing only - source
-        $"source_table_name_uu_json = '($record_json)'::jsonb"
-    }
-    
-    # Add revoked condition unless --all flag is present
-    let conditions = if $all {
-        $conditions
-    } else {
-        $"($conditions) AND is_revoked = false"
-    }
-    
-    # Execute query with type information
-    psql query $"
-        SELECT l.*, 
-               t.type_enum,
-               t.name as type_name,
-               t.description as type_description
-        FROM ($STK_SCHEMA).($STK_TABLE_NAME) l
-        JOIN ($STK_SCHEMA).($STK_TABLE_NAME)_type t ON l.type_uu = t.uu
-        WHERE ($conditions)
-        ORDER BY l.created DESC
-    " | select ...$STK_LINK_COLUMNS created updated is_revoked uu type_enum type_name
+    # Execute query
+    psql list-records ...$args
 }
 
 # Retrieve a specific link by its UUID
@@ -236,32 +197,3 @@ export def "link types" [] {
     psql list-types $STK_SCHEMA $STK_TABLE_NAME
 }
 
-# Add links data to records (for use in pipelines)
-#
-# Enriches records with their associated links in a new 'links' column.
-# This is a convenience wrapper around the more complex psql links command.
-#
-# Examples:
-#   # Add outgoing links (default)
-#   contact list | links
-#   
-#   # Add incoming links
-#   bp list | links --incoming
-#   
-#   # Add all links
-#   project list | links --all-directions
-#   
-#   # Include revoked links
-#   contact list | links --all
-#
-# Returns: Input records with added 'links' column containing array of link records
-export def links [
-    ...columns: string      # Specific columns to include in link records
-    --detail(-d)           # Include all columns in link records
-    --all(-a)              # Include revoked links
-    --incoming             # Show links TO this record (bidirectional only)
-    --outgoing             # Show links FROM this record (default)
-    --all-directions       # Show both incoming and outgoing links
-] {
-    $in | psql links ...$columns --detail=$detail --all=$all --incoming=$incoming --outgoing=$outgoing --all-directions=$all_directions
-}
