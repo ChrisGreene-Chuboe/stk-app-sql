@@ -1330,6 +1330,9 @@ export def "psql append-table-name-uu-json" [
 export def links [
     --detail(-d)           # Include all columns from linked records
     --all(-a)              # Include revoked links
+    --incoming             # Show links TO this record (bidirectional only)
+    --outgoing             # Show links FROM this record (default)
+    --all-directions       # Show both incoming and outgoing links
 ] {
     let input = $in
     
@@ -1345,6 +1348,13 @@ export def links [
         $input
     }
     
+    # Capture flags for use in closure
+    let show_detail = $detail
+    let show_all = $all
+    let show_incoming = $incoming
+    let show_outgoing = $outgoing
+    let show_all_directions = $all_directions
+    
     # Process each record
     let result = $normalized_input | each { |record|
         # Skip if no uu or table_name
@@ -1355,19 +1365,65 @@ export def links [
         # Build table_name_uu JSON for SQL comparison
         let record_json = ({table_name: $record.table_name, uu: $record.uu} | to json)
         
-        # Build query for outgoing links
-        let revoked_clause = if $all { "" } else { " AND l.is_revoked = false" }
-        let links_query = $"
-            SELECT 
-                l.uu as link_uu,
-                l.description as link_description,
-                l.target_table_name_uu_json,
-                t.name as link_type
-            FROM api.stk_link l
-            JOIN api.stk_link_type t ON l.type_uu = t.uu
-            WHERE l.source_table_name_uu_json = '($record_json)'::jsonb($revoked_clause)
-            ORDER BY l.created DESC
-        "
+        # Build query with UNION for different directions
+        let revoked_clause = if $show_all { "" } else { " AND l.is_revoked = false" }
+        
+        # Build queries based on direction logic:
+        # - Default: outgoing + incoming bidirectional
+        # - --outgoing: only outgoing
+        # - --incoming: only incoming  
+        # - --all-directions: everything
+        let queries = []
+        
+        # Outgoing links (record is source) - include unless --incoming only
+        let queries = if not $show_incoming or $show_outgoing or $show_all_directions {
+            $queries | append $"
+                SELECT 
+                    l.uu as link_uu,
+                    l.description as link_description,
+                    l.target_table_name_uu_json as linked_json,
+                    t.name as link_type,
+                    t.type_enum as type_enum
+                FROM api.stk_link l
+                JOIN api.stk_link_type t ON l.type_uu = t.uu
+                WHERE l.source_table_name_uu_json = '($record_json)'::jsonb($revoked_clause)
+            "
+        } else { $queries }
+        
+        # Incoming links (record is target)
+        # Default: only BIDIRECTIONAL incoming
+        # --incoming: all incoming
+        # --all-directions: all incoming
+        let incoming_condition = if $show_incoming or $show_all_directions {
+            ""  # No type restriction
+        } else if not $show_outgoing {  # Default behavior
+            " AND t.type_enum = 'BIDIRECTIONAL'"
+        } else {
+            null  # Skip incoming entirely if --outgoing only
+        }
+        
+        let queries = if $incoming_condition != null {
+            $queries | append $"
+                SELECT 
+                    l.uu as link_uu,
+                    l.description as link_description,
+                    l.source_table_name_uu_json as linked_json,
+                    t.name as link_type,
+                    t.type_enum as type_enum
+                FROM api.stk_link l
+                JOIN api.stk_link_type t ON l.type_uu = t.uu
+                WHERE l.target_table_name_uu_json = '($record_json)'::jsonb($incoming_condition)($revoked_clause)
+            "
+        } else { $queries }
+        
+        # Combine queries with UNION and order by created
+        let links_query = if ($queries | length) > 1 {
+            $"($queries | str join ' UNION ') ORDER BY link_uu"
+        } else if ($queries | length) == 1 {
+            $queries.0
+        } else {
+            return ($record | insert links [])
+        }
         
         try {
             let links_data = psql exec $links_query
@@ -1379,13 +1435,13 @@ export def links [
             
             # For each link, fetch the linked record data
             let enriched_links = $links_data | each { |link|
-                # Parse the target JSON to get table_name and uu
-                let target_info = $link.target_table_name_uu_json
-                let target_table = $target_info.table_name
-                let target_uu = $target_info.uu
+                # Parse the linked JSON to get table_name and uu
+                let linked_info = $link.linked_json
+                let linked_table = $linked_info.table_name
+                let linked_uu = $linked_info.uu
                 
                 # Build query for linked record - use same default columns as lines
-                let select_clause = if $detail {
+                let select_clause = if $show_detail {
                     "*"
                 } else {
                     # Default columns - same as lines command
@@ -1394,14 +1450,14 @@ export def links [
                 
                 # Fetch linked record
                 try {
-                    let linked_query = $"SELECT ($select_clause) FROM api.($target_table) WHERE uu = '($target_uu)'"
+                    let linked_query = $"SELECT ($select_clause) FROM api.($linked_table) WHERE uu = '($linked_uu)'"
                     let linked_data = psql exec $linked_query | first
                     
-                    # Return link with target data - merge first to prioritize content columns
-                    $linked_data | merge ($link | reject target_table_name_uu_json | insert target_table $target_table | insert target_uu $target_uu)
+                    # Return merged data with link metadata at the end
+                    $linked_data | merge ($link | reject linked_json | insert linked_table $linked_table | insert linked_uu $linked_uu)
                 } catch {
                     # If fetch fails, just return basic link info
-                    $link | reject target_table_name_uu_json | insert target_table $target_table | insert target_uu $target_uu
+                    $link | reject linked_json | insert linked_table $linked_table | insert linked_uu $linked_uu
                 }
             }
             
