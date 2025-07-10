@@ -8,6 +8,8 @@ The chuck-stack link system provides flexible many-to-many relationships between
 
 **Directional Semantics**: Links support both BIDIRECTIONAL (both records "know" about each other) and UNIDIRECTIONAL (only source knows about target) relationships. This models real-world relationships accurately - some connections are mutual, others are one-way references.
 
+For BIDIRECTIONAL links, the system provides true symmetric behavior - regardless of which record was the "source" when creating the link, both records see the relationship. This means a bidirectional link from A to B automatically enables B to see A, matching intuitive expectations for mutual relationships.
+
 **Flexible Input Handling**: Link commands accept UUIDs, records, or tables as input for both source and target. This flexibility enables natural command chaining and pipeline operations without manual data extraction.
 
 **Enrichment Pattern**: The `links` pipeline command (in stk_psql) enriches any record stream with associated link data, similar to how `lines` adds line items. This enables discovery of relationships during data exploration.
@@ -79,9 +81,20 @@ contact get --uu $jane_uu | links
 
 ## Link Types
 
-**BIDIRECTIONAL** (default): Both records can discover the link. Perfect for mutual relationships like "partners with" or "collaborates with".
+**BIDIRECTIONAL** (default): Both records can discover the link. Perfect for mutual relationships like "partners with" or "collaborates with". When you create a bidirectional link from A to B, B automatically sees the link back to A - the relationship truly works both ways.
 
-**UNIDIRECTIONAL**: Only the source record sees the link. Ideal for one-way references like "references document" or "inspired by".
+**UNIDIRECTIONAL**: Only the source record sees the link. Ideal for one-way references like "references document" or "inspired by". The target record has no awareness of the link.
+
+## Understanding Link Direction with `links` Command
+
+The `links` enrichment command in stk_psql provides directional filtering:
+
+- **Default behavior**: Shows all relationships (bidirectional links appear from both perspectives)
+- **`--outgoing`**: Shows only relationships where the record reaches out to others
+- **`--incoming`**: Shows only relationships where others reach out to the record
+- **`--all-directions`**: Explicitly shows everything (same as default)
+
+For bidirectional links, the distinction between "incoming" and "outgoing" is logical rather than physical - a friendship is both incoming and outgoing depending on perspective.
 
 ## Learn More
 

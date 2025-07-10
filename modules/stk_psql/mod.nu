@@ -1311,12 +1311,22 @@ export def "psql append-table-name-uu-json" [
 # Enriches records with their associated links in a new 'links' column.
 # Similar to the 'lines' command but for many-to-many relationships via stk_link.
 #
-# The 'links' column contains an array of link records showing all outgoing links
-# (where the input record is the source).
+# For BIDIRECTIONAL links, the relationship appears from both perspectives
+# regardless of which record was the source when the link was created.
+# This provides intuitive navigation where bidirectional truly means "works both ways".
+#
+# Direction flags:
+# - Default (no flags): Shows all relationships (bidirectional links appear from both sides)
+# - --outgoing: Shows outgoing relationships (including bidirectional as outgoing)
+# - --incoming: Shows incoming relationships (including bidirectional as incoming)  
+# - --all-directions: Same as default, explicitly shows everything
 #
 # Examples:
-#   # Add links to contacts
+#   # Add links to contacts (shows all relationships)
 #   contact list | links
+#   
+#   # Show only outgoing relationships
+#   contact list | links --outgoing
 #   
 #   # Include all columns from linked records
 #   contact list | links --detail
@@ -1330,9 +1340,9 @@ export def "psql append-table-name-uu-json" [
 export def links [
     --detail(-d)           # Include all columns from linked records
     --all(-a)              # Include revoked links
-    --incoming             # Show links TO this record (bidirectional only)
-    --outgoing             # Show links FROM this record (default)
-    --all-directions       # Show both incoming and outgoing links
+    --incoming             # Show incoming relationships (including bidirectional)
+    --outgoing             # Show outgoing relationships (including bidirectional)
+    --all-directions       # Show all relationships (same as default)
 ] {
     let input = $in
     
@@ -1368,51 +1378,82 @@ export def links [
         # Build query with UNION for different directions
         let revoked_clause = if $show_all { "" } else { " AND l.is_revoked = false" }
         
-        # Build queries based on direction logic:
-        # - Default: outgoing + incoming bidirectional
-        # - --outgoing: only outgoing
-        # - --incoming: only incoming  
-        # - --all-directions: everything
+        # Build queries based on symmetric bidirectional logic:
+        # - Default: all links (both directions for bidirectional)
+        # - --outgoing: outgoing + bidirectional as target (flipped)
+        # - --incoming: incoming + bidirectional as source (flipped)
+        # - --all-directions: everything (same as default)
         let queries = []
         
-        # Outgoing links (record is source) - include unless --incoming only
-        let queries = if not $show_incoming or $show_outgoing or $show_all_directions {
+        # Determine which queries to include based on flags
+        let include_outgoing = not $show_incoming or $show_outgoing or $show_all_directions or (not $show_incoming and not $show_outgoing)
+        let include_incoming = $show_incoming or $show_all_directions or (not $show_incoming and not $show_outgoing)
+        
+        # Query 1: Outgoing links (record is source)
+        let queries = if $include_outgoing {
             $queries | append $"
                 SELECT 
                     l.uu as link_uu,
                     l.description as link_description,
                     l.target_table_name_uu_json as linked_json,
                     t.name as link_type,
-                    t.type_enum as type_enum
+                    t.type_enum as type_enum,
+                    'outgoing' as direction
                 FROM api.stk_link l
                 JOIN api.stk_link_type t ON l.type_uu = t.uu
                 WHERE l.source_table_name_uu_json = '($record_json)'::jsonb($revoked_clause)
             "
         } else { $queries }
         
-        # Incoming links (record is target)
-        # Default: only BIDIRECTIONAL incoming
-        # --incoming: all incoming
-        # --all-directions: all incoming
-        let incoming_condition = if $show_incoming or $show_all_directions {
-            ""  # No type restriction
-        } else if not $show_outgoing {  # Default behavior
-            " AND t.type_enum = 'BIDIRECTIONAL'"
-        } else {
-            null  # Skip incoming entirely if --outgoing only
-        }
-        
-        let queries = if $incoming_condition != null {
+        # Query 2: Incoming links (record is target) 
+        let queries = if $include_incoming {
             $queries | append $"
                 SELECT 
                     l.uu as link_uu,
                     l.description as link_description,
                     l.source_table_name_uu_json as linked_json,
                     t.name as link_type,
-                    t.type_enum as type_enum
+                    t.type_enum as type_enum,
+                    'incoming' as direction
                 FROM api.stk_link l
                 JOIN api.stk_link_type t ON l.type_uu = t.uu
-                WHERE l.target_table_name_uu_json = '($record_json)'::jsonb($incoming_condition)($revoked_clause)
+                WHERE l.target_table_name_uu_json = '($record_json)'::jsonb($revoked_clause)
+            "
+        } else { $queries }
+        
+        # Query 3: Bidirectional links from opposite perspective
+        # For --outgoing: add bidirectional where record is target (shows as outgoing)
+        let queries = if $show_outgoing and not $show_incoming {
+            $queries | append $"
+                SELECT 
+                    l.uu as link_uu,
+                    l.description as link_description,
+                    l.source_table_name_uu_json as linked_json,
+                    t.name as link_type,
+                    t.type_enum as type_enum,
+                    'incoming_as_outgoing' as direction
+                FROM api.stk_link l
+                JOIN api.stk_link_type t ON l.type_uu = t.uu
+                WHERE l.target_table_name_uu_json = '($record_json)'::jsonb
+                    AND t.type_enum = 'BIDIRECTIONAL'($revoked_clause)
+            "
+        } else { $queries }
+        
+        # Query 4: Bidirectional links from opposite perspective  
+        # For --incoming: add bidirectional where record is source (shows as incoming)
+        let queries = if $show_incoming and not $show_outgoing {
+            $queries | append $"
+                SELECT 
+                    l.uu as link_uu,
+                    l.description as link_description,
+                    l.target_table_name_uu_json as linked_json,
+                    t.name as link_type,
+                    t.type_enum as type_enum,
+                    'outgoing_as_incoming' as direction
+                FROM api.stk_link l
+                JOIN api.stk_link_type t ON l.type_uu = t.uu
+                WHERE l.source_table_name_uu_json = '($record_json)'::jsonb
+                    AND t.type_enum = 'BIDIRECTIONAL'($revoked_clause)
             "
         } else { $queries }
         
@@ -1454,10 +1495,10 @@ export def links [
                     let linked_data = psql exec $linked_query | first
                     
                     # Return merged data with link metadata at the end
-                    $linked_data | merge ($link | reject linked_json | insert linked_table $linked_table | insert linked_uu $linked_uu)
+                    $linked_data | merge ($link | reject linked_json direction | insert linked_table $linked_table | insert linked_uu $linked_uu)
                 } catch {
                     # If fetch fails, just return basic link info
-                    $link | reject linked_json | insert linked_table $linked_table | insert linked_uu $linked_uu
+                    $link | reject linked_json direction | insert linked_table $linked_table | insert linked_uu $linked_uu
                 }
             }
             

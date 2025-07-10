@@ -43,15 +43,20 @@ let bp_links = ($business_partner | links)
 assert ((($bp_links | first).links | length) == 1) "Business partner should have 1 link"
 assert ((($bp_links | first).links | first).name == "Test Project for Links") "Should see project"
 
-# From project side - by default only sees outgoing links + incoming bidirectional
+# From project side - default now shows all relationships
 let project_links2 = ($project | links)
-# The project has 1 outgoing bidirectional link to item (no incoming shown by default)
-assert ((($project_links2 | first).links | length) == 1) "Project should see only bidirectional link by default"
+# The project has 1 outgoing bidirectional link to item + 1 incoming unidirectional from BP
+assert ((($project_links2 | first).links | length) == 2) "Project should see both relationships by default"
 
 # With --incoming flag, should see incoming links
 let project_incoming = ($project | links --incoming)
-# Should see at least the incoming unidirectional link
-assert ((($project_incoming | first).links | length) >= 1) "Project should see at least 1 incoming link"
+# Should see incoming unidirectional from BP + bidirectional from item (flipped)
+assert ((($project_incoming | first).links | length) == 2) "Project should see 2 incoming links"
+
+# With --outgoing flag, should see only outgoing
+let project_outgoing = ($project | links --outgoing)
+assert ((($project_outgoing | first).links | length) == 1) "Project should see 1 outgoing link"
+assert ((($project_outgoing | first).links | first).name == "Test Item for Links") "Should be the item"
 
 # === Test 5: Test link list command ===
 let all_links = link list
@@ -87,5 +92,50 @@ let another_item = item new "Another Test Item"
 let link3 = ($business_partner | link new $another_item --description "BP supplies item")
 let bp_multi_links = ($business_partner | links)
 assert ((($bp_multi_links | first).links | length) == 1) "Should only see active links (one was revoked)"
+
+# === Test 11: Comprehensive bidirectional symmetry ===
+# Create fresh records for isolated testing
+let proj2 = project new "Test Project 2"
+let item2 = item new "Test Item 2"
+
+# Create bidirectional link: proj2 -> item2
+let bilink = ($proj2 | link new $item2 --type-search-key BIDIRECTIONAL --description "proj-item bidirectional")
+
+# Both sides should see each other by default
+let proj2_links = ($proj2 | links)
+assert ((($proj2_links | first).links | length) == 1) "Project 2 should see item 2"
+assert ((($proj2_links | first).links | first).name == "Test Item 2") "Should be item 2"
+
+let item2_links = ($item2 | links)
+assert ((($item2_links | first).links | length) == 1) "Item 2 should see project 2"
+assert ((($item2_links | first).links | first).name == "Test Project 2") "Should be project 2"
+
+# === Test 12: Direction flags with pure bidirectional ===
+# Item2 --outgoing: should see project (bidirectional flipped as outgoing)
+let item2_out = ($item2 | links --outgoing)
+assert ((($item2_out | first).links | length) == 1) "Item --outgoing should see 1 link"
+assert ((($item2_out | first).links | first).name == "Test Project 2") "Should see project as outgoing"
+
+# Item2 --incoming: should see project (bidirectional as incoming)
+let item2_in = ($item2 | links --incoming)
+assert ((($item2_in | first).links | length) == 1) "Item --incoming should see 1 link"
+assert ((($item2_in | first).links | first).name == "Test Project 2") "Should see project as incoming"
+
+# === Test 13: Multiple bidirectional links ===
+let bp2 = bp new "Test Business Partner 2"
+
+# Create another bidirectional link: item2 -> bp2
+let bilink2 = ($item2 | link new $bp2 --type-search-key BIDIRECTIONAL --description "item-bp bidirectional")
+
+# Item2 should now see 2 links by default
+let item2_final = ($item2 | links)
+assert ((($item2_final | first).links | length) == 2) "Item should see 2 links"
+let item2_link_names = (($item2_final | first).links | get name | sort)
+assert ($item2_link_names == ["Test Business Partner 2", "Test Project 2"]) "Item should see both project and BP"
+
+# BP2 should see item2 (bidirectional works from both sides)
+let bp2_links = ($bp2 | links)
+assert ((($bp2_links | first).links | length) == 1) "BP2 should see 1 link"
+assert ((($bp2_links | first).links | first).name == "Test Item 2") "BP2 should see item"
 
 "=== All tests completed successfully ==="
