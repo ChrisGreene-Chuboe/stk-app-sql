@@ -119,19 +119,32 @@ export def extract-single-uu [
     $extracted.0.uu
 }
 
-# Extract attachment data from piped input or --attach parameter
+# Extract attachment data from piped input or --attach parameter (null-safe wrapper)
 #
-# This helper simplifies the common pattern of extracting attachment data
-# from either piped input or an --attach parameter. Used in commands that
-# support attaching records to other records.
+# PURPOSE: This is a specialized wrapper around extract-uu-table-name that provides
+# null-safe behavior for optional attachments in .append commands.
 #
-# The function returns the exact same structure as the original code:
-# - null if no attachment
-# - {uu: string, table_name: string|null} if attachment found
+# WHY THIS EXISTS:
+# While extract-uu-table-name throws errors on empty input (required behavior for most
+# commands), some commands like 'event .append' and 'request .append' need to support
+# OPTIONAL attachments. This wrapper provides that null-safe behavior while also
+# handling the dual input pattern (pipe OR --attach parameter).
+#
+# USAGE PATTERNS:
+# 1. Optional attachments (stk_event, stk_request): Returns null when no input
+#    - Allows creating standalone records without attachments
+# 2. Required attachments (stk_tag, stk_timesheet, stk_address): Caller checks for null
+#    - These modules throw their own specific error messages
+#
+# SPECIAL BEHAVIOR:
+# - When using --attach parameter with a UUID string, returns {uu: "uuid", table_name: null}
+# - The caller is responsible for looking up table_name if needed
+# - This differs from piped input where table_name is automatically looked up
 #
 # Examples:
-#   project list | first | extract-attach-from-input
-#   "" | extract-attach-from-input "uuid-string"
+#   project list | first | extract-attach-from-input  # Returns {uu: "...", table_name: "stk_project"}
+#   "" | extract-attach-from-input "uuid-string"       # Returns {uu: "uuid-string", table_name: null}
+#   "" | extract-attach-from-input                     # Returns null (no error)
 #
 # Returns: Record with 'uu' and 'table_name' fields, or null
 export def extract-attach-from-input [
@@ -147,13 +160,10 @@ export def extract-attach-from-input [
             {uu: $attach, table_name: null}
         }
     } else {
-        # Extract uu and table_name, then get first row
-        let extracted = ($piped_input | extract-uu-table-name)
-        if ($extracted | is-empty) {
-            null
-        } else {
-            $extracted.0
-        }
+        # Wrapper behavior: extract-uu-table-name handles all validation and lookup
+        # The redundant empty check has been removed as extract-uu-table-name
+        # will throw an error if input is invalid
+        ($piped_input | extract-uu-table-name).0
     }
 }
 
