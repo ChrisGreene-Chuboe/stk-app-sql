@@ -1318,8 +1318,7 @@ export def "psql append-table-name-uu-json" [
 # Direction flags:
 # - Default (no flags): Shows all relationships (bidirectional links appear from both sides)
 # - --outgoing: Shows outgoing relationships (including bidirectional as outgoing)
-# - --incoming: Shows incoming relationships (including bidirectional as incoming)  
-# - --all-directions: Same as default, explicitly shows everything
+# - --incoming: Shows incoming relationships (including bidirectional as incoming)
 #
 # Examples:
 #   # Add links to contacts (shows all relationships)
@@ -1342,7 +1341,6 @@ export def links [
     --all(-a)              # Include revoked links
     --incoming             # Show incoming relationships (including bidirectional)
     --outgoing             # Show outgoing relationships (including bidirectional)
-    --all-directions       # Show all relationships (same as default)
 ] {
     let input = $in
     
@@ -1363,7 +1361,6 @@ export def links [
     let show_all = $all
     let show_incoming = $incoming
     let show_outgoing = $outgoing
-    let show_all_directions = $all_directions
     
     # Process each record
     let result = $normalized_input | each { |record|
@@ -1382,12 +1379,11 @@ export def links [
         # - Default: all links (both directions for bidirectional)
         # - --outgoing: outgoing + bidirectional as target (flipped)
         # - --incoming: incoming + bidirectional as source (flipped)
-        # - --all-directions: everything (same as default)
         let queries = []
         
         # Determine which queries to include based on flags
-        let include_outgoing = not $show_incoming or $show_outgoing or $show_all_directions or (not $show_incoming and not $show_outgoing)
-        let include_incoming = $show_incoming or $show_all_directions or (not $show_incoming and not $show_outgoing)
+        let include_outgoing = not $show_incoming or $show_outgoing or (not $show_incoming and not $show_outgoing)
+        let include_incoming = $show_incoming or (not $show_incoming and not $show_outgoing)
         
         # Query 1: Outgoing links (record is source)
         let queries = if $include_outgoing {
@@ -1431,7 +1427,7 @@ export def links [
                     l.source_table_name_uu_json as linked_json,
                     t.name as link_type,
                     t.type_enum as type_enum,
-                    'incoming_as_outgoing' as direction
+                    'outgoing \(bidirectional)' as direction
                 FROM api.stk_link l
                 JOIN api.stk_link_type t ON l.type_uu = t.uu
                 WHERE l.target_table_name_uu_json = '($record_json)'::jsonb
@@ -1449,7 +1445,7 @@ export def links [
                     l.target_table_name_uu_json as linked_json,
                     t.name as link_type,
                     t.type_enum as type_enum,
-                    'outgoing_as_incoming' as direction
+                    'incoming \(bidirectional)' as direction
                 FROM api.stk_link l
                 JOIN api.stk_link_type t ON l.type_uu = t.uu
                 WHERE l.source_table_name_uu_json = '($record_json)'::jsonb
@@ -1495,10 +1491,10 @@ export def links [
                     let linked_data = psql exec $linked_query | first
                     
                     # Return merged data with link metadata at the end
-                    $linked_data | merge ($link | reject linked_json direction | insert linked_table $linked_table | insert linked_uu $linked_uu)
+                    $linked_data | merge ($link | reject linked_json | insert linked_table $linked_table | insert linked_uu $linked_uu)
                 } catch {
                     # If fetch fails, just return basic link info
-                    $link | reject linked_json direction | insert linked_table $linked_table | insert linked_uu $linked_uu
+                    $link | reject linked_json | insert linked_table $linked_table | insert linked_uu $linked_uu
                 }
             }
             

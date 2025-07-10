@@ -92,7 +92,6 @@ The `links` enrichment command in stk_psql provides directional filtering:
 - **Default behavior**: Shows all relationships (bidirectional links appear from both perspectives)
 - **`--outgoing`**: Shows only relationships where the record reaches out to others
 - **`--incoming`**: Shows only relationships where others reach out to the record
-- **`--all-directions`**: Explicitly shows everything (same as default)
 
 For bidirectional links, the distinction between "incoming" and "outgoing" is logical rather than physical - a friendship is both incoming and outgoing depending on perspective.
 
