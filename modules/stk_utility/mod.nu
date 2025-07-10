@@ -1,35 +1,36 @@
 # STK Utility Module
 # Provides shared utility functions for chuck-stack modules
 
-# Extract uu and table_name from string, record, or table format
+# Extract UUID and table_name from various input types (foundation utility)
 #
-# This helper function extracts uu and table_name from various input types into a consistent format.
-# This enforces the chuck-stack principle that table_name and uu always go together - when table_name
-# is missing, it's automatically looked up.
+# PURPOSE: Normalize any input containing UUIDs into records with both 'uu' and 'table_name' fields.
+# Automatically looks up table_name when missing, enforcing chuck-stack's principle that these always go together.
 #
-# IMPORTANT: Return type depends on input type:
-# - Single inputs (string/record) return a RECORD
-# - Multiple inputs (table/list) return a TABLE
-# This eliminates the need for unsafe .0 access in module code.
+# INPUT TYPES:
+# - String UUID: "uuid-string" → looks up table_name from database
+# - Record with 'uu': {uu: "uuid", ...} → preserves table_name if present, otherwise looks it up
+# - Table/list with 'uu' column: [{uu: "uuid"}, ...] → processes each row
 #
-# Note: Also accepts list<any> type which occurs when nushell can't infer table schema.
-# This is common with PostgreSQL query results. See: https://github.com/nushell/nushell/discussions/10897
+# RETURN TYPES:
+# - Single inputs (string/record) → RECORD {uu: string, table_name: string}
+# - Multiple inputs (table/list) → TABLE [{uu: string, table_name: string}, ...]
+#
+# WHEN TO USE:
+# - When you need both UUID and table_name for polymorphic operations
+# - For commands that work with multiple chuck-stack tables (links, attachments)
+# - As foundation for other extraction utilities
 #
 # Examples:
-#   "12345678-1234-5678-9012-123456789abc" | extract-uu-table-name
-#   # Returns: record {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project"} (looked up)
+#   "uuid-string" | extract-uu-table-name
+#   # Returns: {uu: "uuid-string", table_name: "stk_project"}
 #
-#   {uu: "12345678-1234-5678-9012-123456789abc", name: "test"} | extract-uu-table-name
-#   # Returns: record {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_contact"} (looked up)
+#   project list | first | extract-uu-table-name  
+#   # Returns: {uu: "uuid", table_name: "stk_project"}
 #
-#   {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project", name: "test"} | extract-uu-table-name
-#   # Returns: record {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project"}
+#   project list | extract-uu-table-name
+#   # Returns: [{uu: "uuid1", table_name: "stk_project"}, ...]
 #
-#   project list | extract-uu-table-name  # Returns full table (even if typed as list<any>)
-#   # Returns: table with all rows: [{uu: "uuid1", table_name: "stk_project"}, {uu: "uuid2", table_name: "stk_project"}, ...]
-#
-# Returns: Record for single inputs, Table for multiple inputs (table_name is never null)
-# Error: Throws error if input is empty, any record/table row lacks 'uu' field, or UUID not found in database
+# Error: Empty input, missing 'uu' field, or UUID not found in database
 export def extract-uu-table-name [] {
     let input = $in
     
@@ -87,19 +88,28 @@ export def extract-uu-table-name [] {
     }
 }
 
-# Extract a single UUID from piped input with validation
+# Extract a single UUID string from piped input
 #
-# This helper reduces the repetitive UUID extraction pattern used in commands like
-# 'request get' and 'request revoke'. It handles string UUIDs, records, and tables,
-# always returning a single UUID string.
+# PURPOSE: Simple UUID extraction when you only need the UUID string, not table_name.
+# Common in commands that already know which table they're working with.
+#
+# INPUT TYPES:
+# - String UUID: passed through directly
+# - Record with 'uu': extracts the uu field
+# - Table: extracts UUID from first row
+#
+# WHEN TO USE:
+# - In 'new' commands when creating parent-child relationships
+# - When passing UUID to functions expecting string parameter
+# - When table_name is irrelevant to the operation
 #
 # Examples:
-#   "uuid-string" | extract-single-uu
-#   {uu: "uuid", name: "test"} | extract-single-uu
-#   request list | first | extract-single-uu
+#   "uuid-string" | extract-single-uu  # Returns: "uuid-string"
+#   {uu: "uuid", name: "test"} | extract-single-uu  # Returns: "uuid"
+#   project list | first | extract-single-uu  # Returns: "uuid"
 #
 # Returns: String UUID
-# Error: Throws error if input is empty or no valid UUID found
+# Error: Empty input or missing 'uu' field
 export def extract-single-uu [
     --error-msg: string = "UUID required via piped input"
 ] {
@@ -187,27 +197,32 @@ export def extract-attach-from-input [
     }
 }
 
-# Extract UUID from either piped input or --uu parameter
+# Extract UUID from either piped input OR --uu parameter
 #
-# This helper consolidates the common pattern of accepting a UUID from either:
-# - Piped input (string, record with 'uu' field, or table)
-# - --uu parameter
+# PURPOSE: Support dual input methods for get/revoke commands.
+# Allows users to provide UUID via pipe OR command parameter for flexibility.
 #
-# This reduces boilerplate in commands that support dual UUID input methods.
+# INPUT SOURCES (uses first available):
+# 1. Piped input: String, record with 'uu', or table
+# 2. --uu parameter: Direct UUID string
+#
+# WHEN TO USE:
+# - Exclusively in get/revoke commands that accept --uu parameter
+# - When implementing dual input pattern for user convenience
 #
 # Examples:
-#   # With piped input
-#   "uuid-string" | extract-uu-with-param
-#   {uu: "uuid", name: "test"} | extract-uu-with-param
+#   # Via pipe
+#   "uuid" | request get  # extract-uu-with-param handles this internally
+#   project list | first | request get  # extracts uu from record
 #   
-#   # With --uu parameter
-#   "" | extract-uu-with-param "uuid-from-param"
+#   # Via parameter
+#   request get --uu "uuid"  # no piped input needed
 #   
-#   # With custom error message
-#   $in | extract-uu-with-param $uu --error-msg "Tag UUID required"
+#   # In implementation
+#   let uuid = ($in | extract-uu-with-param $uu)
 #
 # Returns: String UUID
-# Error: Throws error if no UUID provided via either method
+# Error: No UUID provided via either pipe or parameter
 export def extract-uu-with-param [
     uu?: string  # The --uu parameter value
     --error-msg: string = "UUID required via piped input or --uu parameter"
