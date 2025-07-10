@@ -179,7 +179,8 @@ export def "link revoke" [
     # Extract UUID from piped input or --uu parameter
     let target_uuid = ($in | extract-uu-with-param $uu)
     
-    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
+    # Specify columns to return (stk_link doesn't have a 'name' column)
+    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid [uu, search_key, revoked, is_revoked]
 }
 
 # List available link types
