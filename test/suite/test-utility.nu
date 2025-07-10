@@ -24,23 +24,21 @@ let real_uuid = $test_item.uu
 
 # Test 1: String UUID input (now with real UUID that exists in database)
 let string_result = ($real_uuid | extract-uu-table-name)
-assert ((($string_result | describe) | str starts-with "table")) "Should return table"
-assert (($string_result | length) == 1) "Should have one row"
-assert (($string_result.0.uu == $real_uuid)) "UUID should match input"
-assert (($string_result.0.table_name == "stk_item")) "table_name should be looked up"
+assert ((($string_result | describe) | str starts-with "record")) "Should return record for single input"
+assert (($string_result.uu == $real_uuid)) "UUID should match input"
+assert (($string_result.table_name == "stk_item")) "table_name should be looked up"
 # Test 2: Record with uu field and table_name already provided
 let record_input = {uu: $real_uuid, name: "Test Record", table_name: "stk_project"}
 let record_result = ($record_input | extract-uu-table-name)
-assert ((($record_result | describe) | str starts-with "table")) "Should return table"
-assert (($record_result | length) == 1) "Should have one row"
-assert (($record_result.0.uu == $record_input.uu)) "UUID should match"
-assert (($record_result.0.table_name == "stk_project")) "table_name should be preserved"
+assert ((($record_result | describe) | str starts-with "record")) "Should return record for single input"
+assert (($record_result.uu == $record_input.uu)) "UUID should match"
+assert (($record_result.table_name == "stk_project")) "table_name should be preserved"
 # Test 3: Record without table_name (should lookup)
 let record_no_table = {uu: $real_uuid, other_field: "data"}
 let record_no_table_result = ($record_no_table | extract-uu-table-name)
-assert (($record_no_table_result | length) == 1) "Should have one row"
-assert (($record_no_table_result.0.uu == $record_no_table.uu)) "UUID should match"
-assert (($record_no_table_result.0.table_name == "stk_item")) "table_name should be looked up"
+assert ((($record_no_table_result | describe) | str starts-with "record")) "Should return record for single input"
+assert (($record_no_table_result.uu == $record_no_table.uu)) "UUID should match"
+assert (($record_no_table_result.table_name == "stk_item")) "table_name should be looked up"
 # Test 4: Single-row table with table_name provided
 let table_input = [[uu, name, table_name]; [$real_uuid, "Table Item", "stk_item"]]
 let table_result = ($table_input | extract-uu-table-name)

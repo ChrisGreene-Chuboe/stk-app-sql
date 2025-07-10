@@ -55,8 +55,8 @@ export def "link new" [
     --type-uu: string              # Link type UUID (alternative to search key)
 ] {
     # Extract source and target data with automatic error checking and table_name lookup
-    let source = ($in | extract-uu-table-name).0
-    let target = ($target | extract-uu-table-name).0
+    let source = ($in | extract-uu-table-name)
+    let target = ($target | extract-uu-table-name)
     
     # Build table_name_uu_json objects directly - table_name is always populated
     let source_table_name_uu = {table_name: $source.table_name, uu: $source.uu}

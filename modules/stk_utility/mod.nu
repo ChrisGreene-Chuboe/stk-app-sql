@@ -3,29 +3,32 @@
 
 # Extract uu and table_name from string, record, or table format
 #
-# This helper function extracts uu and table_name from various input types into a consistent table format
-# with 'uu' and 'table_name' columns. This enforces the chuck-stack principle that table_name
-# and uu always go together - when table_name is missing, it's automatically looked up.
+# This helper function extracts uu and table_name from various input types into a consistent format.
+# This enforces the chuck-stack principle that table_name and uu always go together - when table_name
+# is missing, it's automatically looked up.
 #
-# Consuming modules currently use only the first record (.0) from the returned table.
+# IMPORTANT: Return type depends on input type:
+# - Single inputs (string/record) return a RECORD
+# - Multiple inputs (table/list) return a TABLE
+# This eliminates the need for unsafe .0 access in module code.
 #
 # Note: Also accepts list<any> type which occurs when nushell can't infer table schema.
 # This is common with PostgreSQL query results. See: https://github.com/nushell/nushell/discussions/10897
 #
 # Examples:
 #   "12345678-1234-5678-9012-123456789abc" | extract-uu-table-name
-#   # Returns: table with one row: [{uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project"}] (looked up)
+#   # Returns: record {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project"} (looked up)
 #
 #   {uu: "12345678-1234-5678-9012-123456789abc", name: "test"} | extract-uu-table-name
-#   # Returns: table with one row: [{uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_contact"}] (looked up)
+#   # Returns: record {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_contact"} (looked up)
 #
 #   {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project", name: "test"} | extract-uu-table-name
-#   # Returns: table with one row: [{uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project"}]
+#   # Returns: record {uu: "12345678-1234-5678-9012-123456789abc", table_name: "stk_project"}
 #
 #   project list | extract-uu-table-name  # Returns full table (even if typed as list<any>)
 #   # Returns: table with all rows: [{uu: "uuid1", table_name: "stk_project"}, {uu: "uuid2", table_name: "stk_project"}, ...]
 #
-# Returns: Table with 'uu' and 'table_name' columns (table_name is never null)
+# Returns: Record for single inputs, Table for multiple inputs (table_name is never null)
 # Error: Throws error if input is empty, any record/table row lacks 'uu' field, or UUID not found in database
 export def extract-uu-table-name [] {
     let input = $in
@@ -37,9 +40,9 @@ export def extract-uu-table-name [] {
     let input_type = ($input | describe)
     
     if $input_type == "string" {
-        # String UUID - lookup table_name
+        # String UUID - lookup table_name and return RECORD
         let record = (psql get-table-name-uu $input)
-        return [{uu: $record.uu, table_name: $record.table_name}]
+        return {uu: $record.uu, table_name: $record.table_name}
     } else if ($input_type | str starts-with "record") {
         # Single record - extract uu and optional table_name
         let uuid = $input.uu?
@@ -51,9 +54,9 @@ export def extract-uu-table-name [] {
         # If table_name is missing, look it up
         if ($table_name | is-empty) {
             let record = (psql get-table-name-uu $uuid)
-            return [{uu: $record.uu, table_name: $record.table_name}]
+            return {uu: $record.uu, table_name: $record.table_name}
         } else {
-            return [{uu: $uuid, table_name: $table_name}]
+            return {uu: $uuid, table_name: $table_name}
         }
     } else if (($input_type | str starts-with "table") or ($input_type == "list<any>")) {
         # Table or list<any> - normalize each row
@@ -116,7 +119,15 @@ export def extract-single-uu [
     if ($extracted | is-empty) {
         error make { msg: "No valid UUID found in input" }
     }
-    $extracted.0.uu
+    
+    # Handle both record and table return types
+    let extracted_type = ($extracted | describe)
+    if ($extracted_type | str starts-with "record") {
+        $extracted.uu
+    } else {
+        # For tables, take the first record's UUID
+        $extracted.0.uu
+    }
 }
 
 # Extract attachment data from piped input or --attach parameter (null-safe wrapper)
@@ -163,7 +174,16 @@ export def extract-attach-from-input [
         # Wrapper behavior: extract-uu-table-name handles all validation and lookup
         # The redundant empty check has been removed as extract-uu-table-name
         # will throw an error if input is invalid
-        ($piped_input | extract-uu-table-name).0
+        let extracted = ($piped_input | extract-uu-table-name)
+        
+        # Handle both record and table return types
+        let extracted_type = ($extracted | describe)
+        if ($extracted_type | str starts-with "record") {
+            $extracted
+        } else {
+            # For tables, take the first record
+            $extracted.0
+        }
     }
 }
 
