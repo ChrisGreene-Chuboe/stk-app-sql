@@ -108,7 +108,7 @@ export def ".append request" [
 # Using elaborate to resolve foreign key references:
 #   request list | elaborate                                              # Resolve with default columns
 #   request list | elaborate name table_name                              # Show referenced table names
-#   request list | elaborate --all | select name table_name_uu_json_resolved.name  # Show referenced record names
+#   request list | elaborate --detail | select name table_name_uu_json_resolved.name  # Show referenced record names
 #
 # Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Only shows the 10 most recent requests - use direct SQL for larger queries
@@ -249,13 +249,13 @@ export def "request types" [] {
 #
 # Examples:
 #   project list | requests                            # Default columns
-#   project list | requests --all                      # All request columns
+#   project list | requests --detail                   # All request columns
 #   project list | requests name description created   # Specific columns
 #
 # Returns: Original records with added 'requests' column containing array of request records
 export def requests [
     ...columns: string  # Specific columns to include in request records
-    --all               # Include all columns (select *)
+    --detail(-d)        # Include all columns (select *)
 ] {
-    $in | psql append-table-name-uu-json "stk_request" "requests" ["record_json", "name", "description", "search_key"] ...$columns --all=$all
+    $in | psql append-table-name-uu-json "stk_request" "requests" ["record_json", "name", "description", "search_key"] ...$columns --detail=$detail
 }

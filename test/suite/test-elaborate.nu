@@ -115,16 +115,16 @@ if $specific_resolved != null {
     assert ($specific_cols == ["name", "type_uu"]) "Should have only requested columns"
 }
 
-# Test --all flag
-let all_elaborate = (event list | elaborate --all)
+# Test --detail flag
+let all_elaborate = (event list | elaborate --detail)
 let all_resolved = ($all_elaborate.table_name_uu_json_resolved.0)
 if $all_resolved != null {
     let all_cols = ($all_resolved | columns)
     #print $"All elaborate columns count: ($all_cols | length)"
     # Should have many more columns than default
-    assert (($all_cols | length) > 5) "Should have many columns with --all"
-    assert ("table_name" in $all_cols) "Should include table_name with --all"
-    assert ("is_revoked" in $all_cols) "Should include is_revoked with --all"
+    assert (($all_cols | length) > 5) "Should have many columns with --detail"
+    assert ("table_name" in $all_cols) "Should include table_name with --detail"
+    assert ("is_revoked" in $all_cols) "Should include is_revoked with --detail"
 }
 
 # === Testing elaborate with string 'null' in xxx_uu columns ===
@@ -181,7 +181,7 @@ let test_projects_for_elaborate = (project list | where name =~ $test_suffix)
 # Check if we have any test projects before elaborating
 if ($test_projects_for_elaborate | is-not-empty) {
     # Since elaborate preserves input type, and we're passing a table, it should return a table
-    let all_elaborated = ($test_projects_for_elaborate | elaborate --all)
+    let all_elaborated = ($test_projects_for_elaborate | elaborate --detail)
     # The type should match the input type - if input is table, output is table
     # But if elaborate is returning list, let's check both possibilities
     let elaborate_type = ($all_elaborated | describe)

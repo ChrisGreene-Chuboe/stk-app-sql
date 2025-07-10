@@ -56,8 +56,8 @@ assert (("created" in $specific_child_cols)) "Should have requested created colu
 assert (("description" not-in $specific_child_cols)) "Should not have unrequested description"
 # print "✓ Specific columns test passed"
 
-# Test children command with --all flag
-let parent_all_cols = (project list | where name == $parent_name | children --all)
+# Test children command with --detail flag
+let parent_all_cols = (project list | where name == $parent_name | children --detail)
 let all_child_cols = ($parent_all_cols.0.children.0 | columns)
 assert (("uu" in $all_child_cols)) "All columns should include uu"
 assert (("created_by_uu" in $all_child_cols)) "All columns should include created_by_uu"

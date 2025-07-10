@@ -10,20 +10,22 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
 - [Module Categories](#module-categories)
 - [Database Schema Context](#database-schema-context)
 - [Core Patterns](#core-patterns)
-  - [1. Parameters Record Pattern](#1-parameters-record-pattern)
-  - [2. UUID Input Operations](#2-uuid-input-operations)
-  - [3. Generic PSQL Commands](#3-generic-psql-commands)
-  - [4. Module Constants](#4-module-constants)
-  - [5. Type Support](#5-type-support)
-  - [6. Header-Line Pattern](#6-header-line-pattern)
-  - [7. Parent-Child Pattern](#7-parent-child-pattern)
-  - [8. JSON Parameter Pattern](#8-json-parameter-pattern)
-  - [9. JSON Column Convention](#9-json-column-convention)
-  - [10. Dynamic Command Building](#10-dynamic-command-building)
-  - [11. UUID Input Enhancement Pattern](#11-uuid-input-enhancement-pattern)
-  - [12. Utility Functions Pattern](#12-utility-functions-pattern)
-  - [13. Data Enrichment Pattern](#13-data-enrichment-pattern)
-  - [14. Template Pattern](#14-template-pattern)
+  - [1. Flag Convention: --all vs --detail](#1-flag-convention-all-vs-detail)
+  - [2. Unnamed Parameter Convention](#2-unnamed-parameter-convention)
+  - [3. Parameters Record Pattern](#3-parameters-record-pattern)
+  - [4. UUID Input Operations](#4-uuid-input-operations)
+  - [5. Generic PSQL Commands](#5-generic-psql-commands)
+  - [6. Module Constants](#6-module-constants)
+  - [7. Type Support](#7-type-support)
+  - [8. Header-Line Pattern](#8-header-line-pattern)
+  - [9. Parent-Child Pattern](#9-parent-child-pattern)
+  - [10. JSON Parameter Pattern](#10-json-parameter-pattern)
+  - [11. JSON Column Convention](#11-json-column-convention)
+  - [12. Dynamic Command Building](#12-dynamic-command-building)
+  - [13. UUID Input Enhancement Pattern](#13-uuid-input-enhancement-pattern)
+  - [14. Utility Functions Pattern](#14-utility-functions-pattern)
+  - [15. Data Enrichment Pattern](#15-data-enrichment-pattern)
+  - [16. Template Pattern](#16-template-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -101,7 +103,7 @@ Modules that provide specialized interfaces to existing tables:
 - **Pattern**: Add domain-specific commands while delegating to base modules
 - **Constants**: Reference wrapped table (STK_TABLE_NAME points to wrapped table)
 - **Key Considerations**:
-  - Use `.append` pattern for attachments (see [Pattern 7](#7-parent-child-pattern))
+  - Use `.append` pattern for attachments (see [Pattern 9](#9-parent-child-pattern))
   - Handle `table_name_uu_json` explicitly when wrapping event/request tables
   - Delegate to base module's generic commands
 - **Examples**: See [Domain Wrapper Modules](#domain-wrapper-modules-1) in Reference Implementations
@@ -128,7 +130,25 @@ Most modules expose existing tables. Before implementing:
 
 ## Core Patterns
 
-### 1. Unnamed Parameter Convention
+### 1. Flag Convention: --all vs --detail
+
+Chuck-stack uses consistent flag meanings across all commands:
+
+**`--all` Flag**
+- Purpose: Include ALL records (both active and revoked)
+- Usage: Only for commands that filter records by revocation status
+- SQL Impact: Removes `WHERE is_revoked = false` clause
+- Example: `project list --all` returns active AND revoked projects
+
+**`--detail` Flag**
+- Purpose: Include ALL columns in the output (select *)
+- Usage: For any command that returns columnar data
+- SQL Impact: Changes from specific column list to `SELECT *`
+- Example: `lines --detail` returns all columns for each line record
+
+**Reference**: See `lines` command in stk_psql for the correct implementation pattern.
+
+### 2. Unnamed Parameter Convention
 
 Commands use unnamed positional parameters for their most common use case, with flags for alternative/advanced options:
 
@@ -151,7 +171,7 @@ todo new "Task" --json '{"priority": "high"}'         # JSON metadata is optiona
 
 This pattern creates intuitive UX where the default behavior matches user expectations.
 
-### 2. Parameters Record Pattern
+### 3. Parameters Record Pattern
 
 Creation commands use a parameters record to eliminate cascading if/else logic:
 
@@ -170,7 +190,7 @@ let params = {
 psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 ```
 
-### 3. UUID Input Operations
+### 4. UUID Input Operations
 
 Commands operating on existing records accept UUIDs via piped input or --uu parameter:
 
@@ -194,9 +214,9 @@ project get --uu $uuid
 For consistent implementation across all commands:
 - Use `extract-single-uu` utility from stk_utility module
 - Support string, record, and table input types
-- See Pattern 10 for implementation details
+- See Pattern 12 for implementation details
 
-### 4. Generic PSQL Commands
+### 5. Generic PSQL Commands
 
 All modules use standardized commands from `stk_psql`:
 - `psql new-record` - Create with parameters record
@@ -208,7 +228,7 @@ All modules use standardized commands from `stk_psql`:
 - `psql list-types` - List available types
 - `psql get-type` - Resolve type by key or name
 
-### 5. Module Constants
+### 6. Module Constants
 
 ```nushell
 const STK_SCHEMA = "api"
@@ -222,14 +242,14 @@ const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
 
 Note: Base columns (created, updated, uu, etc.) are handled by psql commands.
 
-### 6. Type Support
+### 7. Type Support
 
 Modules with business classification include:
 - Type resolution in creation (--type-uu or --type-search-key)
 - `module types` command to list available types
 - Type information is always included in get/list commands (no flag needed)
 
-### 7. Header-Line Pattern
+### 8. Header-Line Pattern
 
 For related tables (e.g., project/project_line):
 - Line creation receives header UUID via pipe (accepts string/record/table)
@@ -240,9 +260,9 @@ For related tables (e.g., project/project_line):
 
 For data enrichment, see:
 - `lines` command in stk_psql for adding line data to headers
-- Pattern #12: Data Enrichment Pattern
+- Pattern #15: Data Enrichment Pattern
 
-### 8. Parent-Child Pattern
+### 9. Parent-Child Pattern
 
 For hierarchical relationships within the same table (e.g., project sub-projects):
 - Parent is provided via piped input to creation command
@@ -278,9 +298,9 @@ let parent_uuid = if ($piped_input | is-not-empty) {
 
 For data enrichment, see:
 - `children` command in stk_psql for adding child data to parents
-- Pattern #12: Data Enrichment Pattern
+- Pattern #15: Data Enrichment Pattern
 
-### 9. JSON Parameter Pattern
+### 10. JSON Parameter Pattern
 
 For tables with `record_json` column, provide structured metadata storage:
 
@@ -313,7 +333,7 @@ let record_json = try { $json | parse-json } catch { error make { msg: $in.msg }
 - Consistent error message: "Invalid JSON format"
 - Available for all creation commands (.append, new, add)
 
-### 9. JSON Column Convention
+### 11. JSON Column Convention
 
 Chuck-stack uses strict naming conventions for JSON columns that enable automatic JSONB handling:
 
@@ -327,7 +347,7 @@ Chuck-stack uses strict naming conventions for JSON columns that enable automati
 - **Usage pattern**: See `.append request` in stk_request for params usage
 - **Migration**: Search for "jsonb" in migrations for table definitions
 
-### 10. Dynamic Command Building
+### 12. Dynamic Command Building
 Optional flags are passed via args array to enable clean command composition:
 
 ```nushell
@@ -342,7 +362,7 @@ psql list-records ...$args
 
 This pattern avoids nested if/else blocks when combining optional parameters.
 
-### 11. UUID Input Enhancement Pattern
+### 13. UUID Input Enhancement Pattern
 
 Commands accept UUIDs through multiple input types:
 - String UUID (backward compatible)
@@ -353,7 +373,7 @@ Commands accept UUIDs through multiple input types:
 Uses `extract-uu-table-name` and `extract-uu-with-param` utilities from stk_utility.
 Reference: stk_request module for complete implementation.
 
-### 12. Utility Functions Pattern
+### 14. Utility Functions Pattern
 
 Reduce boilerplate with stk_utility functions:
 - `extract-single-uu`: UUID extraction with validation from piped input only
@@ -362,7 +382,7 @@ Reduce boilerplate with stk_utility functions:
 
 Reference: stk_request `.append request` for both utilities.
 
-### 13. Data Enrichment Pattern
+### 15. Data Enrichment Pattern
 
 Chuck-stack provides data enrichment through pipeline commands that add columns containing related records.
 
@@ -388,7 +408,7 @@ Reference implementations:
 - `lines` command in stk_psql/mod.nu (correct pattern: --detail for columns, --all for revoked)
 - `tags` command in stk_tag/mod.nu (module wrapper pattern)
 
-### 14. Template Pattern
+### 16. Template Pattern
 
 Templates provide reusable configurations that serve as starting points for creating new records. They are excluded from normal operational listings to keep the interface focused on active data.
 
@@ -670,7 +690,7 @@ UUID extraction patterns:
 - **Include type support**: If table has `_type` companion
 - **Support bulk operations**: Accept lists where logical
 - **Type handling**: PostgreSQL results may return `list<any>` - extract-uu-table-name handles this automatically
-- **Flag consistency**: Use `--all` only for including revoked records (see List Command), use `--detail` for all columns (see `lines` command in stk_psql)
+- **Flag consistency**: Use `--all` only for including revoked records, use `--detail` for all columns (see Flag Convention pattern and `lines` command in stk_psql)
 
 ## Document Maintenance Guidelines
 

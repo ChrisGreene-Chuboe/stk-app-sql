@@ -97,7 +97,7 @@ export def "item new" [
 # Using elaborate to resolve foreign key references:
 #   item list | elaborate                                            # Resolve with default columns
 #   item list | elaborate name type_enum                             # Show item names with type
-#   item list | elaborate --all | select name type_uu_resolved.name  # Show items with type names
+#   item list | elaborate --detail | select name type_uu_resolved.name  # Show items with type names
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Only shows the 10 most recent items - use direct SQL for larger queries

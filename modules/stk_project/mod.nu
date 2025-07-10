@@ -120,7 +120,7 @@ export def "project new" [
 # Using elaborate to resolve foreign key references:
 #   project list | elaborate                                          # Resolve with default columns
 #   project list | elaborate name psql_user                          # Show who created each project
-#   project list | elaborate --all | select name created_by_uu_resolved.psql_user  # Creator usernames
+#   project list | elaborate --detail | select name created_by_uu_resolved.psql_user  # Creator usernames
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name, type_enum, type_name, type_description
 # Note: Only shows the 10 most recent projects - use direct SQL for larger queries

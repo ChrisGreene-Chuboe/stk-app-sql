@@ -103,7 +103,7 @@ export def "todo new" [
 # Using elaborate to resolve foreign key references:
 #   todo list | elaborate                                               # Resolve with default columns
 #   todo list | elaborate name table_name                               # Show parent todo names
-#   todo list | elaborate --all | select name table_name_uu_json_resolved.name  # Show parent names
+#   todo list | elaborate --detail | select name table_name_uu_json_resolved.name  # Show parent names
 #
 # Returns: name, description, table_name_uu_json, record_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Results are ordered by creation time and filtered to type_enum in ['TODO']. Type information is always included.

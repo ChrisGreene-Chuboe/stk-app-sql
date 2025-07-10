@@ -263,13 +263,13 @@ export def "tag types" [] {
 #
 # Examples:
 #   project list | tags                          # Default columns
-#   project list | tags --all                    # All tag columns
+#   project list | tags --detail                 # All tag columns
 #   project list | tags search_key record_json   # Specific columns
 #
 # Returns: Original records with added 'tags' column containing array of tag records
 export def tags [
     ...columns: string  # Specific columns to include in tag records
-    --all               # Include all columns (select *)
+    --detail(-d)        # Include all columns (select *)
 ] {
-    $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "name", "description", "search_key"] ...$columns --all=$all
+    $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "name", "description", "search_key"] ...$columns --detail=$detail
 }

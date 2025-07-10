@@ -106,7 +106,7 @@ export def ".append event" [
 # Using elaborate to resolve foreign key references:
 #   event list | elaborate                                               # Resolve with default columns
 #   event list | elaborate name table_name                               # Show referenced table names
-#   event list | elaborate --all | select name table_name_uu_json_resolved.name  # Show referenced record names
+#   event list | elaborate --detail | select name table_name_uu_json_resolved.name  # Show referenced record names
 #
 # Returns: name, description, table_name_uu_json, record_json, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Only shows the 10 most recent events - use direct SQL for larger queries
@@ -225,15 +225,15 @@ export def "event types" [] {
 #
 # Examples:
 #   project list | events                          # Default columns
-#   project list | events --all                    # All event columns
+#   project list | events --detail                 # All event columns
 #   project list | events name description created # Specific columns
 #
 # Returns: Original records with added 'events' column containing array of event records
 export def events [
     ...columns: string  # Specific columns to include in event records
-    --all               # Include all columns (select *)
+    --detail(-d)        # Include all columns (select *)
 ] {
-    $in | psql append-table-name-uu-json "stk_event" "events" ["record_json", "name", "description", "search_key"] ...$columns --all=$all
+    $in | psql append-table-name-uu-json "stk_event" "events" ["record_json", "name", "description", "search_key"] ...$columns --detail=$detail
 }
 
 

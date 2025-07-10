@@ -800,19 +800,19 @@ export def "psql get-table-name-uu" [
 #
 # Examples:
 #   event list | elaborate                      # Default columns: name, description, search_key
-#   event list | elaborate --all                # All columns from resolved records  
+#   event list | elaborate --detail             # All columns from resolved records  
 #   todo list | elaborate name created          # Select specific columns
 #   request list | where status == "OPEN" | elaborate type_enum name
 #
 # Parameters:
 # - ...columns: Specific columns to include in resolved records (optional)
-# - --all: Include all columns from resolved records (overrides column selection)
+# - --detail: Include all columns from resolved records (overrides column selection)
 #
 # Returns: Original table with additional _resolved columns for each UUID reference
 # Note: Resolution happens dynamically by querying the referenced tables directly
 export def elaborate [
     ...columns: string  # Specific columns to include in resolved records
-    --all               # Include all columns from resolved records
+    --detail(-d)        # Include all columns from resolved records
     --table            # Always return a table format (useful for scripts)
 ] {
     let input = $in
@@ -845,7 +845,7 @@ export def elaborate [
                     # This avoids dynamic command execution issues
                     try {
                         # Build SELECT clause based on user input
-                        let select_clause = if $all {
+                        let select_clause = if $detail {
                             "*"
                         } else if ($columns | is-empty) {
                             # Default columns when none specified (same as lines command)
@@ -891,7 +891,7 @@ export def elaborate [
                         # Use psql to query the table directly
                         try {
                             # Build SELECT clause based on user input
-                            let select_clause = if $all {
+                            let select_clause = if $detail {
                                 "*"
                             } else if ($columns | is-empty) {
                                 # Default columns when none specified (same as lines command)
@@ -1113,12 +1113,12 @@ export def lines [
 # Examples:
 # > project list | where name == "Q4 Initiative" | children
 # > project list | first | children name description created
-# > project list | first | children --all
+# > project list | first | children --detail
 # > project list | children | select name {|r| $r.children | length}
 #
 # Parameters:
 # - ...columns: Specific columns to include in child records (optional)
-# - --all: Include all columns from child records (overrides column selection)
+# - --detail: Include all columns from child records (overrides column selection)
 #
 # Returns:
 # - Original records with an additional 'children' column
@@ -1131,7 +1131,7 @@ export def lines [
 # - Returns error object if database query fails
 export def children [
     ...columns: string  # Specific columns to include in child records
-    --all               # Include all columns (select *)
+    --detail(-d)        # Include all columns (select *)
     --table            # Always return a table format (useful for scripts)
 ] {
     let input = $in
@@ -1174,8 +1174,8 @@ export def children [
                 "
                 let children_data = (psql exec $children_query)
                 
-                # If no columns specified and not --all, filter to default columns
-                let final_data = if (not $all) and ($columns | is-empty) and (not ($children_data | is-empty)) {
+                # If no columns specified and not --detail, filter to default columns
+                let final_data = if (not $detail) and ($columns | is-empty) and (not ($children_data | is-empty)) {
                     let available_columns = ($children_data | columns)
                     let default_cols = ["name", "description", "type_uu"]
                     let cols_to_keep = $default_cols | where { |col| $col in $available_columns }
@@ -1232,8 +1232,8 @@ export def children [
 #
 # Examples (when wrapped by module commands):
 # # From stk_tag module
-# export def tags [...columns: string --all] {
-#     $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "search_key", "description", "type_uu"] ...$columns --all=$all
+# export def tags [...columns: string --detail] {
+#     $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "search_key", "description", "type_uu"] ...$columns --detail=$detail
 # }
 #
 # Parameters:
@@ -1241,13 +1241,13 @@ export def children [
 # - column: The column name to add to results (e.g., "tags", "requests")
 # - default_columns: List of columns to return by default when no columns specified
 # - ...columns: User-specified columns to return
-# - --all: Return all columns from the related records
+# - --detail: Return all columns from the related records
 export def "psql append-table-name-uu-json" [
     table: string               # Table to query for related records
     column: string              # Name of column to add to results
     default_columns: list       # Default columns when none specified
     ...columns: string          # Specific columns to include
-    --all                       # Include all columns (select *)
+    --detail(-d)                # Include all columns (select *)
 ] {
     let input = $in
     
@@ -1281,8 +1281,8 @@ export def "psql append-table-name-uu-json" [
             let query = $"SELECT ($select_clause) FROM api.($table) WHERE table_name_uu_json = '($table_name_uu_json)' AND is_revoked = false ORDER BY created"
             let data = (psql exec $query)
             
-            # If no columns specified and not --all, filter to default columns
-            let final_data = if (not $all) and ($columns | is-empty) and (not ($data | is-empty)) {
+            # If no columns specified and not --detail, filter to default columns
+            let final_data = if (not $detail) and ($columns | is-empty) and (not ($data | is-empty)) {
                 let available_columns = ($data | columns)
                 let cols_to_keep = $default_columns | where { |col| $col in $available_columns }
                 
