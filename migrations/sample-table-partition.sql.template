@@ -50,7 +50,8 @@ CREATE TABLE private.stk_changeme (
 CREATE TABLE private.stk_changeme_part (
   uu UUID NOT NULL REFERENCES private.stk_changeme(uu),
   table_name TEXT generated always AS ('stk_changeme') stored,
-  stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(uu),
+  ----Prompt: ask the user if they need to assign this record to a specific entity
+  --stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(uu),
   created TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_uu UUID NOT NULL, -- no FK by convention
   updated TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -108,4 +109,3 @@ CREATE TRIGGER t00030_generic_partition_delete
 
 -- create triggers for newly created tables
 SELECT private.stk_trigger_create();
-
