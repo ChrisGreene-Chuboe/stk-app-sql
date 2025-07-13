@@ -42,5 +42,8 @@ export use stk_timesheet *
 # Business Partner management for customers, vendors, employees, and other financial relationships
 export use stk_business_partner *
 
+# Contact management for people associated with business partners
+export use stk_contact *
+
 # Interactive tutorial system for learning chuck-stack patterns
 export use stk_tutor *

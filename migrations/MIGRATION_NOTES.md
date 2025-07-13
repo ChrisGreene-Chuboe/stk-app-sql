@@ -30,6 +30,14 @@ This document provides chuck-stack specific guidance for creating database migra
 
 ## Creating New Tables - Step by Step
 
+### Copy First
+
+The process is built around modifying a file interactively. By making the copy first, we can see all future changes.
+
+### Partitioning
+
+Few tables are currently partitioned. Simply ask the use if they want partitioning.
+
 ### The Iterative Decision Process
 
 When creating a new table, work through the template methodically:
@@ -43,7 +51,7 @@ When creating a new table, work through the template methodically:
 
 The template includes these key decision points:
 
-- **Entity assignment**: Do records need accounting/billing/permissions? → Uncomment `stk_entity_uu`
+- **Entity assignment**: Needed for posting accounting records → Uncomment `stk_entity_uu`
 - **JSON storage**: Need flexible metadata? → Uncomment `record_json`
 - **Table references**: Need to link to other tables? → Uncomment `table_name_uu_json`
 - **Templates**: Need reusable configurations? → Uncomment `is_template`
@@ -76,7 +84,11 @@ The default track is 'core'. See 'documentation' for more information about trac
 
 Note that the chuck-stack is not in production yet. As a result, you may modify exiting migration scripts as you deem appropriate.
 
-## Enum Modification
+## Enum Changes
+
+Be sure to review the below enum and type reference for when and why we consider adding new enums.
+
+## Existing Enum Modification
 
 There are times when you need to update an existing enum and types to support new migrations. The business partner is a great example. We needed to add new stk_tags to support maintaining business partners.
 
