@@ -40,8 +40,9 @@ SELECT private.stk_table_type_create('stk_changeme_type');
 ---- type_section end ----
 
 ---- primary_section start ----
-CREATE TABLE private.stk_changeme (
-  uu UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+----partition: insert_primary
+CREATE TABLE private.stk_changeme ( ----partition: rename_table
+  uu UUID PRIMARY KEY DEFAULT gen_random_uuid(), ----partition: change_uu
   table_name TEXT generated always AS ('stk_changeme') stored,
   ----Prompt: ask the user if they need to assign this record to a specific entity
   --stk_entity_uu UUID NOT NULL REFERENCES private.stk_entity(uu),
@@ -69,12 +70,14 @@ CREATE TABLE private.stk_changeme (
   --is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  description TEXT
-);
+  description TEXT ----partition: add_pk
+); ----partition: add_partition_by
 COMMENT ON TABLE private.stk_changeme IS 'Holds changeme records';
+----partition: insert_default
 
 CREATE VIEW api.stk_changeme AS SELECT * FROM private.stk_changeme;
 COMMENT ON VIEW api.stk_changeme IS 'Holds changeme records';
+----partition: insert_triggers
 ---- primary_section end ----
 
 -- create triggers for newly created tables
