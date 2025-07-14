@@ -72,6 +72,9 @@ export def "contact new" [
     # Add foreign key from piped input if present (overrides parameter if both provided)
     if ($extracted != null) {
         let fk_column = $"($extracted.table_name)_uu"
+        if not (column-exists $fk_column $STK_TABLE_NAME) {
+            error make { msg: $"Cannot link ($extracted.table_name) to ($STK_TABLE_NAME) - no foreign key relationship exists" }
+        }
         $params = ($params | upsert $fk_column $extracted.uu)
     }
     

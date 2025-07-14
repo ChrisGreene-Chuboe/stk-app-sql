@@ -966,8 +966,18 @@ def table-exists [table_name: string] {
     }
 }
 
-# Helper function to check if a column exists in a table
-def column-exists [column: string, table: string] {
+# Check if a column exists in a table
+#
+# Simple utility to verify column existence in the database schema.
+# Useful for validating foreign key relationships and optional columns.
+#
+# Examples:
+#   column-exists "stk_business_partner_uu" "stk_contact"  # Returns: true
+#   column-exists "stk_item_uu" "stk_contact"              # Returns: false
+#   column-exists "is_template" "stk_project"              # Returns: true
+#
+# Returns: boolean - true if column exists, false otherwise
+export def column-exists [column: string, table: string] {
     let query = $"
         SELECT EXISTS \(
             SELECT 1 FROM information_schema.columns 

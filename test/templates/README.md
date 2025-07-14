@@ -31,6 +31,7 @@ When updating templates, always update the version date.
 - **template-pattern.template.nu** - If table has `is_template` column
 - **header-line-pattern.template.nu** - For modules with header-line relationships
 - **parent-child-pattern.template.nu** - If table has `parent_uu` column
+- **foreign-key-pattern.template.nu** - If table has foreign key columns to other tables
 
 ## Example: Creating test for new "contract" module
 
@@ -63,6 +64,9 @@ When copying patterns, replace these placeholders:
 - `TYPE_KEY` - Valid type search key (e.g., `"SERVICE"`, `"ACCOUNT"`)
 - `HEADER` - Header module name (e.g., `project`)
 - `LINE` - Line command suffix (e.g., `line`)
+- `FOREIGN_MODULE` - Foreign table module name (e.g., `bp` for business partner)
+- `FK_COLUMN` - Foreign key column name (e.g., `stk_business_partner_uu`)
+- `UNRELATED_MODULE` - Module with no FK relationship (e.g., `item`)
 
 ## Tips
 

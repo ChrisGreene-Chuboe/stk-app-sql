@@ -26,6 +26,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
   - [14. Utility Functions Pattern](#14-utility-functions-pattern)
   - [15. Data Enrichment Pattern](#15-data-enrichment-pattern)
   - [16. Template Pattern](#16-template-pattern)
+  - [17. Foreign Key Pipeline Pattern](#17-foreign-key-pipeline-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -426,24 +427,6 @@ The `psql list-records` command handles template filtering automatically:
 
 Tables without an `is_template` column continue to work normally.
 
-#### Module Implementation
-```nushell
-export def "module list" [
-    --all(-a)       # Include revoked records AND templates
-    --templates     # Show only templates
-] {
-    # Build args array
-    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
-    
-    # Pass flags to psql
-    let args = if $all { $args | append "--all" } else { $args }
-    let args = if $templates { $args | append "--templates" } else { $args }
-    
-    # Execute query
-    psql list-records ...$args
-}
-```
-
 #### Key Principles
 - Templates are operational data, not system configuration
 - Template filtering is handled by psql for consistency
@@ -462,6 +445,27 @@ These questions will be addressed in a future project focused on template-tag in
 
 Reference implementation: `bp list` in stk_business_partner/mod.nu
 
+### 17. Foreign Key Pipeline Pattern
+
+Creates cross-table relationships by piping parent records into creation commands.
+
+**Distinct from Parent-Child (Pattern 9)**: This handles relationships between different tables (e.g., business_partner → contact), not hierarchical same-table relationships.
+
+**Implementation approach**:
+1. Extract piped input with `extract-uu-table-name` utility
+2. Build foreign key column name: `{table_name}_uu`
+3. Validate column exists with `column-exists` from stk_psql
+4. Error clearly if invalid: "Cannot link X to Y - no foreign key relationship exists"
+5. Add to params with `upsert`
+
+**Key principles**:
+- Pipeline input overrides explicit parameters
+- Validate before attempting database insert
+- User-friendly errors instead of PostgreSQL internals
+- Maintains backward compatibility with UUID parameters
+
+**Reference**: See `contact new` in stk_contact/mod.nu for complete implementation including column validation and error handling.
+
 ## Implementation Guide
 
 ### Step 1: Define Module Constants
@@ -474,94 +478,65 @@ const STK_MODULE_COLUMNS = [name, description, is_template, is_valid]
 # const STK_MODULE_COLUMNS = [name, description, is_template, is_valid, record_json]
 ```
 
-### Step 2: Implement Core Commands
+### Step 2: Identify Required Patterns
 
-#### Creation Command
-```nushell
-export def "module new" [
-    name: string
-    --type-uu: string
-    --type-search-key: string  
-    --description(-d): string
-    --template
-    --entity-uu(-e): string
-    --json(-j): string       # Optional JSON data (if table has record_json column)
-] {
-    # Type resolution
-    let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key | get uu)
-    } else {
-        $type_uu
-    }
-    
-    # Handle JSON parameter (if table has record_json column)
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
-    
-    # Build parameters
-    let params = {
-        name: $name
-        type_uu: ($resolved_type_uu | default null)
-        description: ($description | default null)
-        is_template: ($template | default false)
-        entity_uu: ($entity_uu | default null)
-        # record_json: $record_json  # Add if table has record_json column (already a JSON string)
-    }
-    
-    # For .append commands with attachments, use extract-attach-from-input - see stk_request
-    psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
-}
-```
+Examine your table structure to determine which patterns to implement:
 
-#### List Command  
-```nushell
-export def "module list" [
-    --all(-a)       # Include revoked records
-] {
-    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
-    let args = if $all { $args | append "--all" } else { $args }
-    
-    psql list-records ...$args
-}
-```
+**Table Structure → Pattern Mapping:**
+- Foreign key columns (e.g., `stk_business_partner_uu`) → **Foreign Key Pipeline Pattern**
+- `parent_uu` column → **Parent-Child Pattern**
+- Associated line table (e.g., `stk_project_line`) → **Header-Line Pattern**
+- `is_template` column → **Template Pattern**
+- `record_json` column → **JSON Parameter Pattern**
+- Associated `_type` table → **Type Support**
+- `table_name_uu_json` column → **UUID Input Enhancement Pattern**
 
-#### Get Command
-```nushell
-export def "module get" [
-    --uu: string  # UUID as parameter (alternative to piped input)
-] {
-    # Extract UUID from piped input or --uu parameter
-    let uu = ($in | extract-uu-with-param $uu)
-    
-    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_MODULE_COLUMNS $uu
-}
-```
+**Common Pattern Combinations:**
+- Single table with types: Type Support + JSON Parameter Pattern
+- Master-detail relationships: Header-Line Pattern + Type Support
+- Hierarchical data: Parent-Child Pattern + Type Support
+- Cross-table relationships: Foreign Key Pipeline Pattern + Type Support
 
-#### Revoke Command
-```nushell
-export def "module revoke" [
-    --uu: string  # UUID as parameter (alternative to piped input)
-] {
-    # Extract UUID from piped input or --uu parameter
-    let target_uuid = ($in | extract-uu-with-param $uu)
-    
-    psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
-}
-```
+### Step 3: Implement Commands Based on Patterns
 
-#### Types Command (if applicable)
-```nushell
-export def "module types" [] {
-    psql list-types $STK_SCHEMA $STK_TABLE_NAME
-}
-```
+**Base Commands (all modules):**
+- `new` - Create record
+- `list` - List records with `--all` flag
+- `get` - Retrieve single record
+- `revoke` - Soft delete record
 
-### Step 3: Add Header-Line Commands (if needed)
+**Pattern-Specific Commands:**
 
-For modules with line tables, add:
-- `module line new` - Creates lines for a header
-- `module line list` - Lists lines for a header  
-- `module line get` - Gets specific line
-- `module line revoke` - Revokes line(s)
+**Type Support** adds:
+- `types` command to list available types
+- `--type-uu` and `--type-search-key` parameters to `new`
+
+**Header-Line Pattern** adds:
+- `line new` - Create lines for a header
+- `line list` - List lines for a header
+- `line get` - Get specific line
+- `line revoke` - Revoke line(s)
+
+**Parent-Child Pattern** enhances:
+- `new` command accepts parent via pipeline
+
+**Foreign Key Pipeline Pattern** enhances:
+- `new` command accepts foreign records via pipeline
+
+**Template Pattern** enhances:
+- `list` command with `--templates` flag
+- `new` command with `--template` flag
+
+**JSON Parameter Pattern** enhances:
+- Creation commands with `--json` parameter
+
+**Reference Implementations by Pattern:**
+- **Basic CRUD only**: `stk_item`
+- **+ Foreign Key Pipeline**: `stk_contact` 
+- **+ Header-Line + Parent-Child**: `stk_project`
+- **+ Type Support + Templates**: `stk_business_partner`
+- **+ Attachment patterns**: `stk_event`
+- **Domain wrapper**: `stk_todo` (wraps `stk_request`)
 
 ## Module Development Checklist
 
@@ -655,6 +630,7 @@ Focus on:
 - **`stk_tag`** - Uses new one-line `parse-json` pattern for `--json` parameter ✓
 - **`stk_item`** - Clean single-table module with `--json` parameter ✓
 - **`stk_project`** - Complete header-line pattern with `--json` for both header and lines ✓
+- **`stk_contact`** - Foreign key pipeline pattern with column validation (Pattern 17) ✓
 - **`stk_event`** - Specialized attachment patterns with `--json` parameter ✓
 - **`stk_request`** - Uses `--json` with direct SQL construction ✓
 - **`stk_todo`** - Domain wrapper with `--json` parameter ✓
