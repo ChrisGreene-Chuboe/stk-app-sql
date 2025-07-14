@@ -62,29 +62,19 @@ export def "link new" [
     let source_table_name_uu = {table_name: $source.table_name, uu: $source.uu}
     let target_table_name_uu = {table_name: $target.table_name, uu: $target.uu}
     
-    # Type resolution
-    let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key | get uu)
-    } else if ($type_uu | is-not-empty) {
-        $type_uu
-    } else {
-        null
-    }
+    # Resolve type using utility function
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
     # Convert table_name_uu objects to JSON strings
     let source_json = ($source_table_name_uu | to json)
     let target_json = ($target_table_name_uu | to json)
     
     # Build parameters
-    mut params = {
+    let params = {
         description: $description
+        type_uu: ($type_record.uu? | default null)
         source_table_name_uu_json: $source_json
         target_table_name_uu_json: $target_json
-    }
-    
-    # Only add type_uu if resolved
-    if ($resolved_type_uu != null) {
-        $params = ($params | insert type_uu $resolved_type_uu)
     }
     
     psql new-record $STK_SCHEMA $STK_TABLE_NAME $params

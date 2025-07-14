@@ -52,11 +52,6 @@ export def "project new" [
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
 ] {
-    # Validate that only one type parameter is provided
-    if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
-        error make {msg: "Specify either --type-uu or --type-search-key, not both"}
-    }
-    
     # Handle optional piped parent UUID
     let piped_input = $in
     let parent_uuid = if ($piped_input | is-not-empty) {
@@ -68,12 +63,8 @@ export def "project new" [
         null
     }
     
-    # Resolve type if search key is provided
-    let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type $STK_SCHEMA $STK_PROJECT_TABLE_NAME --search-key $type_search_key | get uu)
-    } else {
-        $type_uu
-    }
+    # Resolve type using utility function
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_PROJECT_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
     # Handle json parameter - validate if provided, default to empty object
     let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
@@ -81,7 +72,7 @@ export def "project new" [
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
-        type_uu: ($resolved_type_uu | default null)
+        type_uu: ($type_record.uu? | default null)
         description: ($description | default null)
         parent_uu: ($parent_uuid | default null)
         is_template: ($template | default false)
@@ -274,17 +265,8 @@ export def "project line new" [
     # Extract UUID from piped input
     let project_uu = ($in | extract-single-uu --error-msg "Project UUID is required via piped input")
     
-    # Validate that only one type parameter is provided
-    if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
-        error make {msg: "Specify either --type-uu or --type-search-key, not both"}
-    }
-    
-    # Resolve type if search key is provided
-    let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME --search-key $type_search_key | get uu)
-    } else {
-        $type_uu
-    }
+    # Resolve type using utility function
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_PROJECT_LINE_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
     # Handle json parameter - validate if provided, default to empty object
     let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
@@ -292,7 +274,7 @@ export def "project line new" [
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
         name: $name
-        type_uu: ($resolved_type_uu | default null)
+        type_uu: ($type_record.uu? | default null)
         description: ($description | default null)
         is_template: ($template | default false)
         stk_entity_uu: ($entity_uu | default null)

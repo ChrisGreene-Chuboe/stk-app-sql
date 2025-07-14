@@ -65,38 +65,15 @@ export def ".append tag" [
         }
     }
     
-    # Ensure exactly one type lookup method is provided
-    let type_params = [
-        ($type_name | is-not-empty)
-        ($type_search_key | is-not-empty)
-        ($type_uu | is-not-empty)
-    ] | where { $in } | length
+    # Resolve type using utility function (handles validation and resolution)
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key --type-name $type_name)
     
-    if $type_params == 0 {
+    # Validate that type was provided (required for tags)
+    if ($type_record == null) {
         error make {
             msg: "Type required: provide one of --type-name, --type-search-key, or --type-uu"
         }
     }
-    
-    if $type_params > 1 {
-        error make {
-            msg: "Only one type parameter allowed: use either --type-name, --type-search-key, or --type-uu"
-        }
-    }
-    
-    # Resolve type record based on the parameter provided
-    let type_record = if ($type_uu | is-not-empty) {
-        # Fetch the type record by UUID
-        psql exec $"SELECT * FROM api.stk_tag_type WHERE uu = '($type_uu)'" | get 0
-    } else if ($type_search_key | is-not-empty) {
-        # Use flexible psql command to resolve type by search_key
-        psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key
-    } else {
-        # Use flexible psql command to resolve type by name
-        psql get-type $STK_SCHEMA $STK_TABLE_NAME --name $type_name
-    }
-    
-    let resolved_type_uu = $type_record.uu
     
     # Handle interactive mode vs direct JSON
     let record_json = if $interactive {
@@ -123,7 +100,7 @@ export def ".append tag" [
     # Build parameters record following the pattern
     let base_params = {
         description: ($description | default null)
-        type_uu: $resolved_type_uu
+        type_uu: $type_record.uu
         table_name_uu_json: ($table_name_uu | to json)  # Convert to JSON string for psql new-record
         record_json: $record_json  # Already a JSON string from parse-json
     }

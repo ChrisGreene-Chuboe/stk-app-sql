@@ -686,6 +686,7 @@ export def "psql list-types" [
 # Examples:
 #   psql get-type "api" "stk_item" --search-key "RETAIL"
 #   psql get-type "api" "stk_project" --name "Client Project"
+#   psql get-type "api" "stk_tag" --uu "12345678-1234-5678-9012-123456789abc"
 #   psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_key
 #
 # Returns: Type record if found
@@ -695,16 +696,24 @@ export def "psql get-type" [
     table_name: string      # Table name (e.g., "stk_item")
     --search-key: string    # Search by search_key field
     --name: string          # Search by name field (if column exists)
+    --uu: string            # Search by UUID
 ] {
     let type_table = $"($table_name)_type"
     
+    # Count how many search parameters were provided
+    let param_count = [
+        ($search_key | is-not-empty)
+        ($name | is-not-empty)
+        ($uu | is-not-empty)
+    ] | where { $in } | length
+    
     # Ensure exactly one search parameter is provided
-    if (($search_key | is-empty) and ($name | is-empty)) {
-        error make {msg: "Must provide either --search-key or --name"}
+    if $param_count == 0 {
+        error make {msg: "Must provide one of --search-key, --name, or --uu"}
     }
     
-    if (($search_key | is-not-empty) and ($name | is-not-empty)) {
-        error make {msg: "Provide only one of --search-key or --name, not both"}
+    if $param_count > 1 {
+        error make {msg: "Provide only one of --search-key, --name, or --uu"}
     }
     
     # Check if name column exists if --name was provided
@@ -727,16 +736,30 @@ export def "psql get-type" [
     # Build WHERE clause
     let where_clause = if ($search_key | is-not-empty) {
         $"search_key = '($search_key)'"
-    } else {
+    } else if ($name | is-not-empty) {
         $"name = '($name)'"
+    } else {
+        $"uu = '($uu)'"
     }
     
     # Execute query
     let result = (psql exec $"SELECT * FROM ($schema).($type_table) WHERE ($where_clause) AND is_revoked = false")
     
     if ($result | is-empty) {
-        let field = if ($search_key | is-not-empty) { "search_key" } else { "name" }
-        let value = if ($search_key | is-not-empty) { $search_key } else { $name }
+        let field = if ($search_key | is-not-empty) { 
+            "search_key" 
+        } else if ($name | is-not-empty) { 
+            "name" 
+        } else { 
+            "uu" 
+        }
+        let value = if ($search_key | is-not-empty) { 
+            $search_key 
+        } else if ($name | is-not-empty) { 
+            $name 
+        } else { 
+            $uu 
+        }
         error make {msg: $"Type with ($field) '($value)' not found in ($schema).($type_table)"}
     } else {
         $result | first

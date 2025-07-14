@@ -273,6 +273,82 @@ export def extract-uu-with-param [
 #
 # Returns: Original JSON string (default) or parsed data (with --return-parsed)
 # Error: Throws standardized error if JSON cannot be parsed
+
+# resolve-type: Resolves type record from --type-uu, --type-search-key, or --type-name parameters
+#
+# PURPOSE: Standardize type resolution logic across all chuck-stack modules.
+# Validates that only one type parameter is provided and returns the complete type record.
+#
+# PARAMETERS:
+# - --schema: Database schema (e.g., "api")
+# - --table: Table name for type lookup (e.g., "stk_item")
+# - --type-uu: Direct UUID parameter value
+# - --type-search-key: Search key parameter value
+# - --type-name: Name parameter value
+#
+# VALIDATION:
+# - Errors if more than one type parameter is provided
+# - Returns null if no parameters are provided
+#
+# Examples:
+#   # Direct UUID (returns type record)
+#   let type_record = (resolve-type --schema "api" --table "stk_item" --type-uu $type_uu)
+#   
+#   # Search key lookup (returns type record)
+#   let type_record = (resolve-type --schema "api" --table "stk_item" --type-search-key $type_search_key)
+#   
+#   # Name lookup (returns type record)
+#   let type_record = (resolve-type --schema "api" --table "stk_item" --type-name $type_name)
+#   
+#   # In module - get just the UUID:
+#   let resolved_type_uu = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key | get uu?)
+#   
+#   # In module - get the full record for interactive features:
+#   let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
+#
+# Returns: Complete type record (with uu, name, type_enum, record_json, etc.) or null
+# Error: If multiple parameters provided or if lookup fails
+export def resolve-type [
+    --schema: string        # Database schema (required)
+    --table: string         # Table name for type lookup (required)
+    --type-uu: string      # Direct type UUID
+    --type-search-key: string  # Type search key
+    --type-name: string    # Type name
+] {
+    # Validate required parameters
+    if ($schema | is-empty) or ($table | is-empty) {
+        error make {msg: "Both --schema and --table are required"}
+    }
+    
+    # Count how many type parameters were provided
+    let type_params = [
+        ($type_uu | is-not-empty)
+        ($type_search_key | is-not-empty)
+        ($type_name | is-not-empty)
+    ] | where { $in } | length
+    
+    # Validate that only one type parameter is provided
+    if $type_params > 1 {
+        error make {msg: "Specify only one of --type-uu, --type-search-key, or --type-name"}
+    }
+    
+    # Return null if no type parameters provided
+    if $type_params == 0 {
+        return null
+    }
+    
+    # Resolve and return complete type record
+    if ($type_name | is-not-empty) {
+        psql get-type $schema $table --name $type_name
+    } else if ($type_search_key | is-not-empty) {
+        psql get-type $schema $table --search-key $type_search_key
+    } else if ($type_uu | is-not-empty) {
+        psql get-type $schema $table --uu $type_uu
+    } else {
+        null
+    }
+}
+
 export def parse-json [
     --return-parsed  # Return parsed data instead of original string
     --default: string = "{}"  # Default value when input is empty (typically "{}")

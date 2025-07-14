@@ -64,17 +64,8 @@ export def "bp new" [
         null
     }
     
-    # Validate that only one type parameter is provided
-    if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
-        error make {msg: "Specify either --type-uu or --type-search-key, not both"}
-    }
-    
-    # Resolve type if search key is provided
-    let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key | get uu)
-    } else {
-        $type_uu
-    }
+    # Resolve type using utility function
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
     # Handle JSON parameter - validate if provided, default to empty object
     let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
@@ -82,7 +73,7 @@ export def "bp new" [
     # Build parameters record
     let params = {
         name: $name
-        type_uu: ($resolved_type_uu | default null)
+        type_uu: ($type_record.uu? | default null)
         description: ($description | default null)
         is_template: ($template | default false)
         parent_uu: ($parent_uuid | default null)

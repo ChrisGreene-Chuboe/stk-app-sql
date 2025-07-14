@@ -48,24 +48,14 @@ export def "contact new" [
     --json(-j): string             # Optional JSON data to store in record_json field
 ] {
     # Extract info from piped input if provided
-    let piped_input = $in
-    let extracted = if ($piped_input | is-not-empty) {
-        ($piped_input | extract-uu-table-name)
+    let extracted = if ($in | is-not-empty) {
+        ($in | extract-uu-table-name)
     } else {
         null
     }
     
-    # Validate that only one type parameter is provided
-    if (($type_uu | is-not-empty) and ($type_search_key | is-not-empty)) {
-        error make {msg: "Specify either --type-uu or --type-search-key, not both"}
-    }
-    
-    # Resolve type if search key is provided
-    let resolved_type_uu = if ($type_search_key | is-not-empty) {
-        (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key $type_search_key | get uu)
-    } else {
-        $type_uu
-    }
+    # Resolve type using utility function
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
     # Handle json parameter - validate if provided, default to empty object
     let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
@@ -73,7 +63,7 @@ export def "contact new" [
     # Build parameters record internally - eliminates cascading if/else logic
     mut params = {
         name: $name
-        type_uu: ($resolved_type_uu | default null)
+        type_uu: ($type_record.uu? | default null)
         description: ($description | default null)
         stk_business_partner_uu: ($business_partner_uu | default null)
         record_json: $record_json  # Already a JSON string from parse-json
