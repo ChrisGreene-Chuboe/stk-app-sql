@@ -60,5 +60,42 @@ try {
     #print "✓ Error handling verified for non-existent UUID"
 }
 
+# print "=== Testing psql list-records --where parameter ==="
+
+# Create a business partner and contacts for testing
+let test_bp = (bp new $"Test Company($test_suffix)")
+let bp_uuid = $test_bp.uu
+
+# Create contacts with and without the business partner link
+let contact1 = ($test_bp | contact new $"Contact One($test_suffix)")
+let contact2 = ($test_bp | contact new $"Contact Two($test_suffix)")
+let contact3 = (contact new $"Contact Three($test_suffix)")  # No BP link
+
+# Test basic --where filtering
+let filtered_contacts = (psql list-records "api" "stk_contact" --where {stk_business_partner_uu: $bp_uuid})
+assert (($filtered_contacts | length) >= 2) "Should find at least 2 contacts for the business partner"
+assert (($filtered_contacts | all {|c| $c.stk_business_partner_uu == $bp_uuid})) "All results should have the correct business partner UUID"
+#print "✓ Basic --where filtering verified"
+
+# Test multiple conditions with --where
+let multi_filter = (psql list-records "api" "stk_contact" --where {stk_business_partner_uu: $bp_uuid, is_valid: true})
+assert (($multi_filter | all {|c| $c.stk_business_partner_uu == $bp_uuid and $c.is_valid == true})) "All results should match both conditions"
+#print "✓ Multiple condition --where filtering verified"
+
+# Test --where with null value
+let null_filter = (psql list-records "api" "stk_contact" --where {stk_business_partner_uu: null} --limit 50)
+assert (($null_filter | any {|c| $c.name == $contact3.name})) "Should find contact without business partner"
+# Check that our specific test contact has null BP
+# Note: PostgreSQL returns NULL as string "null" due to .psqlrc-nu configuration
+let our_contact = ($null_filter | where name == $contact3.name | first)
+assert ($our_contact.stk_business_partner_uu == "null") "Our test contact should have null business partner"
+#print "✓ NULL value --where filtering verified"
+
+# Test empty --where (should behave same as no --where)
+let empty_where = (psql list-records "api" "stk_contact" --where {})
+let no_where = (psql list-records "api" "stk_contact")
+assert (($empty_where | length) == ($no_where | length)) "Empty --where should return same results as no --where"
+#print "✓ Empty --where parameter verified"
+
 # Return success string as final expression
 "=== All tests completed successfully ==="

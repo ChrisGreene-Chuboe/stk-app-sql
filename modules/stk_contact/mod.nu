@@ -89,7 +89,9 @@ export def "contact new" [
 # contact management and selection.
 # Use the returned UUIDs with other contact commands for detailed work.
 #
-# Accepts piped input: none
+# Accepts piped input:
+#   Business partner record with 'uu' and 'table_name' fields
+#   Table containing business partner data (uses first row)
 #
 # Examples:
 #   contact list
@@ -98,6 +100,8 @@ export def "contact new" [
 #   contact list | where stk_business_partner_uu != null
 #   contact list | where is_valid == true
 #   contact list | select name description stk_business_partner_uu | table
+#   bp list | where name == "Acme Corp" | contact list
+#   $business_partner | contact list
 #
 # Create a useful alias:
 #   def cl [] { contact list | select name stk_business_partner_uu search_key }
@@ -107,14 +111,32 @@ export def "contact new" [
 export def "contact list" [
     --all(-a)     # Include revoked contacts
 ] {
+    # Extract info from piped input if provided
+    let extracted = if ($in | is-not-empty) {
+        ($in | extract-uu-table-name)
+    } else {
+        null
+    }
+    
     # Build complete arguments array including flags
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_CONTACT_COLUMNS
     
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
     
-    # Execute query
-    psql list-records ...$args
+    # Build where constraints if we have foreign key input
+    let where_constraints = if ($extracted != null) {
+        let fk_column = $"($extracted.table_name)_uu"
+        if not (column-exists $fk_column $STK_TABLE_NAME) {
+            error make { msg: $"Cannot filter ($STK_TABLE_NAME) by ($extracted.table_name) - no foreign key relationship exists" }
+        }
+        {$fk_column: $extracted.uu}
+    } else {
+        {}
+    }
+    
+    # Execute query with where constraints
+    psql list-records ...$args --where $where_constraints
 }
 
 # Retrieve a specific contact by its UUID
@@ -210,4 +232,109 @@ export def "contact revoke" [
 # Note: Uses the generic psql list-types command for consistency across chuck-stack
 export def "contact types" [] {
     psql list-types $STK_SCHEMA $STK_TABLE_NAME
+}
+
+# Add contact data to records via foreign key relationship
+#
+# Enriches piped records with their associated contacts by adding a 'contacts' 
+# column containing related contact records. This follows the generic foreign key
+# discovery pattern used throughout chuck-stack.
+#
+# Accepts piped input:
+#   Table of records to enrich (must have a foreign key relationship to contacts)
+#   Single record to enrich (will be treated as a single-row table)
+#
+# Examples:
+#   bp list | contacts
+#   bp list | contacts name description  # Specific columns only
+#   bp list | contacts --detail           # All contact columns
+#   bp list | contacts --all              # Include revoked contacts
+#   bp list | contacts --table            # Always return table format
+#   $bp | contacts                        # Single record input
+#
+# Returns: Original records with added 'contacts' column containing arrays of contact records
+# Note: Records without matching foreign keys get empty arrays
+export def "contacts" [
+    ...columns: string  # Specific contact columns to include (default: standard columns)
+    --detail            # Include all contact columns (overrides column list)
+    --all               # Include revoked contacts
+    --table             # Always return a table format (useful for scripts)
+] {
+    let input = $in
+    
+    # Return empty if input is empty
+    if ($input | is-empty) {
+        return $input
+    }
+    
+    # Normalize input - convert single record to table
+    let normalized_input = if ($input | describe | str starts-with "record") {
+        [$input]
+    } else {
+        $input
+    }
+    
+    # Get the first row to determine table structure
+    let first_row = ($normalized_input | first)
+    
+    # Extract table_name from the first UUID we find
+    let table_info = if ("uu" in ($first_row | columns)) and ($first_row.uu != null) {
+        try {
+            psql get-table-name-uu $first_row.uu
+        } catch {
+            null
+        }
+    } else {
+        null
+    }
+    
+    if ($table_info == null) {
+        # Can't determine table, return input unchanged
+        return $input
+    }
+    
+    # Build foreign key column name
+    let fk_column = $"($table_info.table_name)_uu"
+    
+    # Check if contacts table has this foreign key
+    if not (column-exists $fk_column $STK_TABLE_NAME) {
+        # No relationship exists, return input unchanged with empty contacts
+        return ($input | insert contacts [])
+    }
+    
+    # Determine which columns to retrieve
+    let contact_columns = if $detail {
+        []  # Empty means all columns
+    } else if ($columns | length) > 0 {
+        $columns
+    } else {
+        $STK_CONTACT_COLUMNS
+    }
+    
+    # Build args for psql list-records
+    let base_args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $contact_columns
+    let args = if $all { $base_args | append "--all" } else { $base_args }
+    
+    # Enrich each row with its contacts
+    let result = $normalized_input | each {|row|
+        let row_uuid = $row.uu
+        
+        # Get contacts for this row
+        let contacts = if ($row_uuid != null) and ($row_uuid != "null") {
+            psql list-records ...$args --where {$fk_column: $row_uuid} --limit 100
+        } else {
+            []
+        }
+        
+        $row | insert contacts $contacts
+    }
+    
+    # Return in the same format as input (unless --table is specified)
+    if $table {
+        $result  # Always return table format
+    } else if ($input | describe | str starts-with "record") {
+        $result | first  # Return single record if input was a record
+    } else {
+        $result  # Return table if input was a table
+    }
 }

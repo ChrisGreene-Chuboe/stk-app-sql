@@ -85,6 +85,8 @@ export def "psql exec" [
 #   psql list-records "api" "stk_event" "name" "record_json"
 #   psql list-records "api" "stk_event" "name" "record_json" --all
 #   psql list-records "api" "stk_event" "name" "record_json" --limit 20
+#   psql list-records "api" "stk_contact" --where {stk_business_partner_uu: "123-456-789"}
+#   psql list-records "api" "stk_contact" --where {is_valid: true, stk_business_partner_uu: "123-456-789"}
 #   
 # With spread operator:
 #   let args = ["api", "stk_event", "name", "record_json"]
@@ -97,6 +99,7 @@ export def "psql list-records" [
     ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
     --limit: int = 10               # Maximum number of records to return
     --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
+    --where: record = {}            # Record of column:value pairs for equality filtering (AND'ed together)
 ] {
     # Check if --all or --templates flags are present in args
     let has_all = ("--all" in $args)
@@ -149,22 +152,46 @@ export def "psql list-records" [
         }
     }
     
+    # Build additional WHERE constraints from --where parameter
+    let where_constraints = if ($where | is-empty) {
+        []
+    } else {
+        $where | transpose column value | each {|row|
+            # Handle null values
+            if ($row.value == null) {
+                $"r.($row.column) IS NULL"
+            } else {
+                # Escape single quotes by doubling them
+                let escaped = ($row.value | to text | str replace --all "'" "''")
+                $"r.($row.column) = '($escaped)'"
+            }
+        }
+    }
+    
+    # Combine all WHERE conditions
+    mut all_conditions = []
+    
+    if ($base_where | is-not-empty) {
+        $all_conditions = ($all_conditions | append $base_where)
+    }
+    
     # Add enum filtering if requested
-    let where_clause = if ($enum | length) > 0 {
+    if ($enum | length) > 0 {
         let enum_list = $enum | str join "', '"
         let enum_filter = $"t.type_enum IN \('($enum_list)')"
-        
-        if ($base_where | is-empty) {
-            $"WHERE ($enum_filter)"
-        } else {
-            $"WHERE ($base_where) AND ($enum_filter)"
-        }
+        $all_conditions = ($all_conditions | append $enum_filter)
+    }
+    
+    # Add custom where constraints
+    if ($where_constraints | length) > 0 {
+        $all_conditions = ($all_conditions | append $where_constraints)
+    }
+    
+    # Build final WHERE clause
+    let where_clause = if ($all_conditions | length) > 0 {
+        $"WHERE ($all_conditions | str join ' AND ')"
     } else {
-        if ($base_where | is-empty) {
-            ""
-        } else {
-            $"WHERE ($base_where)"
-        }
+        ""
     }
     
     # Always use LEFT JOIN to include type information
