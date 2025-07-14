@@ -38,7 +38,7 @@ let client = (bp new "ACME Corporation"
         "primary_email": "john.smith@acme-corp.com"
     }')
 
-print $"✓ Created business partner: ($client.name.0) with UUID: ($client.uu.0)"
+print $"✓ Created business partner: ($client.name) with UUID: ($client.uu)"
 print ""
 
 # Step 2: Add business roles via tags
@@ -55,9 +55,20 @@ let vendor_tag = $client | .append tag --type-search-key "BP_VENDOR"
 print "✓ Tagged as BP_VENDOR"
 print ""
 
+# Step 3: Add business roles via tags
+print "3. Assigning contacts..."
+print ""
 
-# Step 3: Add addresses
-print "3. Adding addresses..."
+# Add a contact
+$client | contact new "Julie Smith" --json '{
+        "primary_phone": "+1-555-123-4567",
+        "primary_email": "julie.smith@acme-corp.com"
+    }'
+print "✓ Added Julie Smith as a contact"
+print ""
+
+# Step 4: Add addresses
+print "4. Adding addresses..."
 print ""
 
 # Headquarters address - using structured JSON
@@ -94,7 +105,7 @@ let shipping_address = $client | .append address --json '{
 print "✓ Added shipping address"
 print ""
 
-# Step 4: Show the complete business partner profile
+# Step 5: Show the complete business partner profile
 print "================================"
 print "=== Business Partner Profile ==="
 print "================================"
@@ -102,7 +113,7 @@ print ""
 
 # Get BP with details and display as a record
 print "Business Partner: returned from new"
-$client | first | print 
+$client | print 
 print ""
 
 print "Business Partner: returned from get"
