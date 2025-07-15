@@ -38,6 +38,10 @@ Type 'bp <tab>' to see available commands.
 #   bp new "Customer Template" --template --type-search-key "ORGANIZATION"
 #   bp new "Vendor Corp" --json '{"tax_id": "12-3456789", "legal_name": "Vendor Corporation"}'
 #   
+#   # Interactive examples:
+#   bp new "Acme Corp" --type-search-key ORGANIZATION --interactive
+#   bp new "Jane Smith" --type-search-key INDIVIDUAL --interactive --description "Key contact"
+#   
 #   # Create subsidiary with parent
 #   bp list | where name == "ACME Corporation" | bp new "ACME Subsidiary"
 #   $parent_uuid | bp new "ACME Europe"
@@ -52,6 +56,7 @@ export def "bp new" [
     --template                     # Create as template for reuse
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
+    --interactive                  # Interactively build JSON data using the type's schema
 ] {
     # Extract parent UUID from piped input if provided
     let piped_input = $in
@@ -67,8 +72,8 @@ export def "bp new" [
     # Resolve type using utility function
     let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
-    # Handle JSON parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     # Build parameters record
     let params = {

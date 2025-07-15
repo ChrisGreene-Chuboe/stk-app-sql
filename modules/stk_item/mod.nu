@@ -33,6 +33,10 @@ Type 'item <tab>' to see available commands.
 #   item new "Shipping Fee" --type-search-key "account" --description "Standard shipping charge"
 #   item new "Software License" --type-uu "123e4567-e89b-12d3-a456-426614174000"
 #   item new "Premium Service" --json '{"features": ["24/7 support", "priority access"]}'
+#   
+#   # Interactive examples:
+#   item new "Cloud Storage" --type-search-key SERVICE --interactive
+#   item new "Premium Support" --interactive --description "24/7 support package"
 #
 # Returns: The UUID and name of the newly created item record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
@@ -43,12 +47,13 @@ export def "item new" [
     --description(-d): string      # Optional description of the item
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
+    --interactive                  # Interactively build JSON data using the type's schema
 ] {
     # Resolve type using utility function
     let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
-    # Handle json parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
