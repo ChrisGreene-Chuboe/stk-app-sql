@@ -347,9 +347,18 @@ export def resolve-type [
         error make {msg: "Specify only one of --type-uu, --type-search-key, or --type-name"}
     }
     
-    # Return null if no type parameters provided
+    # If no type parameters provided, look for default type
     if $type_params == 0 {
-        return null
+        # Look for default type using psql list-types
+        let all_types = (psql list-types $schema $table)
+        let default_types = ($all_types | where is_default == true)
+        
+        if ($default_types | is-empty) {
+            return null
+        }
+        
+        # Return the oldest default type (by created date)
+        return ($default_types | sort-by created | first)
     }
     
     # Resolve and return complete type record
@@ -671,7 +680,6 @@ def interactive-build-json [
     } else {
         # Review and confirm
         print ""
-        print "=== Review ==="
         let required_fields = $required  # Capture for use in closure
         $result 
         | transpose field value 
@@ -690,6 +698,8 @@ def interactive-build-json [
         match $action {
             "accept" => $result
             "edit" => {
+                print ""
+                print "=== Edit ==="
                 interactive-build-json $schema --current $result --type-name $type_name
             }
             "cancel" => {

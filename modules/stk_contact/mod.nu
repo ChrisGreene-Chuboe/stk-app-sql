@@ -36,6 +36,10 @@ Type 'contact <tab>' to see available commands.
 #   contact new "Alice Johnson" --business-partner-uu "123e4567-e89b-12d3-a456-426614174000"
 #   bp list | where name == "Acme Corp" | contact new "Technical Support"
 #   $business_partner | contact new "Sales Representative"
+#   
+#   # Interactive examples:
+#   contact new "Sarah Connor" --type-search-key EMPLOYEE --interactive
+#   bp list | first | contact new "IT Manager" --interactive --description "Main tech contact"
 #
 # Returns: The UUID and name of the newly created contact record
 # Note: Uses chuck-stack conventions for automatic type assignment
@@ -46,6 +50,7 @@ export def "contact new" [
     --description(-d): string      # Optional description of the contact
     --business-partner-uu: string  # Optional business partner UUID
     --json(-j): string             # Optional JSON data to store in record_json field
+    --interactive                  # Interactively build JSON data using the type's schema
 ] {
     # Extract info from piped input if provided
     let extracted = if ($in | is-not-empty) {
@@ -58,8 +63,22 @@ export def "contact new" [
     # Resolve type using utility function
     let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
-    # Handle json parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Handle JSON input - interactive or direct
+    let record_json = if $interactive {
+        # Check that --json wasn't also provided
+        if ($json | is-not-empty) {
+            error make {msg: "Cannot use both --interactive and --json flags"}
+        }
+        # For interactive mode, we need a type record with schema
+        if ($type_record | is-empty) {
+            error make {msg: "Interactive mode requires a type with JSON schema. Use --type-search-key, --type-uu, or ensure a default type exists with a schema."}
+        }
+        # Use interactive JSON builder
+        $type_record | interactive-json
+    } else {
+        # Handle json parameter - validate if provided, default to empty object
+        try { $json | parse-json } catch { error make { msg: $in.msg } }
+    }
     
     # Build parameters record internally - eliminates cascading if/else logic
     mut params = {
