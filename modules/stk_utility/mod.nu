@@ -373,6 +373,63 @@ export def resolve-type [
     }
 }
 
+# Resolve JSON data from --json parameter or --interactive flag with type record
+#
+# PURPOSE: Standardize JSON handling logic across all chuck-stack modules.
+# Handles mutual exclusivity, type validation, and JSON parsing in one line.
+#
+# PARAMETERS:
+# - --json: Direct JSON string parameter value
+# - --interactive: Interactive mode flag value
+# - --type-record: Type record (from resolve-type) - can be null
+#
+# BEHAVIOR:
+# - Validates --json and --interactive are mutually exclusive
+# - For interactive mode: validates type record exists with schema
+# - For direct JSON: parses and validates syntax
+# - Returns empty object "{}" when neither is provided
+#
+# Examples:
+#   # In module implementation (one line replaces 15):
+#   let record_json = (resolve-json --json $json --interactive $interactive --type-record $type_record)
+#   
+#   # With direct JSON
+#   resolve-json --json '{"key": "value"}'
+#   
+#   # With interactive mode
+#   resolve-json --interactive --type-record $type_record
+#   
+#   # With neither (returns "{}")
+#   resolve-json
+#
+# Returns: Valid JSON string ready for database storage
+# Error: If validation fails or parameters are invalid
+export def resolve-json [
+    json_param: any         # Direct JSON string parameter (null if not provided)
+    interactive_flag: bool  # Interactive mode flag value
+    type_record: any        # Type record for interactive mode (null if not provided)
+] {
+    # Check mutual exclusivity
+    if ($json_param != null) and $interactive_flag {
+        error make {msg: "Cannot use both --interactive and --json flags"}
+    }
+    
+    # Handle interactive mode
+    if $interactive_flag {
+        if ($type_record == null) {
+            error make {msg: "Interactive mode requires a type with JSON schema. Use --type-search-key, --type-uu, or ensure a default type exists with a schema."}
+        }
+        # Use interactive JSON builder
+        $type_record | interactive-json
+    } else if ($json_param != null) {
+        # Handle direct JSON - validate syntax
+        try { $json_param | parse-json } catch { error make { msg: $in.msg } }
+    } else {
+        # Neither provided - return empty object
+        "{}"
+    }
+}
+
 export def parse-json [
     --return-parsed  # Return parsed data instead of original string
     --default: string = "{}"  # Default value when input is empty (typically "{}")

@@ -303,35 +303,46 @@ For data enrichment, see:
 
 ### 10. JSON Parameter Pattern
 
-For tables with `record_json` column, provide structured metadata storage:
+For tables with `record_json` column, provide structured metadata storage with both direct and interactive input methods:
 
 ```nushell
 # Parameter definition in creation commands
---json(-j): string  # Optional JSON data to store in record_json field
+--json(-j): string      # Optional JSON data to store in record_json field
+--interactive           # Interactively build JSON data using the type's schema
 ```
 
-**Standard one-line implementation:**
+**Standard implementation with resolve-json utility:**
 ```nushell
-# Handle JSON parameter - validate if provided, default to empty object
-let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+# Resolve type and JSON in two clean lines
+let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
+let record_json = (resolve-json $json $interactive $type_record)
 ```
 
-**How it works:**
-- `parse-json` validates JSON syntax and returns the original string
-- `--default "{}"` returns empty JSON when input is empty
-- `try/catch` passes through validation errors with consistent messaging
-- Result is a JSON string ready for database storage
+**How resolve-json works:**
+- Validates --json and --interactive are mutually exclusive
+- For interactive: Validates type has schema, launches interactive builder
+- For direct JSON: Validates syntax and returns string
+- Returns "{}" when neither is provided
+- Single line replaces 15+ lines of conditional logic
+
+**Interactive mode features:**
+- Guided input based on JSON schema from type record
+- Field validation (required fields, data types, enums)
+- Review before accepting
+- Edit capability to refine data
+- Type-specific prompts and help text
 
 **Reference implementations:**
-- **Simple pattern**: See `stk_tag` `.append tag` command (one-line pattern)
-- **Conditional handling**: See `stk_address` `.append address` for AI vs direct JSON
-- **Validation utility**: See `parse-json` in stk_utility module
+- **Complete pattern**: See `contact new` for full implementation
+- **Interactive flow**: See `interactive-json` in stk_utility module
+- **Type schemas**: See migration files for json_schema definitions in type tables
 
 **Key principles:**
-- One line of code for standard JSON handling
+- Two lines of code handle all JSON scenarios (type + JSON resolution)
+- Support both programmatic (--json) and interactive input
 - Validate JSON syntax before sending to database
 - Let pg_jsonschema handle schema validation
-- Consistent error message: "Invalid JSON format"
+- Consistent error messages across all modules
 - Available for all creation commands (.append, new, add)
 
 ### 11. JSON Column Convention
@@ -376,12 +387,44 @@ Reference: stk_request module for complete implementation.
 
 ### 14. Utility Functions Pattern
 
-Reduce boilerplate with stk_utility functions:
+Utility functions in `stk_utility` reduce boilerplate and standardize common patterns across modules.
+
+**Design Philosophy**:
+- **Internal use**: Utilities are called from module code, not directly by end users
+- **Positional over flags**: For utilities, prefer positional arguments to enable clean one-liners
+- **Trade-offs accepted**: Less self-documenting interfaces are acceptable for internal functions
+- **Consistency**: All modules should use the same utilities for the same patterns
+
+**When to Use Positional Arguments**:
+```nushell
+# Utility functions: Use positional for composability
+let record_json = (resolve-json $json $interactive $type_record)
+
+# End-user commands: Use flags for clarity
+contact new "John" --json '{"email": "john@example.com"}' --interactive
+```
+
+**Current Utility Functions**:
+
+**Type and JSON Resolution**:
+- `resolve-type`: Resolves type record from various parameters or fetches default
+- `resolve-json`: Handles JSON validation and interactive mode in one line
+
+**UUID Extraction**:
 - `extract-single-uu`: UUID extraction with validation from piped input only
 - `extract-uu-with-param`: UUID extraction from piped input OR --uu parameter
+- `extract-uu-table-name`: Extract both UUID and table name with flexible input
 - `extract-attach-from-input`: Attachment data extraction
 
-Reference: stk_request `.append request` for both utilities.
+**Key Principles**:
+- Positional arguments enable single-line usage without conditional branching
+- The "unkindness" of positional arguments is hidden from end users
+- Module developers understand the patterns and parameter order
+- Utilities should handle all validation and error messages consistently
+
+**Reference implementations**:
+- See `resolve-type` and `resolve-json` in stk_utility for positional patterns
+- See `contact new` for one-line utility usage replacing 15+ lines of boilerplate
 
 ### 15. Data Enrichment Pattern
 

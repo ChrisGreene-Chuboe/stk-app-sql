@@ -63,22 +63,8 @@ export def "contact new" [
     # Resolve type using utility function
     let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
-    # Handle JSON input - interactive or direct
-    let record_json = if $interactive {
-        # Check that --json wasn't also provided
-        if ($json | is-not-empty) {
-            error make {msg: "Cannot use both --interactive and --json flags"}
-        }
-        # For interactive mode, we need a type record with schema
-        if ($type_record | is-empty) {
-            error make {msg: "Interactive mode requires a type with JSON schema. Use --type-search-key, --type-uu, or ensure a default type exists with a schema."}
-        }
-        # Use interactive JSON builder
-        $type_record | interactive-json
-    } else {
-        # Handle json parameter - validate if provided, default to empty object
-        try { $json | parse-json } catch { error make { msg: $in.msg } }
-    }
+    # Handle JSON input - one line replaces 15 lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     # Build parameters record internally - eliminates cascading if/else logic
     mut params = {
