@@ -75,18 +75,8 @@ export def ".append tag" [
         }
     }
     
-    # Handle interactive mode vs direct JSON
-    let record_json = if $interactive {
-        # Check that --json wasn't also provided
-        if ($json | is-not-empty) {
-            error make {msg: "Cannot use both --interactive and --json flags"}
-        }
-        # Use interactive JSON builder
-        $type_record | interactive-json
-    } else {
-        # Handle JSON parameter - validate if provided, default to empty object
-        try { $json | parse-json } catch { error make { msg: $in.msg } }
-    }
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     # Get table_name_uu as nushell record
     let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
