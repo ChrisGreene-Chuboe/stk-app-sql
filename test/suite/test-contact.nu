@@ -249,8 +249,15 @@ assert (($bp2_enriched.contacts | length) >= 1) "BP2 should have at least 1 cont
 let enriched_specific = (bp list | where name =~ $"Filter.*($test_suffix)" | contacts name)
 let bp1_specific = ($enriched_specific | where name == $filter_bp1.name | first)
 assert (("name" in ($bp1_specific.contacts.0 | columns))) "Should have name column"
-let first_columns = ($bp1_specific.contacts.0 | columns | first 1)
-assert ($first_columns.0 == "name") "Name should be the first column when specifically requested"
+assert (($bp1_specific.contacts.0 | columns | length) == 1) "Should have ONLY name column when specifically requested"
+assert (($bp1_specific.contacts.0 | columns).0 == "name") "The only column should be 'name'"
+
+# Test contacts enrichment with multiple specific columns
+let enriched_multi = (bp list | where name =~ $"Filter.*($test_suffix)" | contacts name description)
+let bp1_multi = ($enriched_multi | where name == $filter_bp1.name | first)
+assert (($bp1_multi.contacts.0 | columns | length) == 2) "Should have exactly 2 columns when two are requested"
+assert (("name" in ($bp1_multi.contacts.0 | columns))) "Should have name column"
+assert (("description" in ($bp1_multi.contacts.0 | columns))) "Should have description column"
 
 # Test contacts enrichment with --detail
 let enriched_detail = (bp list | where name =~ $"Filter.*($test_suffix)" | contacts --detail)

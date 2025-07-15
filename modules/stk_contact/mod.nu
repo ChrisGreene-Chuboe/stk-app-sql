@@ -322,10 +322,17 @@ export def "contacts" [
         let row_uuid = $row.uu
         
         # Get contacts for this row
-        let contacts = if ($row_uuid != null) and ($row_uuid != "null") {
+        let raw_contacts = if ($row_uuid != null) and ($row_uuid != "null") {
             psql list-records ...$args --where {$fk_column: $row_uuid} --limit 100
         } else {
             []
+        }
+        
+        # Filter to only requested columns if specific columns were requested
+        let contacts = if ($columns | length) > 0 {
+            $raw_contacts | select ...$columns
+        } else {
+            $raw_contacts
         }
         
         $row | insert contacts $contacts
