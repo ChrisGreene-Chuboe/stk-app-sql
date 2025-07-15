@@ -40,6 +40,10 @@ Type 'project <tab>' to see available commands.
 #   project list | where name == "Parent Project" | project new "Sub-project Name"
 #   project list | first | project new "Child Project" --description "Part of parent project"
 #   project new "Data Migration" --json '{"priority": "high", "estimated_hours": 120}'
+#   
+#   # Interactive examples:
+#   project new "Q1 Initiative" --type-search-key INTERNAL --interactive
+#   project new "Client Portal" --interactive --description "New customer portal"
 #
 # Returns: The UUID and name of the newly created project record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
@@ -51,6 +55,7 @@ export def "project new" [
     --template                     # Mark this project as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
+    --interactive                  # Interactively build JSON data using the type's schema
 ] {
     # Handle optional piped parent UUID
     let piped_input = $in
@@ -66,8 +71,8 @@ export def "project new" [
     # Resolve type using utility function
     let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_PROJECT_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
-    # Handle json parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
@@ -250,6 +255,10 @@ export def "project types" [] {
 #   project list | first | project line new "Production Deployment" --type-search-key "MILESTONE" --description "Deploy to production server"
 #   $project_uuid | project line new "Requirements Analysis" --template
 #   $project_uuid | project line new "API Integration" --json '{"estimated_hours": 40, "priority": "high"}'
+#   
+#   # Interactive examples:
+#   $project_uuid | project line new "Phase 1 Deliverable" --type-search-key MILESTONE --interactive
+#   project list | first | project line new "Security Audit" --interactive
 #
 # Returns: The UUID and name of the newly created project line record
 # Note: Uses chuck-stack conventions for automatic entity and type assignment
@@ -261,6 +270,7 @@ export def "project line new" [
     --template                     # Mark this line as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
+    --interactive                  # Interactively build JSON data using the type's schema
 ] {
     # Extract UUID from piped input
     let project_uu = ($in | extract-single-uu --error-msg "Project UUID is required via piped input")
@@ -268,8 +278,8 @@ export def "project line new" [
     # Resolve type using utility function
     let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_PROJECT_LINE_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
-    # Handle json parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
