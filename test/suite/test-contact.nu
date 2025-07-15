@@ -199,4 +199,66 @@ let all_contacts = (contact list | where name =~ $test_suffix)
 assert (($all_contacts | length) >= 5) "Should have created at least 5 contact records"
 # print $"✓ Created ($all_contacts | length) contact records with foreign keys" # COMMENTED OUT
 
+# === Testing contact list filtering and enrichment ===
+# print "=== Testing contact list filtering and enrichment ===" # COMMENTED OUT - uncomment only for debugging
+
+# Create test data for filtering
+let filter_bp1 = (bp new $"Filter Corp($test_suffix)")
+let filter_bp2 = (bp new $"Filter Inc($test_suffix)")
+
+# Create contacts for each business partner
+let filter_contact1_1 = ($filter_bp1 | contact new $"Filter John($test_suffix)")
+let filter_contact1_2 = ($filter_bp1 | contact new $"Filter Jane($test_suffix)")
+let filter_contact2_1 = ($filter_bp2 | contact new $"Filter Bob($test_suffix)")
+
+# Create a contact without business partner
+let filter_orphan = (contact new $"Filter Orphan($test_suffix)")
+
+# Test pipe business partner record to contact list
+let filtered_by_record = ($filter_bp1 | contact list)
+assert (($filtered_by_record | length) >= 2) "Should find at least 2 contacts for BP1"
+assert (($filtered_by_record | all {|c| $c.stk_business_partner_uu == $filter_bp1.uu})) "All contacts should belong to BP1"
+assert (($filtered_by_record | any {|c| $c.name == $filter_contact1_1.name})) "Should find Filter John"
+assert (($filtered_by_record | any {|c| $c.name == $filter_contact1_2.name})) "Should find Filter Jane"
+
+# Test pipe business partner table to contact list
+let filtered_by_table = (bp list | where name == $filter_bp2.name | contact list)
+assert (($filtered_by_table | length) >= 1) "Should find at least 1 contact for BP2"
+assert (($filtered_by_table | all {|c| $c.stk_business_partner_uu == $filter_bp2.uu})) "All contacts should belong to BP2"
+assert (($filtered_by_table | any {|c| $c.name == $filter_contact2_1.name})) "Should find Filter Bob"
+
+# Test contact list without piped input (should return all recent contacts)
+let all_recent_contacts = (contact list)
+assert (($all_recent_contacts | length) > 0) "Should return some contacts"
+
+# === Testing contacts enrichment command ===
+# print "=== Testing contacts enrichment command ===" # COMMENTED OUT - uncomment only for debugging
+
+# Test basic contacts enrichment
+let enriched_bps = (bp list | where name =~ $"Filter.*($test_suffix)" | contacts)
+assert (($enriched_bps | all {|bp| "contacts" in ($bp | columns)})) "All BPs should have contacts column"
+
+# Find our test BPs in the enriched results
+let bp1_enriched = ($enriched_bps | where name == $filter_bp1.name | first)
+let bp2_enriched = ($enriched_bps | where name == $filter_bp2.name | first)
+
+assert (($bp1_enriched.contacts | length) >= 2) "BP1 should have at least 2 contacts"
+assert (($bp2_enriched.contacts | length) >= 1) "BP2 should have at least 1 contact"
+
+# Test contacts enrichment with specific columns
+let enriched_specific = (bp list | where name =~ $"Filter.*($test_suffix)" | contacts name)
+let bp1_specific = ($enriched_specific | where name == $filter_bp1.name | first)
+assert (("name" in ($bp1_specific.contacts.0 | columns))) "Should have name column"
+let first_columns = ($bp1_specific.contacts.0 | columns | first 1)
+assert ($first_columns.0 == "name") "Name should be the first column when specifically requested"
+
+# Test contacts enrichment with --detail
+let enriched_detail = (bp list | where name =~ $"Filter.*($test_suffix)" | contacts --detail)
+let bp1_detail = ($enriched_detail | where name == $filter_bp1.name | first)
+assert (("record_json" in ($bp1_detail.contacts.0 | columns))) "Detail should include all columns"
+
+# Test table without foreign key relationship (should get empty contacts)
+let items_enriched = (item list | first 3 | contacts)
+assert (($items_enriched | all {|item| $item.contacts == []})) "Items should have empty contacts array"
+
 "=== All tests completed successfully ==="

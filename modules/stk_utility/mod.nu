@@ -14,11 +14,17 @@
 # RETURN TYPES:
 # - Single inputs (string/record) → RECORD {uu: string, table_name: string}
 # - Multiple inputs (table/list) → TABLE [{uu: string, table_name: string}, ...]
+# - With --first: Takes only the first record (useful for tables)
+# - With --table: Always returns table format (useful for uniform processing)
+# - With both: Returns a single-row table (first record in table format)
 #
 # WHEN TO USE:
 # - When you need both UUID and table_name for polymorphic operations
 # - For commands that work with multiple chuck-stack tables (links, attachments)
 # - As foundation for other extraction utilities
+# - Use --first when you only want one record from a table
+# - Use --table when you need consistent table format for scripting
+# - Use both when you want a single-row table
 #
 # Examples:
 #   "uuid-string" | extract-uu-table-name
@@ -30,61 +36,86 @@
 #   project list | extract-uu-table-name
 #   # Returns: [{uu: "uuid1", table_name: "stk_project"}, ...]
 #
+#   # Take first record as single record
+#   bp list | extract-uu-table-name --first
+#   # Returns: {uu: "...", table_name: "..."}
+#
+#   # Force table output
+#   "uuid" | extract-uu-table-name --table
+#   # Returns: [{uu: "...", table_name: "..."}]
+#
+#   # Take first record as single-row table
+#   bp list | extract-uu-table-name --first --table
+#   # Returns: [{uu: "...", table_name: "..."}]
+#
 # Error: Empty input, missing 'uu' field, or UUID not found in database
-export def extract-uu-table-name [] {
+export def extract-uu-table-name [
+    --first  # Take only the first record (for tables with multiple rows)
+    --table  # Force table output format
+] {
     let input = $in
     
     if ($input | is-empty) {
         error make { msg: "Input required: must be a UUID string, record with 'uu' field, or table with 'uu' column" }
     }
     
+    # Step 1: Convert to table format quickly (minimal work)
     let input_type = ($input | describe)
+    let as_table = (
+        if $input_type == "string" {
+            # Just wrap string in table - no lookup yet
+            [{uu: $input, table_name: null}]
+        } else if ($input_type | str starts-with "record") {
+            # Just wrap record in table - no validation yet
+            [$input]
+        } else if (($input_type | str starts-with "table") or ($input_type == "list<any>")) {
+            # Already a table - pass through
+            $input
+        } else {
+            error make { msg: $"Input must be a string UUID, record, or table with 'uu' field, got ($input_type)" }
+        }
+    )
     
-    if $input_type == "string" {
-        # String UUID - lookup table_name and return RECORD
-        let record = (psql get-table-name-uu $input)
-        return {uu: $record.uu, table_name: $record.table_name}
-    } else if ($input_type | str starts-with "record") {
-        # Single record - extract uu and optional table_name
-        let uuid = $input.uu?
+    # Step 2: Apply --first early to minimize work
+    let to_process = if $first and ($as_table | length) > 0 {
+        [$as_table.0]
+    } else {
+        $as_table
+    }
+    
+    # Step 3: Validate and process only what we need
+    if ($to_process | length) == 0 {
+        error make { msg: "Table must contain at least one row" }
+    }
+    
+    let processed = ($to_process | each { |row|
+        let uuid = $row.uu?
         if ($uuid | is-empty) {
             error make { msg: "Record must contain 'uu' field" }
         }
-        let table_name = $input.table_name?
         
-        # If table_name is missing, look it up
-        if ($table_name | is-empty) {
+        # Look up table_name only if missing
+        if ($row.table_name? | is-empty) {
             let record = (psql get-table-name-uu $uuid)
-            return {uu: $record.uu, table_name: $record.table_name}
+            {uu: $record.uu, table_name: $record.table_name}
         } else {
-            return {uu: $uuid, table_name: $table_name}
+            {uu: $uuid, table_name: $row.table_name}
         }
-    } else if (($input_type | str starts-with "table") or ($input_type == "list<any>")) {
-        # Table or list<any> - normalize each row
-        # Note: list<any> is common when nushell can't infer table schema, especially
-        # with PostgreSQL results. See: https://github.com/nushell/nushell/discussions/10897
-        if ($input | length) == 0 {
-            error make { msg: "Table must contain at least one row" }
-        }
-        
-        # Process all rows
-        return ($input | each { |row|
-            let uuid = $row.uu?
-            if ($uuid | is-empty) {
-                error make { msg: "Table row must contain 'uu' field" }
-            }
-            let table_name = $row.table_name?
-            
-            # If table_name is missing, look it up
-            if ($table_name | is-empty) {
-                let record = (psql get-table-name-uu $uuid)
-                {uu: $record.uu, table_name: $record.table_name}
-            } else {
-                {uu: $uuid, table_name: $table_name}
-            }
-        })
+    })
+    
+    # Step 4: Determine output format
+    if $table {
+        # Always return as table
+        $processed
+    } else if $first and not $table {
+        # With --first (and no --table), always return single record
+        $processed.0
+    } else if ($processed | length) == 1 and not ($input_type | str starts-with "table") and not ($input_type == "list<any>") {
+        # Return single record if input was scalar and we have one result
+        $processed.0
     } else {
-        error make { msg: $"Input must be a string UUID, record, or table with 'uu' field, got ($input_type)" }
+        # Return as table
+        $processed
     }
 }
 
@@ -124,20 +155,14 @@ export def extract-single-uu [
         return $piped_input
     }
     
-    # For records/tables, use extract-uu-table-name
-    let extracted = ($piped_input | extract-uu-table-name)
+    # For records/tables, use extract-uu-table-name with --first to get single record
+    let extracted = ($piped_input | extract-uu-table-name --first)
     if ($extracted | is-empty) {
         error make { msg: "No valid UUID found in input" }
     }
     
-    # Handle both record and table return types
-    let extracted_type = ($extracted | describe)
-    if ($extracted_type | str starts-with "record") {
-        $extracted.uu
-    } else {
-        # For tables, take the first record's UUID
-        $extracted.0.uu
-    }
+    # Now we always get a single record back
+    $extracted.uu
 }
 
 # Extract attachment data from piped input or --attach parameter (null-safe wrapper)
@@ -182,18 +207,8 @@ export def extract-attach-from-input [
         }
     } else {
         # Wrapper behavior: extract-uu-table-name handles all validation and lookup
-        # The redundant empty check has been removed as extract-uu-table-name
-        # will throw an error if input is invalid
-        let extracted = ($piped_input | extract-uu-table-name)
-        
-        # Handle both record and table return types
-        let extracted_type = ($extracted | describe)
-        if ($extracted_type | str starts-with "record") {
-            $extracted
-        } else {
-            # For tables, take the first record
-            $extracted.0
-        }
+        # Use --first to always get a single record
+        ($piped_input | extract-uu-table-name --first)
     }
 }
 

@@ -49,7 +49,8 @@ export def "contact new" [
 ] {
     # Extract info from piped input if provided
     let extracted = if ($in | is-not-empty) {
-        ($in | extract-uu-table-name)
+        # Use --first since we only need one parent record
+        ($in | extract-uu-table-name --first)
     } else {
         null
     }
@@ -113,7 +114,8 @@ export def "contact list" [
 ] {
     # Extract info from piped input if provided
     let extracted = if ($in | is-not-empty) {
-        ($in | extract-uu-table-name)
+        # Use --first since we only filter by one parent record
+        ($in | extract-uu-table-name --first)
     } else {
         null
     }
