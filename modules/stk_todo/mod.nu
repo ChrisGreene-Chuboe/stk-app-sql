@@ -43,6 +43,10 @@ Type 'todo <tab>' to see available commands.
 #   todo new "Buy groceries" --json '{"due_date": "2024-12-31", "priority": "high"}'
 #   $parent_uuid | todo new "Mow lawn" --description "Front and back yard"
 #   todo new "Work task" --type "work-todo"  # Use specific TODO type
+#   
+#   # Interactive examples:
+#   todo new "Task" --type TODO --interactive
+#   todo new "Project task" --interactive --description "Important task"
 #
 # Returns: The UUID of the newly created todo record
 # Note: When a UUID is provided via pipe, table_name_uu_json is auto-populated to create hierarchy
@@ -50,6 +54,7 @@ export def "todo new" [
     name: string                    # The name of the todo item (required)
     --description(-d): string = ""  # Description of the todo (optional)
     --json(-j): string              # Optional JSON data to store in record_json field
+    --interactive                   # Interactively build JSON data using the type's schema
     --type(-t): string              # Specific TODO type name to use (optional, uses default if not specified)
 ] {
     # Extract parent UUID from piped input (optional for todos)
@@ -59,25 +64,25 @@ export def "todo new" [
         null  # No parent UUID provided
     }
     
-    # Handle json parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Resolve type using utility function with TODO enum constraint
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-name $type --enum $STK_TODO_TYPE_ENUM)
+    
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     # Build parameters for psql new-record
-    mut params = {
-        name: $name,
+    let params = {
+        name: $name
         description: $description
+        type_uu: ($type_record.uu? | default null)
+        record_json: $record_json
     }
     
-    # Add record_json if provided
-    if ($json | is-not-empty) {
-        $params = ($params | merge {record_json: $record_json})
-    }
-    
-    # Use enum-aware psql command with parent UUID piped if available
+    # Use standard psql command with parent UUID piped if available
     if ($parent_uuid | is-empty) {
-        psql new-record $STK_SCHEMA $STK_TABLE_NAME $params --enum $STK_TODO_TYPE_ENUM --type-name $type
+        psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
     } else {
-        $parent_uuid | psql new-record $STK_SCHEMA $STK_TABLE_NAME $params --enum $STK_TODO_TYPE_ENUM --type-name $type
+        $parent_uuid | psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
     }
 }
 

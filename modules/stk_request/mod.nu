@@ -1,9 +1,6 @@
 # STK Request Module
 # This module provides commands for working with stk_request table
 
-# Import utility functions
-use ../stk_utility *
-
 # Module Constants
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_request"
@@ -40,28 +37,40 @@ Type 'request <tab>' to see available commands.
 #   project list | where name == "test" | .append request "review" --description "Review this project"
 #   .append request "profile-update" --description "Update user profile" --attach $user_uuid
 #   .append request "feature-request" --json '{"priority": "medium", "component": "ui"}'
+#   
+#   # Interactive examples:
+#   .append request "feature" --type-search-key FEATURE --interactive
+#   .append request "bug" --interactive --description "Bug report"
 #
 # Returns: The UUID of the newly created request record
 # Note: When a UUID is provided (via pipe or --attach), table_name_uu_json is auto-populated
 export def ".append request" [
     name: string                    # The name/topic of the request (used for categorization and filtering)
     --description(-d): string = ""  # Description of the request (optional)
+    --type-name: string             # Lookup type by name field
+    --type-search-key: string       # Lookup type by search_key field  
+    --type-uu: string               # Lookup type by UUID
     --attach(-a): string           # UUID of record to attach this request to (alternative to piped input)
     --json(-j): string             # Optional JSON data to store in record_json field
+    --interactive                   # Interactively build JSON data using the type's schema
 ] {
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
     
     # Extract attachment data from piped input or --attach parameter
     let attach_data = ($in | extract-attach-from-input $attach)
     
-    # Handle json parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Resolve type using utility function (handles validation and resolution)
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key --type-name $type_name)
+    
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     if ($attach_data | is-empty) {
         # Standalone request - no attachment
         let params = {
             name: $name
             description: $description
+            type_uu: ($type_record.uu? | default null)
             record_json: $record_json
         }
         psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
@@ -80,6 +89,7 @@ export def ".append request" [
         let params = {
             name: $name
             description: $description
+            type_uu: ($type_record.uu? | default null)
             table_name_uu_json: $table_name_uu_json
             record_json: $record_json
         }

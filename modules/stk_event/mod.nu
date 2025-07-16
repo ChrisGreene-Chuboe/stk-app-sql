@@ -38,13 +38,21 @@ Type 'event <tab>' to see available commands.
 #   .append event "system-backup" --description "Database backup completed" --attach $backup_uuid
 #   event list | get uu.0 | .append event "follow-up" --description "Follow up on this event"
 #   .append event "system-error" --description "Critical system failure" --json '{"urgency": "high", "component": "database"}'
+#   
+#   # Interactive examples:
+#   .append event "error" --type-search-key ERROR --interactive
+#   .append event "audit" --interactive --description "Security audit event"
 #
 # Returns: The UUID of the newly created event record
 # Note: When a UUID is provided (via pipe or --attach), table_name_uu_json is auto-populated
 export def ".append event" [
     name: string                    # The name/topic of the event (used for categorization and filtering)
     --description(-d): string = ""  # Description of the event (optional)
+    --type-name: string             # Lookup type by name field
+    --type-search-key: string       # Lookup type by search_key field  
+    --type-uu: string               # Lookup type by UUID
     --json(-j): string              # Optional JSON data to store in record_json field
+    --interactive                   # Interactively build JSON data using the type's schema
     --attach(-a): string           # UUID of record to attach this event to (alternative to piped input)
 ] {
     let table = $"($STK_SCHEMA).($STK_TABLE_NAME)"
@@ -52,14 +60,18 @@ export def ".append event" [
     # Extract attachment data from piped input or --attach parameter
     let attach_data = ($in | extract-attach-from-input $attach)
     
-    # Handle json parameter - validate if provided, default to empty object
-    let record_json = try { $json | parse-json } catch { error make { msg: $in.msg } }
+    # Resolve type using utility function (handles validation and resolution)
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key --type-name $type_name)
+    
+    # Handle JSON input - one line replaces multiple lines of boilerplate
+    let record_json = (resolve-json $json $interactive $type_record)
     
     if ($attach_data | is-empty) {
         # Standalone event - no attachment
         let params = {
             name: $name
             description: $description
+            type_uu: ($type_record.uu? | default null)
             record_json: $record_json
         }
         psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
@@ -79,6 +91,7 @@ export def ".append event" [
         let params = {
             name: $name
             description: $description
+            type_uu: ($type_record.uu? | default null)
             table_name_uu_json: $table_name_uu_json
             record_json: $record_json
         }

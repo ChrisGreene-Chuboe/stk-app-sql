@@ -97,8 +97,9 @@ export def ".append timesheet" [
         description: $description
     }
     
-    # Get the TIMESHEET type UUID
-    let type_uu = (psql get-type $STK_SCHEMA $STK_TABLE_NAME --search-key "TIMESHEET" | get uu)
+    # Resolve type using utility function with TIMESHEET enum constraint
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-search-key "TIMESHEET" --enum $STK_TIMESHEET_TYPE_ENUM)
+    let type_uu = $type_record.uu
     
     # Get table_name_uu for the attachment
     let table_name_uu = if ($attach_data.table_name? | is-not-empty) {
@@ -111,10 +112,10 @@ export def ".append timesheet" [
     
     # Build parameters for event creation
     let params = {
-        name: "timesheet",
-        type_uu: $type_uu,
-        description: $description,
-        record_json: ($timesheet_data | to json),
+        name: "timesheet"
+        type_uu: $type_uu
+        description: $description
+        record_json: ($timesheet_data | to json)
         table_name_uu_json: ($table_name_uu | to json)
     }
     
@@ -168,7 +169,7 @@ export def "timesheet list" [
 #
 # Fetches complete details for a single timesheet entry.
 # Only retrieves records with type_enum = 'TIMESHEET'.
-# Use --detail to include type information.
+# Type information is always included for all timesheets.
 #
 # Accepts piped input:
 #   string - The UUID of the timesheet to retrieve

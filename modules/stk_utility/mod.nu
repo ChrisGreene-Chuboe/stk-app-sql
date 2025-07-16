@@ -293,6 +293,7 @@ export def extract-uu-with-param [
 #
 # PURPOSE: Standardize type resolution logic across all chuck-stack modules.
 # Validates that only one type parameter is provided and returns the complete type record.
+# Supports enum filtering for domain-specific type constraints.
 #
 # PARAMETERS:
 # - --schema: Database schema (e.g., "api")
@@ -300,10 +301,12 @@ export def extract-uu-with-param [
 # - --type-uu: Direct UUID parameter value
 # - --type-search-key: Search key parameter value
 # - --type-name: Name parameter value
+# - --enum: Optional list of allowed type_enum values for filtering/validation
 #
 # VALIDATION:
 # - Errors if more than one type parameter is provided
-# - Returns null if no parameters are provided
+# - Returns null if no parameters are provided and no default type exists
+# - If enum provided, validates resolved type matches allowed values
 #
 # Examples:
 #   # Direct UUID (returns type record)
@@ -315,20 +318,24 @@ export def extract-uu-with-param [
 #   # Name lookup (returns type record)
 #   let type_record = (resolve-type --schema "api" --table "stk_item" --type-name $type_name)
 #   
+#   # Domain wrapper with enum constraint (returns TODO-only types)
+#   let type_record = (resolve-type --schema "api" --table "stk_request" --type-name $type --enum ["TODO"])
+#   
 #   # In module - get just the UUID:
 #   let resolved_type_uu = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key | get uu?)
 #   
 #   # In module - get the full record for interactive features:
 #   let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
 #
-# Returns: Complete type record (with uu, name, type_enum, record_json, etc.) or null
-# Error: If multiple parameters provided or if lookup fails
+# Returns: Complete type record (with uu, name, type_enum, json_schema, etc.) or null
+# Error: If multiple parameters provided, lookup fails, or type doesn't match enum constraint
 export def resolve-type [
     --schema: string        # Database schema (required)
     --table: string         # Table name for type lookup (required)
     --type-uu: string      # Direct type UUID
     --type-search-key: string  # Type search key
     --type-name: string    # Type name
+    --enum: list<string> = []  # Optional type enum constraint(s) for filtering
 ] {
     # Validate required parameters
     if ($schema | is-empty) or ($table | is-empty) {
@@ -347,22 +354,27 @@ export def resolve-type [
         error make {msg: "Specify only one of --type-uu, --type-search-key, or --type-name"}
     }
     
-    # If no type parameters provided, look for default type
+    # If no type parameters provided, look for best available type
     if $type_params == 0 {
-        # Look for default type using psql list-types
-        let all_types = (psql list-types $schema $table)
-        let default_types = ($all_types | where is_default == true)
+        # Get all types, optionally filtered by enum
+        let all_types = if ($enum | length) > 0 {
+            psql list-types $schema $table --enum $enum
+        } else {
+            psql list-types $schema $table
+        }
         
-        if ($default_types | is-empty) {
+        if ($all_types | is-empty) {
             return null
         }
         
-        # Return the oldest default type (by created date)
-        return ($default_types | sort-by created | first)
+        # Sort by is_default DESC (true first), then by created ASC (oldest first)
+        # This ensures we get defaults when available, but still get a type when no defaults exist
+        return ($all_types | sort-by -r is_default created | first)
     }
     
     # Resolve and return complete type record
-    if ($type_name | is-not-empty) {
+    # If enum is specified, we need to validate the result matches the enum
+    let type_record = if ($type_name | is-not-empty) {
         psql get-type $schema $table --name $type_name
     } else if ($type_search_key | is-not-empty) {
         psql get-type $schema $table --search-key $type_search_key
@@ -371,6 +383,15 @@ export def resolve-type [
     } else {
         null
     }
+    
+    # If enum constraint provided, validate the type matches
+    if ($enum | length) > 0 and ($type_record != null) {
+        if ($type_record.type_enum not-in $enum) {
+            error make { msg: $"Type '($type_record.name)' has type_enum '($type_record.type_enum)' which is not in allowed enum [($enum | str join ', ')]" }
+        }
+    }
+    
+    $type_record
 }
 
 # Resolve JSON data from --json parameter or --interactive flag with type record
