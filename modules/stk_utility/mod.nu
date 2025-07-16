@@ -660,7 +660,7 @@ export def tutor-generate [
 #   - When type has no pg_jsonschema defined
 #   - When user cancels the operation
 export def "interactive-json" [
-    --edit: string        # Existing JSON string to edit (optional)
+    --edit: any        # Existing JSON (string or record) to edit (optional)
 ] {
     let type_record = $in
     
@@ -688,8 +688,13 @@ export def "interactive-json" [
     }
     
     # Build or edit JSON interactively
-    let result = if ($edit | is-not-empty) {
-        let current = ($edit | from json)
+    let result = if ($edit != null) {
+        # Handle both string and record inputs
+        let current = if ($edit | describe | str starts-with "string") {
+            $edit | from json
+        } else {
+            $edit  # Already a record
+        }
         interactive-build-json $schema --current $current --type-name $type_name
     } else {
         interactive-build-json $schema --type-name $type_name

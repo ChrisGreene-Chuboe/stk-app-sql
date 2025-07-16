@@ -16,6 +16,7 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
 - [Common Issues](#common-issues)
   - [Permission Denied](#permission-denied)
   - [Module Not Found](#module-not-found)
+  - [Database Results and the .0 Pattern](#database-results-and-the-0-pattern)
   - [NULL Values Returned as Strings](#null-values-returned-as-strings)
   - [Assertion Syntax Error](#assertion-syntax-error)
   - [List Access Error](#list-access-error)
@@ -589,6 +590,41 @@ let result = (command params)  # Error: Command not found
 
 # Solution
 use ../modules *  # Add at top of test
+```
+
+### Database Results and the .0 Pattern
+```nushell
+# CRITICAL: All psql commands return tables, even for single rows!
+
+# Problem
+let contact = (contact new "Test")
+assert ($contact.name == "Test")  # WRONG! contact is a table, not a record
+
+# Solution
+let contact = (contact new "Test")
+assert ($contact.name.0 == "Test")  # Correct - access first row with .0
+
+# Explanation
+The psql exec command uses CSV format which ALWAYS returns a table.
+This means all database operations return tables, requiring .0 to
+access the first (and often only) row. This is by design for consistency.
+
+# Common patterns requiring .0:
+let uuid = ($result.uu.0)                    # Extract UUID from result
+let name = ($result.name.0)                  # Extract name field
+let json = ($result.record_json.0)           # Extract JSON field
+assert ($result.is_revoked.0 == true)        # Check boolean field
+let type_uu = ($result.type_uu.0)           # Extract type UUID
+
+# Exception: When module commands return single records
+# Some high-level module commands convert single-row tables to records
+# internally. Check the command's documentation or test the output type:
+let result_type = ($result | describe)
+if ($result_type | str starts-with "table") {
+    # Use .0 to access fields
+} else {
+    # Direct field access
+}
 ```
 
 ### NULL Values Returned as Strings

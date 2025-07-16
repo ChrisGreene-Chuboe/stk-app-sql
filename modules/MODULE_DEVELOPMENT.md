@@ -27,6 +27,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
   - [15. Data Enrichment Pattern](#15-data-enrichment-pattern)
   - [16. Template Pattern](#16-template-pattern)
   - [17. Foreign Key Pipeline Pattern](#17-foreign-key-pipeline-pattern)
+  - [18. Edit Pattern (Update in CRUD)](#18-edit-pattern-update-in-crud)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -492,7 +493,7 @@ Reference implementation: `bp list` in stk_business_partner/mod.nu
 
 Creates cross-table relationships by piping parent records into creation commands.
 
-**Distinct from Parent-Child (Pattern 9)**: This handles relationships between different tables (e.g., business_partner → contact), not hierarchical same-table relationships.
+**Distinct from Parent-Child Pattern**: This handles relationships between different tables (e.g., business_partner → contact), not hierarchical same-table relationships.
 
 **Implementation approach**:
 1. Extract piped input with `extract-uu-table-name` utility
@@ -507,7 +508,36 @@ Creates cross-table relationships by piping parent records into creation command
 - User-friendly errors instead of PostgreSQL internals
 - Maintains backward compatibility with UUID parameters
 
-**Reference**: See `contact new` in stk_contact/mod.nu for complete implementation including column validation and error handling.
+**Reference**: See `contact new` for complete implementation including column validation and error handling.
+
+### 18. Edit Pattern (Update in CRUD)
+
+Provides update capability for existing records, focusing on modifying specific fields while preserving others.
+
+**Implementation approach**:
+1. Extract UUID from piped input or `--uu` parameter
+2. Fetch existing record with `psql get-record`
+3. Validate record exists (handle empty results gracefully)
+4. Update specific fields based on mode:
+   - Direct update with `--json` parameter
+   - Interactive update with `--interactive` flag
+5. Execute UPDATE via `psql exec`
+6. Return complete updated record
+
+**Key design decisions**:
+- Start with single field updates (e.g., `record_json` only)
+- Use `edit` command name (shorter and clearer than `update`)
+- Support both programmatic and interactive modes
+- Validate inputs before database operations
+- Return full record for verification
+
+**Interactive mode integration**:
+- Leverage existing `interactive-json --edit` functionality
+- Show current values during editing
+- Type-aware with JSON schema validation
+- Consistent with creation patterns
+
+**Reference**: See `contact edit` for implementation with JSON field updates.
 
 ## Implementation Guide
 
@@ -549,6 +579,11 @@ Examine your table structure to determine which patterns to implement:
 - `revoke` - Soft delete record
 
 **Pattern-Specific Commands:**
+
+**Edit Pattern** adds:
+- `edit` - Update existing records
+- Support for `--json` and/or `--interactive` modes
+- Focus on specific fields (often `record_json` first)
 
 **Type Support** adds:
 - `types` command to list available types
@@ -673,7 +708,7 @@ Focus on:
 - **`stk_tag`** - Uses new one-line `parse-json` pattern for `--json` parameter ✓
 - **`stk_item`** - Clean single-table module with `--json` parameter ✓
 - **`stk_project`** - Complete header-line pattern with `--json` for both header and lines ✓
-- **`stk_contact`** - Foreign key pipeline pattern with column validation (Pattern 17) ✓
+- **`stk_contact`** - Foreign key pipeline pattern with column validation, Edit pattern ✓
 - **`stk_event`** - Specialized attachment patterns with `--json` parameter ✓
 - **`stk_request`** - Uses `--json` with direct SQL construction ✓
 - **`stk_todo`** - Domain wrapper with `--json` parameter ✓
@@ -720,5 +755,6 @@ UUID extraction patterns:
 - **Prioritize references over examples**: If there is existing code that serves as an example, provide the search term to find the code
 - **Avoid line numbers**: Use searchable string references (e.g., "see Parameters Record Pattern")
 - **Avoid direct file references**: use searchable string references instead
+- **Avoid pattern numbers**: Reference patterns by name only as sections may be reordered
 - **Current patterns only**: Remove historical context and deprecated approaches
 - **Maintain TOC**: Update table of contents when adding or removing major sections

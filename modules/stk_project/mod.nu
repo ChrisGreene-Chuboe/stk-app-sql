@@ -164,14 +164,7 @@ export def "project get" [
     --uu: string  # UUID as a parameter instead of piped input
 ] {
     # Extract UUID from piped input or --uu parameter
-    let uu = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let uu = ($in | extract-uu-with-param $uu)
     
     psql get-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $STK_PROJECT_COLUMNS $uu
 }
@@ -202,14 +195,7 @@ export def "project revoke" [
     --uu: string  # UUID as a parameter instead of piped input
 ] {
     # Extract UUID from piped input or --uu parameter
-    let target_uuid = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let target_uuid = ($in | extract-uu-with-param $uu)
     
     psql revoke-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $target_uuid
 }
@@ -399,30 +385,10 @@ export def "project line get" [
 export def "project line revoke" [
     --uu: string  # UUID as a parameter instead of piped input
 ] {
-    let input_data = if ($uu | is-not-empty) {
-        $uu
-    } else {
-        $in
-    }
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = ($in | extract-uu-with-param $uu)
     
-    if ($input_data | is-empty) {
-        error make { msg: "UUID required via --uu parameter or piped input" }
-    }
-    
-    # Handle both single UUID (string) and multiple UUIDs (list)
-    let data_type = ($input_data | describe)
-    if $data_type == "string" {
-        psql revoke-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $input_data
-    } else if $data_type =~ "list" {
-        $input_data | each { |uuid| 
-            psql revoke-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $uuid
-        }
-    } else if $data_type =~ "record" or $data_type =~ "table" {
-        let uuid = ($input_data | extract-single-uu)
-        psql revoke-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $uuid
-    } else {
-        error make { msg: "Input must be a string UUID, list of UUIDs, record, or table" }
-    }
+    psql revoke-record $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $target_uuid
 }
 
 

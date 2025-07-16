@@ -172,14 +172,7 @@ export def "contact get" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let uu = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let uu = ($in | extract-uu-with-param $uu)
     
     psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_CONTACT_COLUMNS $uu
 }
@@ -209,14 +202,7 @@ export def "contact revoke" [
     --uu: string  # UUID as parameter (alternative to piped input)
 ] {
     # Extract UUID from piped input or --uu parameter
-    let target_uuid = if ($in | is-empty) {
-        if ($uu | is-empty) {
-            error make { msg: "UUID required via piped input or --uu parameter" }
-        }
-        $uu
-    } else {
-        ($in | extract-single-uu)
-    }
+    let target_uuid = ($in | extract-uu-with-param $uu)
     
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid
 }
@@ -239,6 +225,79 @@ export def "contact revoke" [
 # Note: Uses the generic psql list-types command for consistency across chuck-stack
 export def "contact types" [] {
     psql list-types $STK_SCHEMA $STK_TABLE_NAME
+}
+
+# Edit a contact's JSON data interactively or programmatically
+#
+# Modifies the record_json field of an existing contact. This command supports
+# both direct JSON replacement and interactive editing based on the contact's
+# type schema. The interactive mode shows current values and allows selective updates.
+#
+# Accepts piped input:
+#   string - The UUID of the contact to edit (required via pipe or --uu parameter)
+#   record - Record with 'uu' field to edit
+#   table - Table of records, uses first row's 'uu' field
+#
+# Examples:
+#   # Interactive editing with schema guidance
+#   contact list | where name == "John Smith" | contact edit --interactive
+#   contact edit --uu $uuid --interactive
+#   
+#   # Direct JSON replacement
+#   contact edit --uu $uuid --json '{"email": "newemail@example.com"}'
+#   $contact_uuid | contact edit --json '{"phone": "555-9999"}'
+#   
+#   # Pipeline from list
+#   contact list | first | contact edit --interactive
+#
+# Returns: The updated contact record with all fields
+# Error: Fails if contact not found or JSON is invalid
+export def "contact edit" [
+    --uu: string              # UUID as parameter (alternative to piped input)
+    --json(-j): string        # Direct JSON replacement
+    --interactive             # Interactively edit JSON data using the type's schema
+] {
+    # Extract UUID from piped input or --uu parameter
+    let target_uuid = ($in | extract-uu-with-param $uu)
+    
+    # Get the current record
+    let current = (psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_CONTACT_COLUMNS $target_uuid)
+    
+    if ($current | is-empty) {
+        error make {msg: "Contact not found"}
+    }
+    
+    # Validate parameters
+    if ($json != null) and $interactive {
+        error make {msg: "Cannot use both --interactive and --json flags"}
+    }
+    
+    if ($json == null) and (not $interactive) {
+        error make {msg: "Must specify either --json or --interactive"}
+    }
+    
+    # Get type information for interactive mode
+    let type_record = if $interactive {
+        psql get-type $STK_SCHEMA $STK_TABLE_NAME --uu $current.type_uu
+    } else {
+        null
+    }
+    
+    # Determine new JSON content
+    let new_json = if $interactive {
+        # Use existing interactive-json with --edit parameter
+        $type_record | interactive-json --edit $current.record_json
+    } else {
+        # Direct JSON replacement - validate syntax
+        try { $json | parse-json } catch { error make { msg: $in.msg } }
+    }
+    
+    # Update the record
+    let sql = $"UPDATE ($STK_SCHEMA).($STK_TABLE_NAME) SET record_json = '($new_json)'::jsonb WHERE uu = '($target_uuid)'"
+    psql exec $sql
+    
+    # Return updated record
+    psql get-record $STK_SCHEMA $STK_TABLE_NAME $STK_CONTACT_COLUMNS $target_uuid
 }
 
 # Add contact data to records via foreign key relationship

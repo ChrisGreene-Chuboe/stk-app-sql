@@ -268,4 +268,121 @@ assert (("record_json" in ($bp1_detail.contacts.0 | columns))) "Detail should in
 let items_enriched = (item list | first 3 | contacts)
 assert (($items_enriched | all {|item| $item.contacts == []})) "Items should have empty contacts array"
 
+# === Testing contact edit with --json ===
+# print "=== Testing contact edit with --json ===" # COMMENTED OUT - uncomment only for debugging
+
+# Create a test contact first
+let edit_contact_name = $"Edit Contact($test_suffix)"
+let initial_contact = (contact new $edit_contact_name --json '{"email": "old@example.com", "phone": "555-1111"}')
+assert (($initial_contact | columns | any {|col| $col == "uu"})) "Contact creation should return UUID"
+assert (($initial_contact.uu | is-not-empty)) "Contact UUID should not be empty"
+
+# Get the contact UUID
+let contact_uuid = ($initial_contact.uu)
+
+# Edit the contact with new JSON data
+let updated_contact = ($contact_uuid | contact edit --json '{"email": "new@example.com", "phone": "555-2222", "department": "IT"}')
+assert (($updated_contact | columns | any {|col| $col == "record_json"})) "Updated contact should have record_json"
+assert (($updated_contact.name == $edit_contact_name)) "Contact name should remain unchanged"
+
+# Verify the JSON was updated
+let updated_json = ($updated_contact.record_json)
+assert (($updated_json.email == "new@example.com")) "Email should be updated"
+assert (($updated_json.phone == "555-2222")) "Phone should be updated"
+assert (($updated_json.department == "IT")) "New field should be added"
+assert ((not ("old@example.com" in ($updated_json | values)))) "Old email should not exist"
+
+# === Testing contact edit with UUID parameter ===
+# print "=== Testing contact edit with UUID parameter ===" # COMMENTED OUT - uncomment only for debugging
+
+let param_contact = (contact new $"Param Edit Contact($test_suffix)" --json '{"status": "active"}')
+let param_uuid = ($param_contact.uu)
+
+# Edit using --uu parameter
+let param_updated = (contact edit --uu $param_uuid --json '{"status": "inactive", "notes": "Updated via parameter"}')
+assert (($param_updated.record_json.status == "inactive")) "Status should be updated"
+assert (($param_updated.record_json.notes == "Updated via parameter")) "Notes should be added"
+
+# === Testing contact edit from list pipeline ===
+# print "=== Testing contact edit from list pipeline ===" # COMMENTED OUT - uncomment only for debugging
+
+let pipeline_contact = (contact new $"Pipeline Edit Contact($test_suffix)" --json '{"level": 1}')
+
+# Edit using pipeline from list
+let pipeline_updated = (contact list | where name == $"Pipeline Edit Contact($test_suffix)" | get 0 | contact edit --json '{"level": 2, "upgraded": true}')
+assert (($pipeline_updated.record_json.level == 2)) "Level should be updated via pipeline"
+assert (($pipeline_updated.record_json.upgraded == true)) "Upgraded flag should be added"
+
+# === Testing contact edit error cases ===
+# print "=== Testing contact edit error cases ===" # COMMENTED OUT - uncomment only for debugging
+
+# Test non-existent UUID
+let fake_uuid = "12345678-1234-5678-1234-567812345678"
+try {
+    $fake_uuid | contact edit --json '{"test": "data"}'
+    assert false "Should have thrown error for non-existent contact"
+} catch { |err|
+    assert (($err.msg | str contains "not found") or ($err.msg | str contains "empty")) "Should show appropriate error"
+}
+
+# Test invalid JSON
+try {
+    $contact_uuid | contact edit --json '{invalid json}'
+    assert false "Should have thrown error for invalid JSON"
+} catch { |err|
+    assert (($err.msg | str contains "Invalid JSON format")) "Should show JSON format error"
+}
+
+# Test both flags together
+try {
+    $contact_uuid | contact edit --json '{"test": "data"}' --interactive
+    assert false "Should have thrown error for both flags"
+} catch { |err|
+    assert (($err.msg | str contains "Cannot use both")) "Should show mutual exclusivity error"
+}
+
+# Test no flags
+try {
+    $contact_uuid | contact edit
+    assert false "Should have thrown error for no flags"
+} catch { |err|
+    assert (($err.msg | str contains "Must specify either")) "Should require at least one flag"
+}
+
+# === Testing complex JSON updates ===
+# print "=== Testing complex JSON updates ===" # COMMENTED OUT - uncomment only for debugging
+
+let complex_contact = (contact new $"Complex Edit Contact($test_suffix)" --json '{"simple": "value"}')
+let complex_uuid = ($complex_contact.uu)
+
+# Update with complex nested JSON
+let complex_json = '{
+  "contact_info": {
+    "primary": {"email": "primary@example.com", "phone": "555-0001"},
+    "secondary": {"email": "secondary@example.com", "phone": "555-0002"}
+  },
+  "preferences": {
+    "communication": ["email", "sms"],
+    "timezone": "PST"
+  },
+  "tags": ["vip", "technical", "decision-maker"]
+}'
+
+let complex_updated = ($complex_uuid | contact edit --json $complex_json)
+let complex_result = ($complex_updated.record_json)
+
+assert (($complex_result.contact_info.primary.email == "primary@example.com")) "Nested primary email should be correct"
+assert (($complex_result.preferences.communication | length) == 2) "Communication preferences should have 2 items"
+assert (($complex_result.tags | any {|t| $t == "vip"})) "Tags should include vip"
+
+# === Testing empty JSON replacement ===
+# print "=== Testing empty JSON replacement ===" # COMMENTED OUT - uncomment only for debugging
+
+let empty_contact = (contact new $"Empty Edit Contact($test_suffix)" --json '{"will": "be", "replaced": "soon"}')
+let empty_uuid = ($empty_contact.uu)
+
+# Replace with empty JSON
+let empty_updated = ($empty_uuid | contact edit --json '{}')
+assert (($empty_updated.record_json == {})) "JSON should be empty object after update"
+
 "=== All tests completed successfully ==="
