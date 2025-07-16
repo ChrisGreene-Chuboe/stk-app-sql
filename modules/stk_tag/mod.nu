@@ -237,6 +237,7 @@ export def "tag types" [] {
 export def tags [
     ...columns: string  # Specific columns to include in tag records
     --detail(-d)        # Include all columns (select *)
+    --all(-a)           # Include revoked tags
 ] {
-    $in | psql append-table-name-uu-json "stk_tag" "tags" ["record_json", "name", "description", "search_key"] ...$columns --detail=$detail
+    $in | psql append-table-name-uu-json $STK_SCHEMA $STK_TABLE_NAME "tags" $STK_TAG_COLUMNS ...$columns --detail=$detail --all=$all
 }

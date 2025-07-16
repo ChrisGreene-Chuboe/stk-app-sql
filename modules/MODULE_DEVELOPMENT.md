@@ -429,29 +429,40 @@ contact new "John" --json '{"email": "john@example.com"}' --interactive
 
 ### 15. Data Enrichment Pattern
 
-Chuck-stack provides data enrichment through pipeline commands that add columns containing related records.
+Chuck-stack enriches records through pipeline commands that add columns containing related data. Two utilities handle different relationship types.
 
-#### Generic Commands (stk_psql)
-- `lines` - Adds header-line data (see `lines --help` for examples)
-- `children` - Adds parent-child data (see `children --help` for examples)
-- `psql append-table-name-uu-json` - Generic pattern for module-specific enrichment
+#### Polymorphic References (table_name_uu_json)
+**Utility**: `psql append-table-name-uu-json`
+- Finds records that **point TO** the input records
+- The enriching table has a `table_name_uu_json` column that can reference any table
+- Example: "Find all tags attached to this project"
+- Query pattern: `WHERE table_name_uu_json = {table_name: "stk_project", uu: "..."}`
+- Module wrappers: `tags`, `events`, `requests`
 
-#### Module-Specific Commands
-Modules wrap the generic pattern:
-- `tags` in stk_tag
-- `events` in stk_event
-- `requests` in stk_request
+#### Traditional Foreign Keys
+**Utility**: `psql append-foreign-key`  
+- Finds records that **reference** the input via specific FK column
+- The enriching table has dedicated FK columns (e.g., `stk_business_partner_uu`)
+- Example: "Find all contacts belonging to this business partner"
+- Query pattern: `WHERE stk_business_partner_uu = "..."`
+- FK column is dynamically determined from input table name
+- Module wrapper: `contacts`
 
-#### Key Principles
-- Graceful degradation (empty arrays for unsupported patterns)
-- Consistent column selection: default, specific columns via variadic params, or --detail
-- Pipeline composability
-- Automatic capability detection
-- Use `--all` flag to include revoked records (consistent with list commands)
+#### Built-in Enrichments
+Generic commands for structural relationships:
+- `lines` - Header-line pattern (`_line` tables)
+- `children` - Parent-child relationships
+- `elaborate` - Inline FK resolution
 
-Reference implementations:
-- `lines` command in stk_psql/mod.nu (correct pattern: --detail for columns, --all for revoked)
-- `tags` command in stk_tag/mod.nu (module wrapper pattern)
+#### Implementation
+Modules create one-line wrappers:
+```nushell
+export def tags [...columns: string --detail(-d) --all(-a)] {
+    $in | psql append-table-name-uu-json $STK_SCHEMA $STK_TABLE_NAME "tags" $STK_TAG_COLUMNS ...$columns --detail=$detail --all=$all
+}
+```
+
+Reference: Search for `psql append-table-name-uu-json` and `psql append-foreign-key` commands
 
 ### 16. Template Pattern
 

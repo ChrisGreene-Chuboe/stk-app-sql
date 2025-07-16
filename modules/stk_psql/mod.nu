@@ -1297,17 +1297,21 @@ export def children [
 # }
 #
 # Parameters:
+# - schema: The database schema (e.g., "api")
 # - table: The table name to query (e.g., "stk_tag", "stk_request")
 # - column: The column name to add to results (e.g., "tags", "requests")
 # - default_columns: List of columns to return by default when no columns specified
 # - ...columns: User-specified columns to return
 # - --detail: Return all columns from the related records
+# - --all: Include revoked records (by default only active records are returned)
 export def "psql append-table-name-uu-json" [
+    schema: string              # Database schema (e.g., "api")
     table: string               # Table to query for related records
     column: string              # Name of column to add to results
     default_columns: list       # Default columns when none specified
     ...columns: string          # Specific columns to include
     --detail(-d)                # Include all columns (select *)
+    --all(-a)                   # Include revoked records
 ] {
     let input = $in
     
@@ -1337,8 +1341,11 @@ export def "psql append-table-name-uu-json" [
                 $columns | str join ", "
             }
             
-            # Query for related records using standard is_revoked pattern
-            let query = $"SELECT ($select_clause) FROM api.($table) WHERE table_name_uu_json = '($table_name_uu_json)' AND is_revoked = false ORDER BY created"
+            # Build WHERE clause with optional revoked filter
+            let revoked_clause = if $all { "" } else { " AND is_revoked = false" }
+            
+            # Query for related records
+            let query = $"SELECT ($select_clause) FROM ($schema).($table) WHERE table_name_uu_json = '($table_name_uu_json)'($revoked_clause) ORDER BY created"
             let data = (psql exec $query)
             
             # If no columns specified and not --detail, filter to default columns
@@ -1364,6 +1371,142 @@ export def "psql append-table-name-uu-json" [
     }
     
     $result
+}
+
+# Generic command to append foreign key referenced records to input
+#
+# This utility handles the common pattern of enriching records with data from tables
+# that reference them through foreign key columns. Unlike table_name_uu_json pattern,
+# this works with traditional foreign keys like stk_business_partner_uu.
+#
+# How it works:
+# 1. Determines the source table from input records
+# 2. Builds the foreign key column name (e.g., "stk_business_partner_uu")
+# 3. Checks if that FK column exists in the target table
+# 4. Queries for all records where FK matches input UUIDs
+# 5. Adds results as a new column to input records
+#
+# Common use cases:
+# - contacts: Find all contacts for a business partner
+# - addresses: Find all addresses for a contact
+# - Any table with standard FK references
+#
+# Examples (when wrapped by module commands):
+# # From stk_contact module
+# export def contacts [...columns: string --detail --all] {
+#     $in | psql append-foreign-key $STK_SCHEMA $STK_TABLE_NAME "contacts" $STK_CONTACT_COLUMNS ...$columns --detail=$detail --all=$all
+# }
+#
+# Parameters:
+# - schema: The database schema (e.g., "api")
+# - table: The table name to query (e.g., "stk_contact")
+# - column: The column name to add to results (e.g., "contacts")
+# - default_columns: List of columns to return by default when no columns specified
+# - ...columns: User-specified columns to return
+# - --detail: Return all columns from the related records
+# - --all: Include revoked records (by default only active records are returned)
+export def "psql append-foreign-key" [
+    schema: string              # Database schema (e.g., "api")
+    table: string               # Table to query for related records
+    column: string              # Name of column to add to results
+    default_columns: list       # Default columns when none specified
+    ...columns: string          # Specific columns to include
+    --detail(-d)                # Include all columns (select *)
+    --all(-a)                   # Include revoked records
+] {
+    let input = $in
+    
+    # Return empty if no input
+    if ($input | is-empty) {
+        return []
+    }
+    
+    # Normalize input - convert single record to table
+    let normalized_input = if ($input | describe | str starts-with "record") {
+        [$input]
+    } else {
+        $input
+    }
+    
+    # Get the first row to determine table structure
+    let first_row = ($normalized_input | first)
+    
+    # Extract table_name from the first UUID we find
+    let table_info = if ("uu" in ($first_row | columns)) and ($first_row.uu != null) {
+        try {
+            psql get-table-name-uu $first_row.uu
+        } catch {
+            null
+        }
+    } else {
+        null
+    }
+    
+    if ($table_info == null) {
+        # Can't determine table, return input unchanged
+        return ($input | insert $column [])
+    }
+    
+    # Build foreign key column name
+    let fk_column = $"($table_info.table_name)_uu"
+    
+    # Check if target table has this foreign key
+    if not (column-exists $fk_column $table) {
+        # No relationship exists, return input unchanged with empty array
+        return ($input | insert $column [])
+    }
+    
+    # Process each record
+    let result = $normalized_input | each { |record|
+        let record_uu = $record.uu
+        
+        if ($record_uu == null) or ($record_uu == "null") or ($record_uu == "") {
+            return $record | insert $column []
+        }
+        
+        try {
+            # Build SELECT clause based on user input
+            let select_clause = if ($columns | is-empty) {
+                "*"
+            } else {
+                $columns | str join ", "
+            }
+            
+            # Build WHERE clause with optional revoked filter
+            let revoked_clause = if $all { "" } else { " AND is_revoked = false" }
+            
+            # Query for related records
+            let query = $"SELECT ($select_clause) FROM ($schema).($table) WHERE ($fk_column) = '($record_uu)'($revoked_clause) ORDER BY created"
+            let data = (psql exec $query)
+            
+            # If no columns specified and not --detail, filter to default columns
+            let final_data = if (not $detail) and ($columns | is-empty) and (not ($data | is-empty)) {
+                let available_columns = ($data | columns)
+                let cols_to_keep = $default_columns | where { |col| $col in $available_columns }
+                
+                if ($cols_to_keep | is-empty) {
+                    $data
+                } else {
+                    $data | select ...$cols_to_keep
+                }
+            } else {
+                $data
+            }
+            
+            # Add column with fetched data
+            $record | insert $column $final_data
+        } catch {
+            # Error occurred, return error object
+            $record | insert $column { error: $"Failed to fetch ($column) for ($table_info.table_name):($record_uu): ($in)" }
+        }
+    }
+    
+    # Return in the same format as input
+    if ($input | describe | str starts-with "record") {
+        $result | first  # Return single record if input was a record
+    } else {
+        $result  # Return table if input was a table
+    }
 }
 
 # Add links data to records (for use in pipelines)

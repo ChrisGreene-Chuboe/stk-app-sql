@@ -245,8 +245,9 @@ export def "event types" [] {
 export def events [
     ...columns: string  # Specific columns to include in event records
     --detail(-d)        # Include all columns (select *)
+    --all(-a)           # Include revoked events
 ] {
-    $in | psql append-table-name-uu-json "stk_event" "events" ["record_json", "name", "description", "search_key"] ...$columns --detail=$detail
+    $in | psql append-table-name-uu-json $STK_SCHEMA $STK_TABLE_NAME "events" $STK_EVENT_COLUMNS ...$columns --detail=$detail --all=$all
 }
 
 

@@ -266,6 +266,7 @@ export def "request types" [] {
 export def requests [
     ...columns: string  # Specific columns to include in request records
     --detail(-d)        # Include all columns (select *)
+    --all(-a)           # Include revoked requests
 ] {
-    $in | psql append-table-name-uu-json "stk_request" "requests" ["record_json", "name", "description", "search_key"] ...$columns --detail=$detail
+    $in | psql append-table-name-uu-json $STK_SCHEMA $STK_TABLE_NAME "requests" $STK_REQUEST_COLUMNS ...$columns --detail=$detail --all=$all
 }
