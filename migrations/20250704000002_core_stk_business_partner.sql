@@ -7,7 +7,7 @@ CREATE TYPE private.stk_business_partner_type_enum AS ENUM (
     'INDIVIDUAL',    -- Person
     'GROUP'          -- Group of related entities
 );
-COMMENT ON TYPE private.stk_business_partner_type_enum IS 'Enum used in code to automate and validate business partner types. This defines the entity structure, not the business role.';
+COMMENT ON TYPE private.stk_business_partner_type_enum IS 'Enum used in code to automate and validate business partner types. This defines the legal entity structure, not the business role.';
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, record_json) VALUES
 ('stk_business_partner_type_enum', 'ORGANIZATION', 'Company, corporation, or other legal entity', true, 
@@ -135,11 +135,15 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
+                "payment_terms": {"type": "string", "default": "Net 30", "description": "Payment terms offered to customer"},
                 "payment_terms_days": {"type": "integer", "default": 30},
+                "payment_method": {"type": "string", "description": "Customer preferred payment method"},
                 "credit_limit": {"type": "number", "default": 50000},
-                "currency": {"type": "string", "default": "USD"},
+                "currency": {"type": "string", "default": "USD", "minLength": 3, "maxLength": 3},
                 "price_list": {"type": "string", "default": "STANDARD"},
-                "discount_percent": {"type": "number", "default": 0, "minimum": 0, "maximum": 100}
+                "discount_percent": {"type": "number", "default": 0, "minimum": 0, "maximum": 100},
+                "tax_exempt": {"type": "boolean", "default": false},
+                "tax_id": {"type": "string", "description": "Customer tax identification number"}
             }
         }
     }'::jsonb),
@@ -149,11 +153,15 @@ INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, re
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
             "properties": {
+                "payment_terms": {"type": "string", "default": "Net 45", "description": "Vendor payment terms to us"},
                 "payment_terms_days": {"type": "integer", "default": 45},
-                "currency": {"type": "string", "default": "USD"},
+                "payment_method": {"type": "string", "description": "How we pay this vendor"},
+                "our_account_number": {"type": "string", "description": "Our account number with vendor"},
+                "currency": {"type": "string", "default": "USD", "minLength": 3, "maxLength": 3},
                 "vendor_category": {"type": "string"},
                 "preferred_vendor": {"type": "boolean", "default": false},
-                "min_order_amount": {"type": "number", "default": 0}
+                "min_order_amount": {"type": "number", "default": 0},
+                "tax_id": {"type": "string", "description": "Vendor tax identification number"}
             }
         }
     }'::jsonb),

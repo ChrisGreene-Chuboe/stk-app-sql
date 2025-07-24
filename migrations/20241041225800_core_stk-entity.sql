@@ -9,9 +9,22 @@ CREATE TYPE private.stk_entity_type_enum AS ENUM (
 );
 COMMENT ON TYPE private.stk_entity_type_enum IS 'Enum used in code to automate and validate entity types.';
 
-INSERT INTO private.enum_comment (enum_type, enum_value, comment) VALUES --do not want default since session/contenxt should set this value
-('stk_entity_type_enum', '*', 'General purpose non-transactional entity'),
-('stk_entity_type_enum', 'TRX', 'Transactional entity that supports financial entries')
+INSERT INTO private.enum_comment (enum_type, enum_value, comment, record_json) VALUES --do not want default since session/contenxt should set this value
+('stk_entity_type_enum', '*', 'General purpose non-transactional entity', '{}'::jsonb),
+('stk_entity_type_enum', 'TRX', 'Transactional entity that supports financial entries',
+    '{"json_schema": {
+        "type": "object",
+        "properties": {
+            "legal_name": {"type": "string", "description": "Legal entity name for invoicing"},
+            "tax_id": {"type": "string", "description": "Tax identification number"},
+            "registration_number": {"type": "string", "description": "Business registration number"},
+            "website": {"type": "string", "format": "uri", "description": "Company website"},
+            "email": {"type": "string", "format": "email", "description": "Primary contact email"},
+            "phone": {"type": "string", "description": "Primary contact phone"},
+            "currency": {"type": "string", "default": "USD", "minLength": 3, "maxLength": 3, "description": "Default currency code (ISO 4217)"}
+        },
+        "required": ["legal_name", "currency"]
+    }}'::jsonb)
 ;
 
 CREATE TABLE private.stk_entity_type (
