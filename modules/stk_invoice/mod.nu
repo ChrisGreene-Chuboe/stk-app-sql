@@ -6,7 +6,7 @@ const STK_SCHEMA = "api"
 const STK_INVOICE_TABLE_NAME = "stk_invoice"
 const STK_INVOICE_LINE_TABLE_NAME = "stk_invoice_line"
 const STK_INVOICE_COLUMNS = [search_key, description, is_template, is_valid, record_json]
-const STK_INVOICE_LINE_COLUMNS = [search_key, description, is_template, is_valid, record_json]
+const STK_INVOICE_LINE_COLUMNS = [search_key, description, is_valid, record_json]
 
 # Invoice module overview
 export def "invoice" [] {
@@ -247,8 +247,6 @@ export def "invoice line new" [
     --type-uu: string              # Type UUID (use 'invoice line types' to find UUIDs)
     --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the line
-    --template                     # Mark this line as a template
-    --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
     --interactive                  # Interactively build JSON data using the type's schema
 ] {
@@ -266,8 +264,6 @@ export def "invoice line new" [
         search_key: $search_key
         type_uu: ($type_record.uu? | default null)
         description: ($description | default null)
-        is_template: ($template | default false)
-        stk_entity_uu: ($entity_uu | default null)
         record_json: $record_json  # Already a JSON string from resolve-json
     }
     
@@ -289,13 +285,12 @@ export def "invoice line new" [
 # Examples:
 #   $invoice_uuid | invoice line list
 #   invoice list | where search_key == "INV-2024-001" | invoice line list
-#   invoice list | first | invoice line list | where is_template == false
 #   $invoice_uuid | invoice line list | select name description | table
 #   $invoice_uuid | invoice line list | where search_key =~ "LINE"
 #   $invoice_uuid | invoice line list | elaborate  # Resolve all UUID references
 #   $invoice_uuid | invoice line list | elaborate | get type_uu_resolved  # See line type details
 #
-# Returns: search_key, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
+# Returns: search_key, description, is_valid, created, updated, is_revoked, uu, table_name
 # Note: By default shows only active lines, use --all to include revoked
 export def "invoice line list" [
     --all(-a)  # Include revoked invoice lines
@@ -334,7 +329,7 @@ export def "invoice line list" [
 #   invoice line get --uu "12345678-1234-5678-9012-123456789abc"
 #   invoice line get --uu $my_line_uuid
 #
-# Returns: search_key, description, is_template, is_valid, created, updated, is_revoked, uu, type_enum, type_name, and other type information
+# Returns: search_key, description, is_valid, created, updated, is_revoked, uu, type_enum, type_name, and other type information
 # Error: Returns empty result if UUID doesn't exist
 export def "invoice line get" [
     --uu: string  # UUID as a parameter instead of piped input
