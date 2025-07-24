@@ -47,3 +47,6 @@ export use stk_contact *
 
 # Interactive tutorial system for learning chuck-stack patterns
 export use stk_tutor *
+
+# Invoice management for sales and purchase transactions with business partners
+export use stk_invoice *
