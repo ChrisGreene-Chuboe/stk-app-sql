@@ -79,7 +79,6 @@ CREATE TABLE private.stk_invoice ( ----partition: rename_table
   -- Add direct foreign key to business partner
   stk_business_partner_uu UUID REFERENCES private.stk_business_partner(uu), -- Can be NULL for draft creation
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
   description TEXT ----partition: add_pk
 ); ----partition: add_partition_by
 COMMENT ON TABLE private.stk_invoice IS 'Holds invoice records';

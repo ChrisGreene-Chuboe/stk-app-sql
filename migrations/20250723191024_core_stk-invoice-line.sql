@@ -73,7 +73,6 @@ CREATE TABLE private.stk_invoice_line ( ----partition: rename_table
   -- Add direct foreign key to item (optional)
   stk_item_uu UUID REFERENCES private.stk_item(uu), -- Optional FK for item references
   search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
   description TEXT ----partition: add_pk
 ); ----partition: add_partition_by
 COMMENT ON TABLE private.stk_invoice_line IS 'Holds invoice_line records';

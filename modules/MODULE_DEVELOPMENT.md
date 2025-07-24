@@ -28,6 +28,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
   - [16. Template Pattern](#16-template-pattern)
   - [17. Foreign Key Pipeline Pattern](#17-foreign-key-pipeline-pattern)
   - [18. Edit Pattern (Update in CRUD)](#18-edit-pattern-update-in-crud)
+  - [19. Transactional Document Pattern](#19-transactional-document-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -550,6 +551,45 @@ Provides update capability for existing records, focusing on modifying specific 
 
 **Reference**: See `contact edit` for implementation with JSON field updates.
 
+### 19. Transactional Document Pattern
+
+Specialized variant of the header-line pattern for financial and transactional documents that require specific constraints.
+
+**Key characteristics**:
+- No `name` column - uses `search_key` for document numbering
+- Required `stk_entity_uu` - all transactions must be entity-assigned
+- Header-line structure with transactional semantics
+- Often includes `processed/is_processed` columns
+- Direct foreign key relationships (e.g., to business partners)
+
+**Implementation differences from standard header-line**:
+1. **Module constants** - exclude `name` from column lists:
+   ```nushell
+   const STK_INVOICE_COLUMNS = [search_key, description, is_template, is_valid, record_json]
+   ```
+2. **Creation commands** - accept search_key instead of name:
+   ```nushell
+   export def "invoice new" [
+       search_key: string  # The unique identifier/number (e.g., "INV-2024-001")
+   ```
+3. **Line numbering** - search_key used for line numbers:
+   ```nushell
+   # Lines use numeric search_keys: "10", "20", "30" for ordering
+   $invoice_uuid | invoice line new "10" --description "First line item"
+   ```
+
+**Document numbering patterns**:
+- Headers: Document-type prefixed (INV-2024-001, BILL-2024-001)
+- Lines: Numeric sequence (10, 20, 30) allowing insertions
+
+**When to use**:
+- Financial documents (invoices, bills, credit memos)
+- Formal transactions requiring audit trails
+- Documents with legal/compliance requirements
+- Any header-line that represents a transaction vs. master data
+
+**Reference**: See `stk_invoice` for complete transactional document implementation including both header and line handling.
+
 ## Implementation Guide
 
 ### Step 1: Define Module Constants
@@ -574,12 +614,14 @@ Examine your table structure to determine which patterns to implement:
 - `record_json` column → **JSON Parameter Pattern**
 - Associated `_type` table → **Type Support**
 - `table_name_uu_json` column → **UUID Input Enhancement Pattern**
+- No `name` column + required `stk_entity_uu` + line table → **Transactional Document Pattern**
 
 **Common Pattern Combinations:**
 - Single table with types: Type Support + JSON Parameter Pattern
 - Master-detail relationships: Header-Line Pattern + Type Support
 - Hierarchical data: Parent-Child Pattern + Type Support
 - Cross-table relationships: Foreign Key Pipeline Pattern + Type Support
+- Financial documents: Transactional Document Pattern + Type Support + Foreign Key Pipeline
 
 ### Step 3: Implement Commands Based on Patterns
 
