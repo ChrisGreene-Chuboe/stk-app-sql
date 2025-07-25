@@ -260,6 +260,14 @@ For related tables (e.g., project/project_line):
 - Line operations receive line UUID via pipe
 - Supports bulk operations on lists
 - Use `extract-single-uu` utility for flexible input handling
+- Line numbers auto-generate as 10, 20, 30... via database trigger
+
+**Automatic Line Numbering**:
+Chuck-stack provides automatic line numbering for header-line tables through the `t10120_stk_line_number` trigger function:
+- Generates sequential numbers (10, 20, 30...) when search_key not provided
+- Allows manual override by providing specific search_key value
+- Applied to tables listed in `stk_trigger_mgt` table
+- To enable for your line table: Search for "t10120_stk_line_number" in migrations
 
 For data enrichment, see:
 - `lines` command in stk_psql for adding line data to headers

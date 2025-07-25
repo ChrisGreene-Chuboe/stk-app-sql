@@ -58,6 +58,8 @@ The template includes these key decision points:
 - **Validation**: Need data validation? → Uncomment `is_valid`
 - **Hierarchies**: Need parent/child in same table? → Uncomment `parent_uu`
 - **Master/detail**: Is this a line item table? → Uncomment `header_uu`
+  - Line tables automatically get line numbering (10, 20, 30...) via trigger
+  - Search for "t10120_stk_line_number" to add your table to auto-numbering
 - **Processing**: Need to track processing status? → Uncomment `processed`/`is_processed`
 
 ### Example Decision Flow
