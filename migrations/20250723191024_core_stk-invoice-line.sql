@@ -9,10 +9,74 @@ CREATE TYPE private.stk_invoice_line_type_enum AS ENUM (
 );
 COMMENT ON TYPE private.stk_invoice_line_type_enum IS 'Enum used in code to automate and validate invoice_line types.';
 
-INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default) VALUES
-('stk_invoice_line_type_enum', 'ITEM', 'Item being invoiced (product or service)', true),
-('stk_invoice_line_type_enum', 'DESCRIPTION', 'Descriptive line with no monetary value', false),
-('stk_invoice_line_type_enum', 'DISCOUNT', 'Discount applied to invoice', false)
+INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, record_json) VALUES
+('stk_invoice_line_type_enum', 'ITEM', 'Item being invoiced (product or service)', true,
+    '{
+        "json_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+                "quantity": {
+                    "type": "number",
+                    "description": "Number of units"
+                },
+                "price_unit": {
+                    "type": "number",
+                    "description": "Price per unit"
+                },
+                "price_extended": {
+                    "type": "number",
+                    "description": "Total price (quantity × price_unit)"
+                },
+                "discount_percent": {
+                    "type": "number",
+                    "description": "Discount percentage (0-100)"
+                },
+                "tax_percent": {
+                    "type": "number",
+                    "description": "Tax percentage"
+                },
+                "currency": {
+                    "type": "string",
+                    "default": "USD",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "description": "Currency code (ISO 4217)"
+                }
+            },
+            "required": ["quantity", "price_unit"]
+        }
+    }'::jsonb),
+('stk_invoice_line_type_enum', 'DESCRIPTION', 'Descriptive line with no monetary value', false, NULL),
+('stk_invoice_line_type_enum', 'DISCOUNT', 'Discount applied to invoice', false,
+    '{
+        "json_schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+                "discount_amount": {
+                    "type": "number",
+                    "description": "Fixed discount amount (negative value)"
+                },
+                "discount_percent": {
+                    "type": "number",
+                    "description": "Discount percentage (0-100)"
+                },
+                "discount_basis": {
+                    "type": "string",
+                    "description": "Basis for percentage discount",
+                    "enum": ["subtotal", "total", "specific_lines"]
+                },
+                "currency": {
+                    "type": "string",
+                    "default": "USD",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "description": "Currency code (ISO 4217)"
+                }
+            }
+        }
+    }'::jsonb)
 ;
 
 CREATE TABLE private.stk_invoice_line_type (

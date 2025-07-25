@@ -217,12 +217,12 @@ export def "invoice types" [] {
 
 
 
-# Add a line item to an invoice with specified search key and type
+# Add a line item to an invoice by referencing an item or creating custom line
 #
 # Creates a new invoice line (product, service, discount, or description) 
 # associated with a specific invoice. Invoice lines are the detailed items 
 # that make up an invoice and can reference stk_item for product/service details.
-# The system automatically assigns default values via triggers if type is not specified.
+# Line numbers are auto-generated (10, 20, 30...) if not explicitly provided.
 #
 # Accepts piped input:
 #   string - The UUID of the invoice (required)
@@ -230,20 +230,31 @@ export def "invoice types" [] {
 #   table - A single-row table from commands like 'invoice list | where'
 #
 # Examples:
-#   $invoice_uuid | invoice line new "LINE-001"
-#   invoice list | where search_key == "INV-2024-001" | invoice line new "LINE-002" --description "Annual license fee" --type-search-key "ITEM"
-#   invoice list | first | invoice line new "LINE-003" --description "One-time setup fee"
-#   $invoice_uuid | invoice line new "DISC-001" --type-search-key "DISCOUNT" --description "Early payment discount"
-#   $invoice_uuid | invoice line new "LINE-004" --json '{"quantity": 40, "unit_price": 150, "total": 6000}'
+#   # Add item by search_key with quantity and price
+#   $invoice_uuid | invoice line new "WIDGET-001" --qty 5 --price 29.99
+#   $invoice_uuid | invoice line new "SERVICE-CONSULT" --qty 40 --price 150
+#   
+#   # Add custom line without item reference
+#   $invoice_uuid | invoice line new --description "Custom service charge" --qty 1 --price 100
+#   $invoice_uuid | invoice line new --description "Early payment discount" --type-search-key "DISCOUNT" --price -50
+#   
+#   # Specify custom line number
+#   $invoice_uuid | invoice line new "WIDGET-001" --line-number "15" --qty 2 --price 45.50
+#   
+#   # Full JSON control
+#   $invoice_uuid | invoice line new --json '{"quantity": 40, "price_unit": 150, "price_extended": 6000}'
 #   
 #   # Interactive examples:
-#   $invoice_uuid | invoice line new "LINE-005" --type-search-key ITEM --interactive
-#   invoice list | first | invoice line new "LINE-006" --interactive
+#   $invoice_uuid | invoice line new --type-search-key ITEM --interactive
+#   $invoice_uuid | invoice line new "WIDGET-001" --interactive
 #
 # Returns: The UUID and search_key of the newly created invoice line record
-# Note: Uses chuck-stack conventions for automatic entity and type assignment
+# Note: Line numbers auto-generate as 10, 20, 30... when not specified
 export def "invoice line new" [
-    search_key: string              # The unique identifier of the invoice line
+    item_search_key?: string        # Optional item search key to find and add to invoice
+    --line-number(-l): string      # Optional line number (defaults to next available: 10, 20, 30...)
+    --qty(-q): float               # Quantity for this line item
+    --price(-p): float             # Unit price for this line item
     --type-uu: string              # Type UUID (use 'invoice line types' to find UUIDs)
     --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the line
@@ -253,17 +264,56 @@ export def "invoice line new" [
     # Extract UUID from piped input
     let invoice_uu = ($in | extract-single-uu --error-msg "Invoice UUID is required via piped input")
     
+    # Look up item if search_key provided
+    let item_info = if ($item_search_key | is-not-empty) {
+        let item_result = (item list | where {|it| $it.search_key == $item_search_key or $it.name == $item_search_key})
+        if ($item_result | is-empty) {
+            error make {msg: $"Item with search_key or name '($item_search_key)' not found"}
+        }
+        $item_result | first
+    } else {
+        null
+    }
+    
+    # Extract item UUID if found
+    let item_uu = if ($item_info != null) { $item_info.uu } else { null }
+    
+    # Use item description if no description provided and item was found
+    let final_description = if ($description | is-empty) and ($item_info != null) {
+        $item_info.description | default $item_info.name
+    } else {
+        $description
+    }
+    
     # Resolve type using utility function
     let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_INVOICE_LINE_TABLE_NAME --type-uu $type_uu --type-search-key $type_search_key)
     
+    # Build JSON with quantity and price if provided
+    let json_obj = if ($json | is-not-empty) {
+        # User provided explicit JSON
+        $json
+    } else if ($qty != null) or ($price != null) {
+        # Build JSON from parameters
+        mut obj = {}
+        if ($qty != null) { $obj = ($obj | insert quantity $qty) }
+        if ($price != null) { $obj = ($obj | insert price_unit $price) }
+        if ($qty != null) and ($price != null) {
+            $obj = ($obj | insert price_extended ($qty * $price))
+        }
+        $obj | to json
+    } else {
+        null
+    }
+    
     # Handle JSON input - one line replaces multiple lines of boilerplate
-    let record_json = (resolve-json $json $interactive $type_record)
+    let record_json = (resolve-json $json_obj $interactive $type_record)
     
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
-        search_key: $search_key
+        search_key: ($line_number | default null)  # Will auto-generate if null
         type_uu: ($type_record.uu? | default null)
-        description: ($description | default null)
+        description: ($final_description | default null)
+        stk_item_uu: $item_uu
         record_json: $record_json  # Already a JSON string from resolve-json
     }
     
