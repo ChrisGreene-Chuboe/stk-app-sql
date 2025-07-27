@@ -11,9 +11,9 @@
 
 use ../modules *
 
-print "============================================"
-print "=== Building a Complete Business Partner ==="
-print "============================================"
+print "=========================="
+print "=== Building an Entity ==="
+print "=========================="
 print ""
 
 # Step 0: Create our consulting company entity (for invoicing)
@@ -29,6 +29,11 @@ let my_company = (entity new "My Consulting Company"
 print $"✓ Created entity: ($my_company.name) with search key: ($my_company.search_key)"
 print $"  Entity UUID: ($my_company.uu)"
 print $"  Type: TRX \(transactional - can create invoices)"
+print ""
+
+print "==================================="
+print "=== Building a Business Partner ==="
+print "==================================="
 print ""
 
 # Step 1: Create the business partner
