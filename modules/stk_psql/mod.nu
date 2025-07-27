@@ -982,6 +982,166 @@ export def elaborate [
     }
 }
 
+# Flatten elaborated records into presentation-ready format
+#
+# Takes records that have been processed by 'elaborate' and creates a flattened,
+# presentation-friendly structure. This is particularly useful for document
+# generation, reporting, and data export where nested structures need to be
+# simplified.
+#
+# Key features:
+# - Flattens _resolved fields into the main record with configurable prefixes
+# - Merges record_json fields into the main record
+# - Handles null/missing fields gracefully
+# - Preserves original structure while adding flattened fields
+#
+# Examples:
+#   # Basic flattening of elaborated invoice
+#   invoice get | elaborate --detail | flatten-record
+#   
+#   # Include JSON fields and use custom prefix
+#   invoice list | elaborate | flatten-record --include-json --prefix "ref_"
+#   
+#   # Flatten specific resolved fields only
+#   bp get | elaborate | flatten-record --fields "stk_entity_uu_resolved.name"
+#   
+#   # For document generation
+#   invoice get | elaborate --detail | flatten-record --include-json --clean
+#
+# The function transforms nested structures like:
+#   {
+#     search_key: "INV-001"
+#     stk_entity_uu_resolved: {
+#       name: "My Company"
+#       record_json: {tax_id: "12-345"}
+#     }
+#     record_json: {due_date: "2025-02-01"}
+#   }
+#
+# Into flattened structures like:
+#   {
+#     search_key: "INV-001"
+#     entity_name: "My Company"
+#     entity_tax_id: "12-345"
+#     due_date: "2025-02-01"
+#     stk_entity_uu_resolved: {...}  # Original preserved unless --clean
+#     record_json: {...}              # Original preserved unless --clean
+#   }
+#
+# Returns: Flattened record(s) in same format as input (record or table)
+export def flatten-record [
+    --include-json      # Merge record_json fields into main record
+    --prefix: string    # Prefix for flattened fields (default: derived from column name)
+    --fields: list<string>  # Specific fields to flatten (default: all _resolved fields)
+    --clean             # Remove original nested structures after flattening
+] {
+    let input = $in
+    
+    # Return empty if input is empty
+    if ($input | is-empty) {
+        return $input
+    }
+    
+    # Normalize input - convert single record to table
+    let normalized_input = if ($input | describe | str starts-with "record") {
+        [$input]
+    } else {
+        $input
+    }
+    
+    # Process each record
+    let result = ($normalized_input | each {|record|
+        mut flattened = $record
+        
+        # Find all _resolved columns if fields not specified
+        let resolved_cols = if ($fields | is-empty) {
+            $record | columns | where {|col| $col | str ends-with "_resolved"}
+        } else {
+            $fields
+        }
+        
+        # Flatten each resolved column
+        for col in $resolved_cols {
+            if ($col in $record) and ($record | get $col | describe | str starts-with "record") {
+                let resolved = ($record | get $col)
+                
+                # Determine prefix for this column
+                let col_prefix = if ($prefix | is-not-empty) {
+                    $prefix
+                } else {
+                    # Extract prefix from column name (e.g., "stk_entity_uu_resolved" -> "entity_")
+                    let base = ($col | str replace "_uu_resolved" "" | str replace "stk_" "")
+                    $"($base)_"
+                }
+                
+                # Flatten direct fields from resolved record
+                for field in ($resolved | columns) {
+                    if $field != "record_json" {
+                        let field_name = $"($col_prefix)($field)"
+                        # Only insert if field doesn't already exist
+                        if not ($field_name in $flattened) {
+                            let value = ($resolved | get $field)
+                            $flattened = ($flattened | insert $field_name $value)
+                        }
+                    }
+                }
+                
+                # Flatten record_json from resolved record if requested
+                if $include_json and ("record_json" in $resolved) {
+                    let json_data = ($resolved | get record_json)
+                    if ($json_data | describe | str starts-with "record") {
+                        for json_field in ($json_data | columns) {
+                            let field_name = $"($col_prefix)($json_field)"
+                            # Only insert if field doesn't already exist
+                            if not ($field_name in $flattened) {
+                                let value = ($json_data | get $json_field)
+                                $flattened = ($flattened | insert $field_name $value)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        # Merge main record_json if requested
+        if $include_json and ("record_json" in $record) {
+            let json_data = ($record | get record_json)
+            if ($json_data | describe | str starts-with "record") {
+                for json_field in ($json_data | columns) {
+                    # Don't overwrite existing fields
+                    if not ($json_field in $flattened) {
+                        let value = ($json_data | get $json_field)
+                        $flattened = ($flattened | insert $json_field $value)
+                    }
+                }
+            }
+        }
+        
+        # Clean up original structures if requested
+        if $clean {
+            # Remove _resolved columns
+            for col in $resolved_cols {
+                if ($col in $flattened) {
+                    $flattened = ($flattened | reject $col)
+                }
+            }
+            # Remove record_json if we merged it
+            if $include_json and ("record_json" in $flattened) {
+                $flattened = ($flattened | reject record_json)
+            }
+        }
+        
+        $flattened
+    })
+    
+    # Return in the same format as input
+    if ($input | describe | str starts-with "record") {
+        $result | first  # Return single record if input was a record
+    } else {
+        $result  # Return table if input was a table
+    }
+}
+
 # Helper function to check if a table exists in the api schema
 def table-exists [table_name: string] {
     let query = $"SELECT COUNT\(*) as count FROM information_schema.tables WHERE table_schema = 'api' AND table_name = '($table_name)'"

@@ -71,6 +71,7 @@ in pkgs.mkShell {
     pkgs.postgrest
     pkgs.bat
     pkgs.aichat
+    pkgs.typst
     #pkgs.git
     startTest
     stopTest

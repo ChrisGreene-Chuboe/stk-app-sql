@@ -68,6 +68,7 @@ in pkgs.mkShell {
     pkgs.postgrest
     pkgs.bat
     pkgs.aichat
+    pkgs.typst
     #pkgs.git
     startDeploy
     stopDeploy
@@ -138,6 +139,7 @@ in pkgs.mkShell {
       cp -r ../migrations/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../migrations not found"
       cp -r ../modules/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../modules not found"
       cp -r ../demo/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../demo not found"
+      cp -r ../template-print/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../template-print not found"
       
       echo ""
       echo "******************************************************"

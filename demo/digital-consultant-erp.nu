@@ -268,6 +268,27 @@ let total = ($subtotal - $discount)
 ] | print
 print ""
 
+# Step 10: Generate PDF invoice
+print "============================="
+print "=== Generating PDF Invoice ==="
+print "============================="
+print ""
+
+# Check if typst is available
+if (which typst | is-empty) {
+    print "⚠️  Typst not found - skipping PDF generation"
+    print "   To generate PDFs, install typst: https://github.com/typst/typst"
+} else {
+    # Generate the PDF
+    let pdf_path = ($invoice | invoice pdf)
+    print $"✓ Generated PDF invoice: ($pdf_path)"
+    
+    # Show file size
+    let pdf_info = (ls $pdf_path | first)
+    print $"  File size: ($pdf_info.size)"
+}
+print ""
+
 print "=================================="
 print "=== Complete BP → Invoice Flow ==="
 print "=================================="

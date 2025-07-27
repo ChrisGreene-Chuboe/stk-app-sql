@@ -450,3 +450,147 @@ export def "invoice line revoke" [
 export def "invoice line types" [] {
     psql list-types $STK_SCHEMA $STK_INVOICE_LINE_TABLE_NAME
 }
+
+# Generate a PDF for an invoice (POC)
+#
+# This is a proof-of-concept command that generates a PDF document
+# from an invoice using Typst. The command uses elaborate and flatten-record
+# to automatically prepare all data with minimal code.
+#
+# Accepts piped input:
+#   string - UUID of the invoice to generate PDF for
+#   record - A record containing a 'uu' field
+#   table - A single-row table from commands like 'invoice list | where'
+#
+# Examples:
+#   $invoice_uuid | invoice pdf
+#   invoice list | where search_key == "INV-2024-001" | invoice pdf
+#   invoice list | first | invoice pdf --output /tmp/invoice.pdf
+#   $invoice_uuid | invoice pdf --open
+#
+# Returns: Path to the generated PDF file
+# Note: Requires 'typst' command to be available in PATH
+export def "invoice pdf" [
+    --output(-o): path              # Output file path (default: /tmp/invoice-{search_key}.pdf)
+    --open                          # Open the PDF after generation
+    --uu: string                    # UUID of the invoice (alternative to piped input)
+] {
+    # Extract invoice UUID from input
+    let invoice_uuid = ($in | extract-uu-with-param $uu)
+    
+    # Get invoice with all foreign keys elaborated and flattened
+    let invoice = (
+        psql get-record $STK_SCHEMA $STK_INVOICE_TABLE_NAME $STK_INVOICE_COLUMNS $invoice_uuid 
+        | elaborate --detail 
+        | flatten-record --include-json --clean
+    )
+    
+    if ($invoice | is-empty) {
+        error make {msg: "Invoice not found"}
+    }
+    
+    # Get invoice lines with elaborated and flattened data
+    let lines = (
+        psql list-line-records $STK_SCHEMA $STK_INVOICE_LINE_TABLE_NAME $invoice_uuid ...$STK_INVOICE_LINE_COLUMNS 
+        | elaborate --detail
+        | flatten-record --include-json --clean
+    )
+    
+    # Calculate totals from line items
+    let line_totals = ($lines | each {|line|
+        if ($line.price_extended? | is-not-empty) {
+            $line.price_extended
+        } else if ($line.discount_amount? | is-not-empty) {
+            $line.discount_amount
+        } else {
+            0
+        }
+    })
+    
+    let subtotal = ($line_totals | where $it > 0 | math sum | default 0)
+    let discount = ($line_totals | where $it < 0 | math sum | math abs | default 0)
+    let total = ($subtotal - $discount)
+    
+    # Build simplified invoice data structure for Typst
+    let invoice_data = {
+        number: $invoice.search_key
+        date: ($invoice.created | format date "%Y-%m-%d")
+        due_date: ($invoice.due_date? | default "")
+        
+        seller: {
+            name: ($invoice.entity_name | default "")
+            address: ($invoice.entity_address? | default "")
+            tax_id: ($invoice.entity_tax_id? | default "")
+        }
+        
+        customer: {
+            name: $invoice.business_partner_name
+            address: ($invoice.business_partner_address? | default "")
+        }
+        
+        items: ($lines | each {|line| {
+            line: $line.search_key
+            description: $line.description
+            qty: ($line.quantity? | default 0)
+            price: ($line.price_unit? | default 0)
+            total: ($line.price_extended? | default 0)
+        }})
+        
+        subtotal: $subtotal
+        total: $total
+    }
+    
+    # Determine output path
+    let output_path = if ($output | is-not-empty) {
+        $output
+    } else {
+        $"/tmp/invoice-($invoice.search_key).pdf"
+    }
+    
+    # Write JSON data to temporary file
+    let json_path = "/tmp/invoice-data.json"
+    $invoice_data | to json | save -f $json_path
+    
+    # Get template path - use the test directory when in test environment, otherwise relative to module
+    let template_path = if ("STK_TEST_DIR" in $env) {
+        $env.STK_TEST_DIR | path join "template-print/invoice/invoice-simple.typ"
+    } else {
+        # In production, template would be relative to module location
+        $env.FILE_PWD | path join "../../template-print/invoice/invoice-simple.typ"
+    }
+    
+    # Check if typst is available
+    let typst_check = (which typst | is-not-empty)
+    if not $typst_check {
+        error make {msg: "typst command not found. Please install typst to generate PDFs."}
+    }
+    
+    # Copy template to /tmp so it can find the JSON file
+    let temp_template = "/tmp/invoice-template.typ"
+    cp $template_path $temp_template
+    
+    # Generate PDF using Typst from /tmp directory
+    let result = (^typst compile $temp_template $output_path | complete)
+    
+    if $result.exit_code != 0 {
+        error make {msg: $"PDF generation failed: ($result.stderr)"}
+    }
+    
+    # Clean up temporary files
+    rm -f $json_path
+    rm -f $temp_template
+    
+    # Open PDF if requested
+    if $open {
+        if (which xdg-open | is-not-empty) {
+            ^xdg-open $output_path
+        } else if (which open | is-not-empty) {
+            ^open $output_path
+        } else {
+            print $"PDF generated but no PDF viewer found. File saved to: ($output_path)"
+        }
+    }
+    
+    # Return the path to the generated PDF
+    $output_path
+}

@@ -69,6 +69,11 @@ def setup_directories [] {
     print "Copying demo files..."
     cp -rf $"($env.STK_PWD_SHELL)/../demo" $env.STK_TEST_DIR
     print $"  Copied: demo files to ($env.STK_TEST_DIR)/demo"
+    
+    # Copy template-print directory for PDF generation
+    print "Copying template-print directory..."
+    cp -rf $"($env.STK_PWD_SHELL)/../template-print" $env.STK_TEST_DIR
+    print $"  Copied: template-print directory to ($env.STK_TEST_DIR)/template-print"
 }
 
 # Setup PostgreSQL cluster and database
