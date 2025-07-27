@@ -199,6 +199,7 @@ print ""
 # Note: Invoice types don't have JSON schemas yet, so we're using practical fields
 let invoice = ($client | invoice new "INV-2025-001"
     --type-search-key "SALES_STANDARD"
+    --entity-uu $my_company.uu
     --description "January 2025 Consulting Services")
 print $"✓ Created invoice: ($invoice.search_key) for ($client.name)"
 print ""
