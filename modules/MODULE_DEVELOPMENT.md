@@ -217,7 +217,7 @@ project get --uu $uuid
 For consistent implementation across all commands:
 - Use `extract-single-uu` utility from stk_utility module
 - Support string, record, and table input types
-- See Pattern 12 for implementation details
+- See "UUID Input Enhancement Pattern" section below
 
 ### 5. Generic PSQL Commands
 
@@ -230,6 +230,8 @@ All modules use standardized commands from `stk_psql`:
 - `psql revoke-record` - Soft delete
 - `psql list-types` - List available types
 - `psql get-type` - Resolve type by key or name
+
+**Finding signatures**: Search for `export def "psql get-record"` in stk_psql module
 
 ### 6. Module Constants
 
@@ -393,7 +395,9 @@ Commands accept UUIDs through multiple input types:
 - --uu parameter (alternative to piped input)
 
 Uses `extract-uu-table-name` and `extract-uu-with-param` utilities from stk_utility.
-Reference: stk_request module for complete implementation.
+
+**Implementation**: `($in | extract-uu-with-param $uu)`
+**Reference**: Search for `"entity get"` in stk_entity, stk_item, stk_project modules
 
 ### 14. Utility Functions Pattern
 
@@ -676,6 +680,8 @@ Examine your table structure to determine which patterns to implement:
 - **+ Type Support + Templates**: `stk_business_partner`
 - **+ Attachment patterns**: `stk_event`
 - **Domain wrapper**: `stk_todo` (wraps `stk_request`)
+
+**Finding implementations**: Search for command names like `"item get"` or `"project revoke"` in the respective modules
 
 ## Module Development Checklist
 

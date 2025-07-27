@@ -50,3 +50,6 @@ export use stk_tutor *
 
 # Invoice management for sales and purchase transactions with business partners
 export use stk_invoice *
+
+# Entity management for organizational units and transactional contexts
+export use stk_entity *

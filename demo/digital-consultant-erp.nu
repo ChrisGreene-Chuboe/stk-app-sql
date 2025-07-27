@@ -16,13 +16,30 @@ print "=== Building a Complete Business Partner ==="
 print "============================================"
 print ""
 
+# Step 0: Create our consulting company entity (for invoicing)
+print "0. Creating transactional entity for our company..."
+print ""
+
+# Create a TRX entity for our consulting company
+let my_company = (entity new "My Consulting Company" 
+    --type-search-key "TRX" 
+    --search-key "my-consulting"
+    --description "Primary transactional entity for invoicing")
+
+print $"✓ Created entity: ($my_company.name) with search key: ($my_company.search_key)"
+print $"  Entity UUID: ($my_company.uu)"
+print $"  Type: TRX \(transactional - can create invoices)"
+print ""
+
 # Step 1: Create the business partner
 print "1. Creating business partner..."
 print ""
 
 # Create a client company with general information
+# Assign it to our TRX entity so it can receive invoices
 let client = (bp new "ACME Corporation" 
     --type-search-key "ORGANIZATION" 
+    --entity-uu $my_company.uu
     --description "Enterprise retail company - our largest client" 
     --json '{
         "tax_id": "12-3456789",
