@@ -33,11 +33,11 @@ Type 'entity <tab>' to see available commands.
 # Examples:
 #   entity new "Digital Consulting LLC"
 #   entity new "Sales Department" --description "Sales and business development"
-#   entity new "Acme Corp" --type-search-key "TRX" --description "Transactional entity for invoicing"
+#   entity new "Acme Corp" --type-search-key trx --description "Transactional entity for invoicing"
 #   "12345678-1234-5678-9012-123456789abc" | entity new "Regional Office"
 #   entity list | where name == "Parent Company" | entity new "Subsidiary"
 #   entity list | first | entity new "Division" --description "Part of parent entity"
-#   entity new "Template Corp" --template --type-search-key "TRX"
+#   entity new "Template Corp" --template --type-search-key trx
 #   
 # Returns: The UUID and name of the newly created entity record
 # Note: Uses chuck-stack conventions for automatic type assignment

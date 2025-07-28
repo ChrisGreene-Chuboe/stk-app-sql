@@ -32,7 +32,7 @@ Chuck-stack supports different entity types for different purposes:
 
 ```nu
 # Create parent company
-let company = (entity new "Digital Consulting LLC" --type-search-key "TRX")
+let company = (entity new "Digital Consulting LLC" --type-search-key trx)
 
 # Create divisions under the company
 $company | entity new "West Coast Division"
@@ -48,7 +48,7 @@ Transactional entities enable financial operations:
 
 ```nu
 # Create a TRX entity for invoicing
-entity new "My Consulting Business" --type-search-key "TRX" --description "Primary business entity for client invoicing"
+entity new "My Consulting Business" --type-search-key trx --description "Primary business entity for client invoicing"
 ```
 
 ## Integration with Chuck-Stack

@@ -38,15 +38,17 @@ Type 'event <tab>' to see available commands.
 #   .append event "system-backup" --description "Database backup completed" --attach $backup_uuid
 #   event list | get uu.0 | .append event "follow-up" --description "Follow up on this event"
 #   .append event "system-error" --description "Critical system failure" --json '{"urgency": "high", "component": "database"}'
+#   .append event "login" --search-key "EVT-2024-001" --description "Admin login event"
 #   
 #   # Interactive examples:
-#   .append event "error" --type-search-key ERROR --interactive
+#   .append event "error" --type-search-key error --interactive
 #   .append event "audit" --interactive --description "Security audit event"
 #
 # Returns: The UUID of the newly created event record
 # Note: When a UUID is provided (via pipe or --attach), table_name_uu_json is auto-populated
 export def ".append event" [
     name: string                    # The name/topic of the event (used for categorization and filtering)
+    --search-key(-s): string       # Optional search key (unique identifier)
     --description(-d): string = ""  # Description of the event (optional)
     --type-name: string             # Lookup type by name field
     --type-search-key: string       # Lookup type by search_key field  
@@ -70,6 +72,7 @@ export def ".append event" [
         # Standalone event - no attachment
         let params = {
             name: $name
+            search_key: ($search_key | default null)
             description: $description
             type_uu: ($type_record.uu? | default null)
             record_json: $record_json
@@ -90,6 +93,7 @@ export def ".append event" [
         let table_name_uu_json = ($table_name_uu | to json)
         let params = {
             name: $name
+            search_key: ($search_key | default null)
             description: $description
             type_uu: ($type_record.uu? | default null)
             table_name_uu_json: $table_name_uu_json

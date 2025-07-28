@@ -36,9 +36,10 @@ Type 'contact <tab>' to see available commands.
 #   contact new "Alice Johnson" --business-partner-uu "123e4567-e89b-12d3-a456-426614174000"
 #   bp list | where name == "Acme Corp" | contact new "Technical Support"
 #   $business_partner | contact new "Sales Representative"
+#   contact new "Mary Johnson" --search-key "CONTACT-001" --description "Main contact"
 #   
 #   # Interactive examples:
-#   contact new "Sarah Connor" --type-search-key EMPLOYEE --interactive
+#   contact new "Sarah Connor" --type-search-key employee --interactive
 #   bp list | first | contact new "IT Manager" --interactive --description "Main tech contact"
 #
 # Returns: The UUID and name of the newly created contact record
@@ -47,6 +48,7 @@ export def "contact new" [
     name: string                    # The name of the contact to create
     --type-uu: string              # Type UUID (use 'contact types' to find UUIDs)
     --type-search-key: string      # Type search key (unique identifier for type)
+    --search-key(-s): string       # Optional search key (unique identifier)
     --description(-d): string      # Optional description of the contact
     --business-partner-uu: string  # Optional business partner UUID
     --json(-j): string             # Optional JSON data to store in record_json field
@@ -70,6 +72,7 @@ export def "contact new" [
     mut params = {
         name: $name
         type_uu: ($type_record.uu? | default null)
+        search_key: ($search_key | default null)
         description: ($description | default null)
         stk_business_partner_uu: ($business_partner_uu | default null)
         record_json: $record_json  # Already a JSON string from parse-json

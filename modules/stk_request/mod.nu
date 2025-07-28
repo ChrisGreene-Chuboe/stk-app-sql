@@ -37,15 +37,17 @@ Type 'request <tab>' to see available commands.
 #   project list | where name == "test" | .append request "review" --description "Review this project"
 #   .append request "profile-update" --description "Update user profile" --attach $user_uuid
 #   .append request "feature-request" --json '{"priority": "medium", "component": "ui"}'
+#   .append request "task" --search-key "REQ-2024-001" --description "High priority task"
 #   
 #   # Interactive examples:
-#   .append request "feature" --type-search-key FEATURE --interactive
+#   .append request "feature" --type-search-key feature --interactive
 #   .append request "bug" --interactive --description "Bug report"
 #
 # Returns: The UUID of the newly created request record
 # Note: When a UUID is provided (via pipe or --attach), table_name_uu_json is auto-populated
 export def ".append request" [
     name: string                    # The name/topic of the request (used for categorization and filtering)
+    --search-key(-s): string       # Optional search key (unique identifier)
     --description(-d): string = ""  # Description of the request (optional)
     --type-name: string             # Lookup type by name field
     --type-search-key: string       # Lookup type by search_key field  
@@ -69,6 +71,7 @@ export def ".append request" [
         # Standalone request - no attachment
         let params = {
             name: $name
+            search_key: ($search_key | default null)
             description: $description
             type_uu: ($type_record.uu? | default null)
             record_json: $record_json
@@ -88,6 +91,7 @@ export def ".append request" [
         let table_name_uu_json = ($table_name_uu | to json)
         let params = {
             name: $name
+            search_key: ($search_key | default null)
             description: $description
             type_uu: ($type_record.uu? | default null)
             table_name_uu_json: $table_name_uu_json

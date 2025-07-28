@@ -33,14 +33,15 @@ Type 'bp <tab>' to see available commands.
 #
 # Examples:
 #   bp new "ACME Corporation"
-#   bp new "John Smith" --type-search-key "INDIVIDUAL"
-#   bp new "ABC Holdings" --type-search-key "GROUP" --description "Holding company"
-#   bp new "Customer Template" --template --type-search-key "ORGANIZATION"
+#   bp new "John Smith" --type-search-key individual
+#   bp new "ABC Holdings" --type-search-key group --description "Holding company"
+#   bp new "Customer Template" --template --type-search-key organization
 #   bp new "Vendor Corp" --json '{"tax_id": "12-3456789", "legal_name": "Vendor Corporation"}'
+#   bp new "Acme Inc" --search-key "ACME-001" --type-search-key organization
 #   
 #   # Interactive examples:
-#   bp new "Acme Corp" --type-search-key ORGANIZATION --interactive
-#   bp new "Jane Smith" --type-search-key INDIVIDUAL --interactive --description "Key contact"
+#   bp new "Acme Corp" --type-search-key organization --interactive
+#   bp new "Jane Smith" --type-search-key individual --interactive --description "Key contact"
 #   
 #   # Create subsidiary with parent
 #   bp list | where name == "ACME Corporation" | bp new "ACME Subsidiary"
@@ -52,6 +53,7 @@ export def "bp new" [
     name: string                    # The name of the business partner
     --type-uu: string              # Type UUID (use 'bp types' to find UUIDs)
     --type-search-key: string      # Type search key (ORGANIZATION, INDIVIDUAL, GROUP)
+    --search-key(-s): string       # Optional search key (unique identifier)
     --description(-d): string      # Optional description
     --template                     # Create as template for reuse
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
@@ -79,6 +81,7 @@ export def "bp new" [
     let params = {
         name: $name
         type_uu: ($type_record.uu? | default null)
+        search_key: ($search_key | default null)
         description: ($description | default null)
         is_template: ($template | default false)
         parent_uu: ($parent_uuid | default null)

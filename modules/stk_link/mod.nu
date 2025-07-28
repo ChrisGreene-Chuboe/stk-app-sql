@@ -45,11 +45,15 @@ Type 'link <tab>' to see available commands.
 #   $contact_uu | link new (project list | where name == "Q4 Initiative") --description "Project lead"
 #   
 #   # Specify link type (defaults to BIDIRECTIONAL)
-#   $doc_uu | link new $project_uu --type-search-key UNIDIRECTIONAL --description "Reference document"
+#   $doc_uu | link new $project_uu --type-search-key unidirectional --description "Reference document"
+#   
+#   # With custom search key
+#   $contact_uu | link new $project_uu --search-key "LINK-PROJ-001" --description "Primary project assignment"
 #
 # Returns: The UUID of the newly created link record
 export def "link new" [
     target: any                     # Target UUID as string, record, or table
+    --search-key(-s): string       # Optional search key (unique identifier)
     --description(-d): string = ""  # Description of the relationship
     --type-search-key: string       # Link type (BIDIRECTIONAL or UNIDIRECTIONAL)
     --type-uu: string              # Link type UUID (alternative to search key)
@@ -71,6 +75,7 @@ export def "link new" [
     
     # Build parameters
     let params = {
+        search_key: ($search_key | default null)
         description: $description
         type_uu: ($type_record.uu? | default null)
         source_table_name_uu_json: $source_json

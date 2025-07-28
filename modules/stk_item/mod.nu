@@ -30,12 +30,13 @@ Type 'item <tab>' to see available commands.
 # Examples:
 #   item new "Laptop Computer"
 #   item new "Consulting Service" --description "Professional IT consulting"
-#   item new "Shipping Fee" --type-search-key "account" --description "Standard shipping charge"
+#   item new "Shipping Fee" --type-search-key account --description "Standard shipping charge"
 #   item new "Software License" --type-uu "123e4567-e89b-12d3-a456-426614174000"
 #   item new "Premium Service" --json '{"features": ["24/7 support", "priority access"]}'
+#   item new "Widget" --search-key "WIDGET-001" --description "Standard widget"
 #   
 #   # Interactive examples:
-#   item new "Cloud Storage" --type-search-key SERVICE --interactive
+#   item new "Cloud Storage" --type-search-key service --interactive
 #   item new "Premium Support" --interactive --description "24/7 support package"
 #
 # Returns: The UUID and name of the newly created item record
@@ -44,6 +45,7 @@ export def "item new" [
     name: string                    # The name of the item to create
     --type-uu: string              # Type UUID (use 'item types' to find UUIDs)
     --type-search-key: string      # Type search key (unique identifier for type)
+    --search-key(-s): string       # Optional search key (unique identifier)
     --description(-d): string      # Optional description of the item
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
     --json(-j): string             # Optional JSON data to store in record_json field
@@ -59,6 +61,7 @@ export def "item new" [
     let params = {
         name: $name
         type_uu: ($type_record.uu? | default null)
+        search_key: ($search_key | default null)
         description: ($description | default null)
         stk_entity_uu: ($entity_uu | default null)
         record_json: $record_json  # Already a JSON string from parse-json

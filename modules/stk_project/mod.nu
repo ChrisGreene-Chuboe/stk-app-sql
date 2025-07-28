@@ -35,14 +35,15 @@ Type 'project <tab>' to see available commands.
 # Examples:
 #   project new "Website Redesign"
 #   project new "CRM Development" --description "Internal CRM system development"
-#   project new "AI Research" --type-search-key "research" --description "Research new AI technologies"
+#   project new "AI Research" --type-search-key research --description "Research new AI technologies"
 #   "12345678-1234-5678-9012-123456789abc" | project new "Sub-project Name"
 #   project list | where name == "Parent Project" | project new "Sub-project Name"
 #   project list | first | project new "Child Project" --description "Part of parent project"
 #   project new "Data Migration" --json '{"priority": "high", "estimated_hours": 120}'
+#   project new "Q4 Initiative" --search-key "PROJ-2024-Q4" --type-search-key internal
 #   
 #   # Interactive examples:
-#   project new "Q1 Initiative" --type-search-key INTERNAL --interactive
+#   project new "Q1 Initiative" --type-search-key internal --interactive
 #   project new "Client Portal" --interactive --description "New customer portal"
 #
 # Returns: The UUID and name of the newly created project record
@@ -51,6 +52,7 @@ export def "project new" [
     name: string                    # The name of the project to create
     --type-uu: string              # Type UUID (use 'project types' to find UUIDs)
     --type-search-key: string      # Type search key (unique identifier for type)
+    --search-key(-s): string       # Optional search key (unique identifier)
     --description(-d): string      # Optional description of the project
     --template                     # Mark this project as a template
     --entity-uu(-e): string        # Optional entity UUID (uses default if not provided)
@@ -78,6 +80,7 @@ export def "project new" [
     let params = {
         name: $name
         type_uu: ($type_record.uu? | default null)
+        search_key: ($search_key | default null)
         description: ($description | default null)
         parent_uu: ($parent_uuid | default null)
         is_template: ($template | default false)
@@ -228,7 +231,7 @@ export def "project types" [] {
 # Creates a new project line (task, milestone, deliverable, or resource) 
 # associated with a specific project. Project lines are the detailed work 
 # items that make up a project and can be tagged with stk_item for billing.
-# The system automatically assigns default values via triggers if type is not specified.
+# Line numbers are auto-generated (10, 20, 30...) if not explicitly provided.
 #
 # Accepts piped input:
 #   string - The UUID of the project (required)
@@ -237,19 +240,22 @@ export def "project types" [] {
 #
 # Examples:
 #   $project_uuid | project line new "User Auth Implementation"
-#   project list | where name == "My Project" | project line new "Database Design" --description "Complete database design" --type-search-key "TASK"
-#   project list | first | project line new "Production Deployment" --type-search-key "MILESTONE" --description "Deploy to production server"
+#   project list | where name == "My Project" | project line new "Database Design" --description "Complete database design" --type-search-key task
+#   project list | first | project line new "Production Deployment" --type-search-key milestone --description "Deploy to production server"
 #   $project_uuid | project line new "Requirements Analysis" --template
 #   $project_uuid | project line new "API Integration" --json '{"estimated_hours": 40, "priority": "high"}'
+#   $project_uuid | project line new "Phase 1 Setup" --line-number "15"  # Insert between lines 10 and 20
+#   $project_uuid | project line new "Emergency Fix" --line-number "5" --type-search-key task
 #   
 #   # Interactive examples:
-#   $project_uuid | project line new "Phase 1 Deliverable" --type-search-key MILESTONE --interactive
+#   $project_uuid | project line new "Phase 1 Deliverable" --type-search-key milestone --interactive
 #   project list | first | project line new "Security Audit" --interactive
 #
 # Returns: The UUID and name of the newly created project line record
-# Note: Uses chuck-stack conventions for automatic entity and type assignment
+# Note: Line numbers auto-generate as 10, 20, 30... when not specified
 export def "project line new" [
     name: string                    # The name of the project line
+    --line-number(-l): string      # Optional line number (defaults to next available: 10, 20, 30...)
     --type-uu: string              # Type UUID (use 'project line types' to find UUIDs)
     --type-search-key: string      # Type search key (unique identifier for type)
     --description(-d): string      # Optional description of the line
@@ -269,6 +275,7 @@ export def "project line new" [
     
     # Build parameters record internally - eliminates cascading if/else logic
     let params = {
+        search_key: ($line_number | default null)  # Will auto-generate if null
         name: $name
         type_uu: ($type_record.uu? | default null)
         description: ($description | default null)

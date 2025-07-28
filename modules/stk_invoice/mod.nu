@@ -35,13 +35,13 @@ Type 'invoice <tab>' to see available commands.
 # Examples:
 #   $bp_uuid | invoice new "INV-2024-001"
 #   bp list | where name == "ACME Corp" | invoice new "INV-2024-002" --description "Monthly consulting services"
-#   bp list | first | invoice new "INV-2024-003" --type-search-key "SALES_STANDARD"
-#   $customer_uuid | invoice new "DEP-2024-001" --type-search-key "SALES_DEPOSIT" --description "50% project deposit"
-#   $vendor_uuid | invoice new "BILL-2024-001" --type-search-key "PURCHASE_STANDARD"
+#   bp list | first | invoice new "INV-2024-003" --type-search-key sales-standard
+#   $customer_uuid | invoice new "DEP-2024-001" --type-search-key sales-deposit --description "50% project deposit"
+#   $vendor_uuid | invoice new "BILL-2024-001" --type-search-key purchase-standard
 #   $bp_uuid | invoice new "TEMPLATE-001" --template --json '{"payment_terms": "Net 30", "tax_rate": 0.08}'
 #   
 #   # Interactive examples:
-#   $bp_uuid | invoice new "INV-2024-004" --type-search-key SALES_STANDARD --interactive
+#   $bp_uuid | invoice new "INV-2024-004" --type-search-key sales-standard --interactive
 #   bp list | first | invoice new "BILL-2024-002" --interactive --description "Equipment purchase"
 #
 # Returns: The UUID and search_key of the newly created invoice record
@@ -236,7 +236,7 @@ export def "invoice types" [] {
 #   
 #   # Add custom line without item reference
 #   $invoice_uuid | invoice line new --description "Custom service charge" --qty 1 --price 100
-#   $invoice_uuid | invoice line new --description "Early payment discount" --type-search-key "DISCOUNT" --price -50
+#   $invoice_uuid | invoice line new --description "Early payment discount" --type-search-key discount --price -50
 #   
 #   # Specify custom line number
 #   $invoice_uuid | invoice line new "WIDGET-001" --line-number "15" --qty 2 --price 45.50
@@ -245,7 +245,7 @@ export def "invoice types" [] {
 #   $invoice_uuid | invoice line new --json '{"quantity": 40, "price_unit": 150, "price_extended": 6000}'
 #   
 #   # Interactive examples:
-#   $invoice_uuid | invoice line new --type-search-key ITEM --interactive
+#   $invoice_uuid | invoice line new --type-search-key item --interactive
 #   $invoice_uuid | invoice line new "WIDGET-001" --interactive
 #
 # Returns: The UUID and search_key of the newly created invoice line record

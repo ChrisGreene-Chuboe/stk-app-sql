@@ -32,16 +32,16 @@ Type 'tag <tab>' to see available commands.
 #   table - Table with first row containing the record to tag (required)
 #
 # Examples:
-#   "12345678-1234-5678-9012-123456789abc" | .append tag --type-search-key ADDRESS --json '{"address1": "123 Main St", "city": "Austin", "postal": "78701"}'
+#   "12345678-1234-5678-9012-123456789abc" | .append tag --type-search-key address --json '{"address1": "123 Main St", "city": "Austin", "postal": "78701"}'
 #   project list | get uu.0 | .append tag --search-key "headquarters" --type-name "Physical Address" --json '{"address1": "456 Oak Ave", "city": "Dallas", "state": "TX", "postal": "75001"}'
-#   project list | get 0 | .append tag --type-search-key ADDRESS --description "Main office"
+#   project list | get 0 | .append tag --type-search-key address --description "Main office"
 #   project list | where name == "HQ" | .append tag --type-name "Physical Address" --json $address_data
 #   item list | get uu.0 | .append tag --type-uu $email_type_uu --json '{"email": "support@example.com"}'
-#   "12345678-1234-5678-9012-123456789abc" | .append tag --type-search-key NONE --description "Special handling required"
+#   "12345678-1234-5678-9012-123456789abc" | .append tag --type-search-key none --description "Special handling required"
 #   invoice list | get uu.0 | .append tag --search-key "billing-addr" --type-name "Physical Address" --json $address_data
 #   
 #   # Interactive examples:
-#   project list | first | .append tag --type-search-key ADDRESS --interactive
+#   project list | first | .append tag --type-search-key address --interactive
 #   $project_uu | .append tag --type-name "Physical Address" --interactive --description "Main office"
 #
 # Returns: The UUID of the newly created tag record

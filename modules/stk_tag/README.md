@@ -49,14 +49,14 @@ tag types --help
 use modules *
 
 # Tag a project with an address
-project list | get uu.0 | .append tag --type-search-key ADDRESS --json '{
+project list | get uu.0 | .append tag --type-search-key address --json '{
     "address1": "123 Main St",
     "city": "Austin", 
     "postal": "78701"
 }'
 
 # Add a simple note
-$invoice_uu | .append tag --type-search-key NOTE --description "Requires special handling"
+$invoice_uu | .append tag --type-search-key note --description "Requires special handling"
 
 # List all tags (shows: search_key, description, table_name_uu_json, record_json, created, updated, is_revoked, uu)
 tag list

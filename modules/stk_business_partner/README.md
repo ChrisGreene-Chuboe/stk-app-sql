@@ -43,7 +43,7 @@ bp new "ACME Corporation"
 bp list
 
 # Add customer role to a BP
-bp list | where name == "ACME Corporation" | tag append --type-search-key BP_CUSTOMER
+bp list | where name == "ACME Corporation" | tag append --type-search-key bp-customer
 
 # Create from template
 bp list --templates | where name == "Standard Customer" | bp new "New Customer Inc"

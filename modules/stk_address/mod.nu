@@ -41,7 +41,7 @@ Type 'address <tab>' to see available commands.
 #   project list | first | .append address --json ($addr | to json)
 #   
 #   # Add shipping address with custom type
-#   $contact_uuid | .append address "123 Main St Austin TX" --type-search-key ADDRESS_SHIP_TO
+#   $contact_uuid | .append address "123 Main St Austin TX" --type-search-key address-ship-to
 #   
 #   # Add address with custom AI model
 #   $entity_uuid | .append address "123 Main St" --model gpt-4
@@ -51,7 +51,7 @@ Type 'address <tab>' to see available commands.
 #   $project_uuid | .append address --json $addr_json
 #   
 #   # Use new interactive tag creation
-#   project list | first | .append tag --type-search-key ADDRESS --interactive
+#   project list | first | .append tag --type-search-key address --interactive
 #
 # Returns:
 #   record - The created address tag with structured data
