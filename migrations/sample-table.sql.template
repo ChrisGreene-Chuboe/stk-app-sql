@@ -61,7 +61,7 @@ CREATE TABLE private.stk_changeme ( ----partition: rename_table
   type_uu UUID NOT NULL REFERENCES private.stk_changeme_type(uu),
   ----Prompt: ask the user if they need to create parent child relationships inside the table
   --parent_uu UUID REFERENCES private.stk_changeme(uu),
-  ----Prompt: ask the user if this table represents lines that belong to a header record
+  ----Prompt: ask the user if this table represents lines that belong to a header record. Note: If you uncommented header_uu, you need 1. remove the unique constraint from search_key and 2. create a composite unique constraint later related to (search_key, header_uu) since the search_key is used to represent line numbers for line tables.
   --header_uu UUID NOT NULL REFERENCES private.stk_changeme(uu),
   ----Prompt: ask the user if they need to store json
   --record_json JSONB NOT NULL DEFAULT '{}'::jsonb,

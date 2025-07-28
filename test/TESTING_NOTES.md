@@ -503,24 +503,34 @@ nix-shell --run "cd suite && ./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED
 You can explore and run chuck-stack commands directly without creating test files:
 
 #### Ad-hoc Command Execution
-```bash
-# Run a single chuck-stack command
-nix-shell --run "nu -l -c 'use ./modules *; bp list'"
 
-# Explore available types for a module
+**IMPORTANT Claude Code Limitation**: Claude Code cannot properly handle pipeline operations in `nu -c` commands due to stdin/stdout handling limitations. Avoid commands that pipe data between multiple operations.
+
+```bash
+# ✅ WORKS - Simple commands without pipelines
+nix-shell --run "nu -l -c 'use ./modules *; bp list'"
 nix-shell --run "nu -l -c 'use ./modules *; tag types'"
 nix-shell --run "nu -l -c 'use ./modules *; project types'"
 nix-shell --run "nu -l -c 'use ./modules *; item types'"
 
-# Get help for commands
+# ✅ WORKS - Get help for commands
 nix-shell --run "nu -l -c 'use ./modules *; bp new --help'"
 nix-shell --run "nu -l -c 'use ./modules *; project line new --help'"
 
-# Chain commands with pipes
-nix-shell --run "nu -l -c 'use ./modules *; bp list | where name =~ \"ACME\"'"
+# ❌ AVOID in Claude Code - Pipeline operations
+# These may fail or produce unexpected results:
+# nix-shell --run "nu -l -c 'use ./modules *; bp list | where name =~ \"ACME\"'"
+# nix-shell --run "nu -l -c 'use ./modules *; tag types | where search_key =~ ADDRESS'"
 
-# Create and query data
-nix-shell --run "nu -l -c 'use ./modules *; let p = project new \"Test\"; \$p | lines'"
+# ✅ ALTERNATIVE - Write test files for complex operations
+# Create a test script for pipeline operations instead:
+echo '#!/usr/bin/env nu
+use ../modules *
+bp list | where name =~ "ACME" | print
+tag types | where search_key =~ "ADDRESS" | print
+' > suite/explore-data.nu
+chmod +x suite/explore-data.nu
+nix-shell --run "./suite/explore-data.nu"
 ```
 
 #### Useful for:

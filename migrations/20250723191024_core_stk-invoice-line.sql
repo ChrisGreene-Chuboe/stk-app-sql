@@ -136,8 +136,9 @@ CREATE TABLE private.stk_invoice_line ( ----partition: rename_table
   --is_processed BOOLEAN GENERATED ALWAYS AS (processed IS NOT NULL) STORED,
   -- Add direct foreign key to item (optional)
   stk_item_uu UUID REFERENCES private.stk_item(uu), -- Optional FK for item references
-  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-  description TEXT ----partition: add_pk
+  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
+  description TEXT, ----partition: add_pk
+  UNIQUE(header_uu, search_key)
 ); ----partition: add_partition_by
 COMMENT ON TABLE private.stk_invoice_line IS 'Holds invoice_line records';
 ----partition: insert_default

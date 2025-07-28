@@ -42,7 +42,9 @@ BEGIN
             type_table_name_v,
             enum_type_v
         ) USING
-            enum_value_record_v.enum_value,
+            -- Convert enum to kebab-case for search_key
+            lower(replace(enum_value_record_v.enum_value, '_', '-')),
+            -- Keep original enum value as name for display
             enum_value_record_v.enum_value,
             enum_value_record_v.comment,
             enum_value_record_v.enum_value,
@@ -51,4 +53,4 @@ BEGIN
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
-comment on FUNCTION private.stk_table_type_create(text) IS 'Populates type records from its associated enum values';
+comment on FUNCTION private.stk_table_type_create(text) IS 'Populates type records from associated enum values. Converts enum values to kebab-case for search_key (e.g., ADDRESS_BILL_TO → address-bill-to) while preserving original enum value as name for display.';

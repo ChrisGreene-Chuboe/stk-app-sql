@@ -59,9 +59,10 @@ CREATE TABLE private.stk_project_line (
   type_uu UUID NOT NULL REFERENCES private.stk_project_line_type(uu),
   header_uu UUID NOT NULL REFERENCES private.stk_project(uu),
   record_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  search_key TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  search_key TEXT NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  description TEXT
+  description TEXT,
+  UNIQUE(header_uu, search_key)
 );
 COMMENT ON TABLE private.stk_project_line IS 'Holds project line items for tasks, milestones, deliverables, and resources. Lines can be tagged with stk_item for billing purposes.';
 
