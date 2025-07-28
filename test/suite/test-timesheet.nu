@@ -146,7 +146,7 @@ assert ($dated_detail.record_json.start_date == $custom_date) "Should store cust
 
 # print "=== Testing timesheet attachment pattern ==="
 # Create a project line to attach timesheet to
-let task = ($project_uu | project line new $"Test Task($test_suffix)" --type-search-key "TASK")
+let task = ($project_uu | project line new $"Test Task($test_suffix)" --type-search-key "task")
 let task_timesheet = ($task.uu | .append timesheet --minutes 90 --description "Task work")
 assert ($task_timesheet | describe | str starts-with "record") "Should create timesheet on task"
 let task_detail = ($task_timesheet.uu | timesheet get)

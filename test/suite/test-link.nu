@@ -34,7 +34,7 @@ assert ($ilink.linked_table == "stk_project") "Link should reference project tab
 
 # === Test 3: Create unidirectional link ===
 let business_partner = bp new "Test Business Partner"
-let link2 = ($business_partner | link new $project --type-search-key "UNIDIRECTIONAL" --description "BP references project")
+let link2 = ($business_partner | link new $project --type-search-key "unidirectional" --description "BP references project")
 assert ($link2.type_name == "UNIDIRECTIONAL") "Type should be UNIDIRECTIONAL"
 
 # === Test 4: Verify unidirectional link behavior ===
@@ -99,7 +99,7 @@ let proj2 = project new "Test Project 2"
 let item2 = item new "Test Item 2"
 
 # Create bidirectional link: proj2 -> item2
-let bilink = ($proj2 | link new $item2 --type-search-key BIDIRECTIONAL --description "proj-item bidirectional")
+let bilink = ($proj2 | link new $item2 --type-search-key bidirectional --description "proj-item bidirectional")
 
 # Both sides should see each other by default
 let proj2_links = ($proj2 | links)
@@ -125,7 +125,7 @@ assert ((($item2_in | first).links | first).name == "Test Project 2") "Should se
 let bp2 = bp new "Test Business Partner 2"
 
 # Create another bidirectional link: item2 -> bp2
-let bilink2 = ($item2 | link new $bp2 --type-search-key BIDIRECTIONAL --description "item-bp bidirectional")
+let bilink2 = ($item2 | link new $bp2 --type-search-key bidirectional --description "item-bp bidirectional")
 
 # Item2 should now see 2 links by default
 let item2_final = ($item2 | links)

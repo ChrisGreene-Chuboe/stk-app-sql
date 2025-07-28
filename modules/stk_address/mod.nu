@@ -4,7 +4,7 @@
 # Module Constants
 const STK_SCHEMA = "api"
 const STK_TABLE_NAME = "stk_tag"
-const STK_ADDRESS_TYPE_KEY = "ADDRESS"
+const STK_ADDRESS_TYPE_KEY = "address"
 
 # Address module overview
 export def "address" [] {

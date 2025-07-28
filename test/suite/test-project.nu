@@ -66,7 +66,7 @@ assert ($simple_line.name | str contains "User Authentication") "Name should mat
 #print "✓ Basic project line creation verified"
 
 #print "=== Testing project line with description and type ==="
-let described_line = ($project_uuid | project line new "Database Design" --description "Complete database design" --type-search-key "TASK")
+let described_line = ($project_uuid | project line new "Database Design" --description "Complete database design" --type-search-key "task")
 assert (($described_line | describe | str starts-with "record")) "Result should be a record"
 assert ($described_line.uu | is-not-empty) "UUID field should not be empty"
 assert ("description" in ($described_line | columns)) "Result should contain 'description' field"
@@ -385,7 +385,7 @@ assert (($line_stored_json.dependencies | length) == 2) "Line should have 2 depe
 
 #print "=== Testing complex nested JSON for project ==="
 let complex_json = '{"budget": {"initial": 50000, "allocated": 35000, "currency": "USD"}, "team": {"size": 5, "roles": ["PM", "Dev", "QA", "UX", "DevOps"]}, "milestones": [{"name": "Phase 1", "date": "2024-03-01"}, {"name": "Phase 2", "date": "2024-06-01"}]}'
-let complex_project = (project new "Enterprise Project" --json $complex_json --type-search-key "CLIENT")
+let complex_project = (project new "Enterprise Project" --json $complex_json --type-search-key "client")
 let complex_detail = ($complex_project.uu | project get)
 let complex_stored = $complex_detail.record_json
 assert ($complex_stored.budget.initial == 50000) "Initial budget should be 50000"

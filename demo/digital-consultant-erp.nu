@@ -22,8 +22,8 @@ print ""
 
 # Create a TRX entity for our consulting company
 let my_company = (entity new "My Consulting Company" 
-    --type-search-key "TRX" 
-    --search-key "my-consulting"
+    --type-search-key trx
+    --search-key my-consulting
     --description "Primary transactional entity for invoicing")
 
 print $"✓ Created entity: ($my_company.name) with search key: ($my_company.search_key)"
@@ -43,7 +43,7 @@ print ""
 # Create a client company with general information
 # Assign it to our TRX entity so it can receive invoices
 let client = (bp new "ACME Corporation" 
-    --type-search-key "ORGANIZATION" 
+    --type-search-key organization
     --entity-uu $my_company.uu
     --description "Enterprise retail company - our largest client" 
     --json '{
@@ -66,7 +66,7 @@ print "2. Assigning business roles..."
 print ""
 
 # Mark as customer with customer-specific details
-let customer_tag = $client | .append tag --type-search-key "BP_CUSTOMER" --json '{
+let customer_tag = $client | .append tag --type-search-key bp-customer --json '{
     "payment_terms": "Net 30",
     "payment_terms_days": 30,
     "credit_limit": 100000,
@@ -78,7 +78,7 @@ print "✓ Tagged as BP_CUSTOMER with payment terms and credit limit"
 print ""
 
 # Also mark as vendor (they occasionally provide services to us)
-let vendor_tag = $client | .append tag --type-search-key "BP_VENDOR" --json '{
+let vendor_tag = $client | .append tag --type-search-key bp-vendor --json '{
     "payment_terms": "Net 45",
     "payment_terms_days": 45,
     "our_account_number": "ACCT-0001",
@@ -105,7 +105,7 @@ print ""
 print "4. Adding addresses..."
 print ""
 
-# Headquarters address - using structured JSON
+# Headquarters address - using general address type
 let hq_address = $client | .append address --json '{
     "address1": "123 Main Street",
     "address2": "Suite 1000",
@@ -114,29 +114,29 @@ let hq_address = $client | .append address --json '{
     "postal": "10001",
     "country": "US"
 }'
-print "✓ Added headquarters address"
+print "✓ Added headquarters address (general)"
 print ""
 
-# Billing address - using structured JSON
+# Billing address - using specific bill-to type
 let billing_address = $client | .append address --json '{
     "address1": "456 Finance Blvd",
     "city": "Jersey City",
     "region": "NJ",
     "postal": "07302",
     "country": "US"
-}'
-print "✓ Added billing address"
+}' --type-search-key address-bill-to
+print "✓ Added billing address (bill-to)"
 print ""
 
-# Shipping address - using structured JSON
+# Shipping address - using specific ship-to type
 let shipping_address = $client | .append address --json '{
     "address1": "789 Warehouse Way",
     "city": "Newark",
     "region": "NJ",
     "postal": "07102",
     "country": "US"
-}'
-print "✓ Added shipping address"
+}' --type-search-key address-ship-to
+print "✓ Added shipping address (ship-to)"
 print ""
 
 # Step 5: Show the complete business partner profile
@@ -163,7 +163,7 @@ print ""
 
 # Show addresses with their JSON data
 print "Addresses:"
-$client | bp get | tags | get tags | where {$in.search_key =~ ADDRESS} | table -e | print
+$client | bp get | tags | get tags | where {$in.search_key =~ "address"} | table -e | print
 print ""
 
 print "========================================="
@@ -174,7 +174,10 @@ print ""
 print "This business partner now has:"
 print "- Core company information with legal and financial details"
 print "- Multiple business role tags (customer and vendor)"
-print "- Multiple addresses for different purposes (HQ, billing, shipping)"
+print "- Multiple addresses with specific purposes:"
+print "  - General address (headquarters)"
+print "  - Bill-to address (for invoicing)"
+print "  - Ship-to address (for deliveries)"
 print ""
 
 # Step 6: Create items for invoicing
@@ -185,12 +188,12 @@ print ""
 
 # Note: Item types don't have JSON schemas yet, so we're using common-sense fields
 let consultation = (item new "Hourly Consultation" 
-    --type-search-key "SERVICE"
+    --type-search-key service
     --description "Professional consulting services")
 print $"✓ Created item: ($consultation.name)"
 
 let project_fee = (item new "Project Setup Fee"
-    --type-search-key "SERVICE"
+    --type-search-key service
     --description "One-time project initialization fee")
 print $"✓ Created item: ($project_fee.name)"
 print ""
@@ -203,7 +206,7 @@ print ""
 
 # Note: Invoice types don't have JSON schemas yet, so we're using practical fields
 let invoice = ($client | invoice new "INV-2025-001"
-    --type-search-key "SALES_STANDARD"
+    --type-search-key sales-standard
     --entity-uu $my_company.uu
     --description "January 2025 Consulting Services")
 print $"✓ Created invoice: ($invoice.search_key) for ($client.name)"
@@ -225,7 +228,7 @@ print "✓ Added project setup fee @ $2,500"
 
 # Add a discount line (without item reference)
 let line3 = ($invoice | invoice line new --description "Early payment discount (5%)" 
-    --type-search-key "DISCOUNT" 
+    --type-search-key discount 
     --json '{"discount_amount": -425, "discount_basis": "subtotal"}')
 print "✓ Added early payment discount"
 print ""

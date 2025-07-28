@@ -14,9 +14,9 @@ let project_uuid = $test_project.uu
 #print $"Created project with UUID: ($project_uuid)"
 
 # Create project lines with various data
-let line1 = ($project_uuid | project line new "Line One" --description "First test line" --type-search-key "TASK")
-let line2 = ($project_uuid | project line new "Line Two" --description "Second test line" --type-search-key "MILESTONE")
-let line3 = ($project_uuid | project line new "Line Three" --type-search-key "DELIVERABLE")  # No description
+let line1 = ($project_uuid | project line new "Line One" --description "First test line" --type-search-key "task")
+let line2 = ($project_uuid | project line new "Line Two" --description "Second test line" --type-search-key "milestone")
+let line3 = ($project_uuid | project line new "Line Three" --type-search-key "deliverable")  # No description
 #print "✓ Created 3 project lines"
 
 #print "=== Test 1: Default behavior (name, description, search_key columns) ==="

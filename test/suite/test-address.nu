@@ -35,7 +35,7 @@ let ai_address_data = ($ai_tag_detail.record_json)
 assert ("address1" in $ai_address_data) "AI address should have address1 field"
 assert ("city" in $ai_address_data) "AI address should have city field"
 assert ("postal" in $ai_address_data) "AI address should have postal field"
-assert ($ai_tag_detail.search_key == "ADDRESS") "AI tag should have ADDRESS search_key"
+assert ($ai_tag_detail.search_key == "address") "AI tag should have address search_key"
 
 # === Testing .append address-json (Direct JSON) ===
 
@@ -128,13 +128,13 @@ try {
 
 # Test custom address type (if ADDRESS_SHIP_TO exists)
 let type_list = (tag types)
-let has_ship_to = ($type_list | where search_key == "ADDRESS_SHIP_TO" | length) > 0
+let has_ship_to = ($type_list | where search_key == "address-ship-to" | length) > 0
 
 if $has_ship_to {
-    let ship_address = ($project_uuid | .append address --json $min_json --type-search-key ADDRESS_SHIP_TO)
+    let ship_address = ($project_uuid | .append address --json $min_json --type-search-key address-ship-to)
     assert (($ship_address | describe | str starts-with "record")) "Should create shipping address"
     let ship_tag = ($ship_address.uu | tag get)
-    assert ($ship_tag.search_key == "ADDRESS_SHIP_TO") "Should have correct type"
+    assert ($ship_tag.search_key == "address-ship-to") "Should have correct type"
 }
 
 # === Verify all addresses were created ===
@@ -143,7 +143,7 @@ if $has_ship_to {
 let all_project_tags = (tag list | where table_name_uu_json.uu == $project_uuid)
 
 # Filter for ADDRESS tags (including any custom types)
-let address_tags = ($all_project_tags | where search_key =~ "ADDRESS")
+let address_tags = ($all_project_tags | where search_key =~ "address")
 let address_count = ($address_tags | length)
 
 # We created at least 6 ADDRESS tags (1 AI + 5 JSON)

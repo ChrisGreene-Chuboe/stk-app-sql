@@ -98,7 +98,7 @@ export def ".append timesheet" [
     }
     
     # Resolve type using utility function with TIMESHEET enum constraint
-    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-search-key "TIMESHEET" --enum $STK_TIMESHEET_TYPE_ENUM)
+    let type_record = (resolve-type --schema $STK_SCHEMA --table $STK_TABLE_NAME --type-search-key "timesheet" --enum $STK_TIMESHEET_TYPE_ENUM)
     let type_uu = $type_record.uu
     
     # Get table_name_uu for the attachment

@@ -104,3 +104,54 @@ COMMENT ON VIEW api.stk_tag IS 'Holds tag records that can be attached to any ta
 -- create triggers for newly created tables
 SELECT private.stk_trigger_create();
 
+-- Create additional address type records for specific commerce use cases
+-- These use the existing ADDRESS enum but provide semantic meaning through different search_keys
+INSERT INTO private.stk_tag_type (
+    search_key,
+    name,
+    description,
+    type_enum,
+    is_default,
+    record_json
+) VALUES 
+(
+    'address-bill-to',
+    'Bill To Address',
+    'Billing address for invoices and financial documents',
+    'ADDRESS',
+    false,
+    '{"json_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+            "address1": {"type": "string", "description": "Primary street address for billing"},
+            "address2": {"type": "string", "description": "Additional address information"},
+            "city": {"type": "string", "description": "City for billing"},
+            "state": {"type": "string", "description": "State/Province/Region code"},
+            "postal": {"type": "string", "description": "Postal/ZIP code"},
+            "country": {"type": "string", "description": "ISO country code"}
+        },
+        "required": ["address1", "city", "postal"]
+    }}'::jsonb
+),
+(
+    'address-ship-to',
+    'Ship To Address',
+    'Shipping/delivery address for physical goods or services',
+    'ADDRESS',
+    false,
+    '{"json_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+            "address1": {"type": "string", "description": "Primary street address for delivery"},
+            "address2": {"type": "string", "description": "Additional address information"},
+            "city": {"type": "string", "description": "City for delivery"},
+            "state": {"type": "string", "description": "State/Province/Region code"},
+            "postal": {"type": "string", "description": "Postal/ZIP code"},
+            "country": {"type": "string", "description": "ISO country code"}
+        },
+        "required": ["address1", "city", "postal"]
+    }}'::jsonb
+) ON CONFLICT (search_key) DO NOTHING;
+
