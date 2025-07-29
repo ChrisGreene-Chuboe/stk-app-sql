@@ -241,3 +241,130 @@ export def tags [
 ] {
     $in | psql append-table-name-uu-json $STK_SCHEMA $STK_TABLE_NAME "tags" $STK_TAG_COLUMNS ...$columns --detail=$detail --all=$all
 }
+
+# Clone a tag to a different target record
+#
+# Creates a new tag with identical data (type, record_json, description) but
+# attached to a different record. This is useful for preserving historical data
+# when copying information between records (e.g., cloning a business partner's
+# bill-to address to an invoice).
+#
+# The cloned tag gets a new UUID and creation timestamp, making it independent
+# of the source tag. Changes to the source tag do not affect clones.
+#
+# Accepts piped input:
+#   string - UUID of the tag to clone (required)
+#   record - Record with 'uu' field of the tag to clone (required)
+#
+# Examples:
+#   # Clone a specific tag to an invoice
+#   $address_tag_uuid | tag clone $invoice_uuid
+#   
+#   # Clone from a tag record
+#   bp list | first | tags | where type_search_key == "address-bill-to" | first | tag clone $invoice_uuid
+#   
+#   # Clone with parameter instead of positional
+#   $tag_uuid | tag clone --target-uu $invoice_uuid
+#
+# Returns: Record of the newly created cloned tag
+export def "tag clone" [
+    target_uuid?: string    # UUID of the record to attach the cloned tag to
+    --target-uu: string     # Alternative to positional parameter
+] {
+    # Extract source tag UUID from piped input
+    let source_uuid = ($in | extract-single-uu)
+    
+    # Get target UUID from positional or parameter
+    let target = ($target_uuid | default $target_uu)
+    
+    if ($target | is-empty) {
+        error make {msg: "Target UUID required: provide target record UUID"}
+    }
+    
+    # Get table_name and uu for the target
+    let target_table_name_uu = (psql get-table-name-uu $target)
+    
+    if ($target_table_name_uu | is-empty) {
+        error make {msg: $"Target record not found: ($target)"}
+    }
+    
+    # Build override for the new attachment point
+    let overrides = {
+        table_name_uu_json: ($target_table_name_uu | to json)
+    }
+    
+    # Clone and return full record
+    clone-record $source_uuid $overrides
+}
+
+# Clone a tag of a specific type from a source record to the piped target
+#
+# Finds a tag of the specified type on the source record and clones it to
+# the target record (provided via pipeline). This is a higher-level operation
+# that combines tag search and clone in one step.
+#
+# Useful for workflows like copying a business partner's bill-to address
+# to an invoice during invoice creation.
+#
+# Accepts piped input:
+#   string - UUID of the target record to receive the cloned tag (required)
+#   record - Record with 'uu' field of the target (required)
+#
+# Examples:
+#   # Clone bill-to address from BP to invoice
+#   $invoice_uuid | tag clone-from $bp_uuid --type-search-key address-bill-to
+#   
+#   # Clone from a BP record to an invoice record
+#   invoice list | first | tag clone-from $bp.uu --type-search-key address-bill-to
+#   
+#   # Clone using type UUID instead of search key
+#   $invoice | tag clone-from $bp_uuid --type-uu $bill_to_type_uuid
+#
+# Returns: Record of the newly created cloned tag
+export def "tag clone-from" [
+    source_uuid: string         # UUID of the source record to clone tag from
+    --type-search-key: string   # Search key of the tag type to clone
+    --type-uu: string          # UUID of the tag type to clone (alternative to search key)
+] {
+    # Extract target UUID from piped input
+    let target_uuid = ($in | extract-single-uu)
+    
+    # Validate type specification
+    if ($type_search_key | is-empty) and ($type_uu | is-empty) {
+        error make {msg: "Type specification required: provide --type-search-key or --type-uu"}
+    }
+    
+    # Get all tags from the source record
+    # First get the record so we can pipe it to tags
+    let source_record = (psql get-table-name-uu $source_uuid)
+    let source_tags = ($source_record | tags --detail)  # Use --detail to get all columns including type info
+    
+    if ($source_tags | is-empty) or ($source_tags.tags | is-empty) {
+        error make {msg: $"No tags found on source record: ($source_uuid)"}
+    }
+    
+    # Filter to find matching tag by type
+    let matching_tags = ($source_tags.tags | where {|tag|
+        if ($type_search_key | is-not-empty) {
+            $tag.type_search_key == $type_search_key
+        } else {
+            $tag.type_uu == $type_uu
+        }
+    })
+    
+    if ($matching_tags | is-empty) {
+        let type_desc = if ($type_search_key | is-not-empty) {
+            $"type search key '($type_search_key)'"
+        } else {
+            $"type UUID '($type_uu)'"
+        }
+        error make {msg: $"No tag with ($type_desc) found on source record"}
+    }
+    
+    if ($matching_tags | length) > 1 {
+        error make {msg: "Multiple tags of the same type found - ambiguous clone request"}
+    }
+    
+    # Clone the found tag to the target
+    $matching_tags | first | get uu | tag clone $target_uuid
+}

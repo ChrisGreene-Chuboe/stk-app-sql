@@ -276,6 +276,11 @@ let total = ($subtotal - $discount)
 ] | print
 print ""
 
+# Show cloned tags on invoice
+print "Preserved Business Context:"
+$invoice | invoice get | tags | select tags | table -e | print
+print ""
+
 # Step 10: Generate PDF invoice
 print "============================="
 print "=== Generating PDF Invoice ==="

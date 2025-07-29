@@ -898,3 +898,41 @@ def interactive-collect-field [prompt: record] {
     
     $value
 }
+
+# Clone a record and return the full cloned record
+#
+# High-level wrapper around psql clone-record that returns the complete
+# cloned record instead of just the UUID. This utility determines the
+# source table automatically and fetches the full record after cloning.
+#
+# Examples:
+#   # Simple clone
+#   clone-record $tag_uuid
+#   
+#   # Clone with overrides
+#   clone-record $tag_uuid {search_key: "billing-copy", description: "Cloned billing address"}
+#   
+#   # For tags - update attachment point
+#   clone-record $tag_uuid {table_name_uu_json: '{"table_name": "stk_invoice", "uu": "..."}'}
+#   
+#   # For invoices - clear processed flag
+#   clone-record $invoice_uuid {processed: null, is_processed: false}
+#
+# Returns: Full record of the cloned item (not just UUID)
+export def "clone-record" [
+    source_uuid: string     # UUID of the record to clone
+    overrides?: record      # Optional column overrides
+] {
+    # Get the source table name
+    let source_info = (psql get-table-name-uu $source_uuid)
+    
+    if ($source_info | is-empty) {
+        error make {msg: $"Source record not found: ($source_uuid)"}
+    }
+    
+    # Clone the record
+    let clone_result = (psql clone-record "api" $source_info.table_name $source_uuid $overrides)
+    
+    # Get and return the full cloned record
+    psql get-record "api" $source_info.table_name [] $clone_result.uu
+}

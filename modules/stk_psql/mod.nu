@@ -1501,11 +1501,30 @@ export def "psql append-table-name-uu-json" [
                 $columns | str join ", "
             }
             
-            # Build WHERE clause with optional revoked filter
-            let revoked_clause = if $all { "" } else { " AND is_revoked = false" }
+            # Build WHERE clause with optional revoked filter (use r. alias when JOINing)
+            let revoked_clause = if $all { "" } else { " AND r.is_revoked = false" }
+            
+            # Check if table has a _type companion and --detail is requested
+            let type_table_exists = (table-exists $"($table)_type")
+            let use_type_join = ($detail and $type_table_exists and ($columns | is-empty))
             
             # Query for related records
-            let query = $"SELECT ($select_clause) FROM ($schema).($table) WHERE table_name_uu_json = '($table_name_uu_json)'($revoked_clause) ORDER BY created"
+            let query = if $use_type_join {
+                # Use the standard r.*, type_cols pattern when --detail is specified
+                let type_cols = $STK_TYPE_COLUMNS | each {|col| 
+                    if ($col | str starts-with 'type_') {
+                        $"t.($col) as ($col)"
+                    } else {
+                        $"t.($col) as type_($col)"
+                    }
+                } | str join ", "
+                
+                $"SELECT r.*, ($type_cols) FROM ($schema).($table) r LEFT JOIN ($schema).($table)_type t ON r.type_uu = t.uu WHERE r.table_name_uu_json = '($table_name_uu_json)'($revoked_clause) ORDER BY r.created"
+            } else {
+                # Use simple query for non-detail or when no type table exists
+                $"SELECT ($select_clause) FROM ($schema).($table) r WHERE r.table_name_uu_json = '($table_name_uu_json)'($revoked_clause) ORDER BY r.created"
+            }
+            
             let data = (psql exec $query)
             
             # If no columns specified and not --detail, filter to default columns
@@ -1525,8 +1544,9 @@ export def "psql append-table-name-uu-json" [
             # Add column with fetched data
             $record | insert $column $final_data
         } catch {
-            # Error occurred, return error object
-            $record | insert $column { error: $"Failed to fetch ($column) for ($table_name):($record_uu): ($in)" }
+            # Error occurred, return error object with actual error message
+            let error_msg = $in.msg? | default $in
+            $record | insert $column { error: $"Failed to fetch ($column) for ($table_name):($record_uu): ($error_msg)" }
         }
     }
     
@@ -1869,4 +1889,136 @@ export def links [
     }
     
     $result
+}
+
+# Clone a record with new base column values
+#
+# Creates a new record by copying all columns from an existing record except
+# the base columns that get auto-generated (uu, created, created_by_uu, updated, 
+# updated_by_uu). Optionally override specific columns with new values.
+#
+# This is a generic cloning mechanism that works with any chuck-stack table.
+# The cloned record is completely independent of the source.
+#
+# Examples:
+#   # Simple clone - exact copy with new UUID and timestamps
+#   psql clone-record "api" "stk_tag" $source_uuid
+#   
+#   # Clone with column overrides (e.g., changing attachment point for tags)
+#   psql clone-record "api" "stk_tag" $source_uuid {table_name_uu_json: '{"table_name": "stk_invoice", "uu": "..."}'}
+#   
+#   # Clone with multiple overrides
+#   psql clone-record "api" "stk_item" $source_uuid {search_key: "COPY-001", description: "Copy of original"}
+#   
+#   # Clear processed flag when cloning
+#   psql clone-record "api" "stk_invoice" $source_uuid {processed: null, is_processed: false}
+#
+# Returns: Record containing the UUID of the newly cloned record
+#
+# Errors:
+#   - When source record is not found
+#   - When clone operation fails (e.g., unique constraint violations)
+export def "psql clone-record" [
+    schema: string          # Database schema (usually "api")
+    table: string           # Table name to clone from
+    source_uuid: string     # UUID of the record to clone
+    overrides?: record      # Optional columns to override in the clone
+] {
+    # First verify the source record exists
+    let check_query = $"SELECT EXISTS\(SELECT 1 FROM ($schema).($table) WHERE uu = '($source_uuid)') as exists"
+    let exists = (psql exec $check_query | get exists.0 | into bool ext)
+    
+    if not $exists {
+        error make {msg: $"Source record not found: ($source_uuid) in ($schema).($table)"}
+    }
+    
+    # Get all columns except the base columns that are auto-generated or GENERATED columns
+    # Check attgenerated column which reliably indicates GENERATED columns (PostgreSQL 12+)
+    let columns_query = $"
+        SELECT a.attname as column_name
+        FROM pg_attribute a
+        JOIN pg_class c ON a.attrelid = c.oid
+        JOIN pg_namespace n ON c.relnamespace = n.oid
+        WHERE n.nspname = 'private'  -- Chuck-stack pattern: api views point to private tables
+        AND c.relname = '($table)'
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+        AND a.attname NOT IN \('uu', 'created', 'created_by_uu', 'updated', 'updated_by_uu')
+        -- Exclude GENERATED columns \(attgenerated = 's' for STORED, 'v' for VIRTUAL)
+        AND COALESCE\(a.attgenerated, '') NOT IN \('s', 'v')
+        ORDER BY a.attnum
+    "
+    
+    let columns = (psql exec $columns_query | get column_name)
+    
+    # DEBUG: Print the columns being used for cloning
+    # print $"DEBUG: Cloning columns for ($table): ($columns | str join ', ')"
+    
+    if ($columns | is-empty) {
+        error make {msg: $"No clonable columns found in ($schema).($table)"}
+    }
+    
+    # Build the INSERT query
+    let insert_query = if ($overrides | is-empty) or ($overrides == null) {
+        # Simple clone - just copy all columns
+        let column_list = ($columns | str join ", ")
+        $"
+        INSERT INTO ($schema).($table) \(($column_list))
+        SELECT ($column_list)
+        FROM ($schema).($table)
+        WHERE uu = '($source_uuid)'
+        RETURNING uu
+        "
+    } else {
+        # Clone with overrides - build SELECT with CASE/override values
+        let override_keys = ($overrides | columns)
+        
+        # Build the select list with overrides
+        let select_parts = ($columns | each {|col|
+            if $col in $override_keys {
+                let value = ($overrides | get $col)
+                
+                # Handle different value types
+                if $value == null {
+                    $"NULL as ($col)"
+                } else if ($col | str ends-with "_json") {
+                    # JSONB columns need explicit casting
+                    $"'($value)'::jsonb as ($col)"
+                } else if ($value | describe) == "bool" {
+                    # Boolean values
+                    $"($value) as ($col)"
+                } else if ($value | describe | str starts-with "int") or ($value | describe | str starts-with "float") {
+                    # Numeric values
+                    $"($value) as ($col)"
+                } else {
+                    # String and other values
+                    $"'($value)' as ($col)"
+                }
+            } else {
+                # Use original column value
+                $col
+            }
+        })
+        
+        let column_list = ($columns | str join ", ")
+        let select_list = ($select_parts | str join ", ")
+        
+        $"
+        INSERT INTO ($schema).($table) \(($column_list))
+        SELECT ($select_list)
+        FROM ($schema).($table)
+        WHERE uu = '($source_uuid)'
+        RETURNING uu
+        "
+    }
+    
+    # Execute the clone operation
+    let result = (psql exec $insert_query)
+    
+    if ($result | is-empty) {
+        error make {msg: "Clone operation failed - no record created"}
+    }
+    
+    # Return the UUID of the cloned record
+    {uu: ($result | get uu | first)}
 }

@@ -56,8 +56,11 @@ export def "invoice new" [
     --json(-j): string             # Optional JSON data to store in record_json field
     --interactive                  # Interactively build JSON data using the type's schema
 ] {
+    # Capture the original piped input for context cloning
+    let piped_input = $in
+    
     # Extract business partner UUID from piped input
-    let bp_uuid = ($in | extract-single-uu --error-msg "Business Partner UUID is required via piped input")
+    let bp_uuid = ($piped_input | extract-single-uu --error-msg "Business Partner UUID is required via piped input")
     
     # Validate the business partner exists
     psql validate-uuid-table $bp_uuid "stk_business_partner"
@@ -79,8 +82,42 @@ export def "invoice new" [
         record_json: $record_json  # Already a JSON string from resolve-json
     }
     
-    # Single call with all parameters - no more cascading logic
-    psql new-record $STK_SCHEMA $STK_INVOICE_TABLE_NAME $params
+    # Create the invoice
+    let invoice_result = (psql new-record $STK_SCHEMA $STK_INVOICE_TABLE_NAME $params)
+    let invoice_uuid = $invoice_result.uu
+    
+    # Clone business context tags from source
+    # Define which tag types should be cloned to invoices (using kabab-case search keys)
+    const INVOICE_CONTEXT_TAGS = [
+        "bp-customer"          # Business rules: payment terms, credit limit, tax rules
+        "address-bill-to"      # Billing address
+    ]
+    
+    # Get source record info to enable cloning from any source type
+    let source_info = try { 
+        $piped_input | extract-uu-table-name 
+    } catch { 
+        null  # If we can't extract source info, skip cloning
+    }
+    
+    if ($source_info != null) {
+        # Clone each context tag type if it exists on the source
+        for tag_type in $INVOICE_CONTEXT_TAGS {
+            try {
+                # Find and clone the tag
+                $invoice_uuid | tag clone-from $source_info.uu --type-search-key $tag_type
+                # print $"✓ Cloned ($tag_type) tag to invoice" # DEBUG
+            } catch {
+                # Tag type not found on source - that's OK, continue
+                # let error_msg = $in.msg? | default "Unknown error"
+                # print $"⚠️  Could not clone ($tag_type) tag: ($error_msg)" # DEBUG
+                null
+            }
+        }
+    }
+    
+    # Return the invoice creation result
+    $invoice_result
 }
 
 # List the 10 most recent invoices from the chuck-stack system
