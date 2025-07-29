@@ -114,15 +114,16 @@ export def "todo new" [
 # Note: Results are ordered by creation time and filtered to type_enum in ['TODO']. Type information is always included.
 export def "todo list" [
     --all(-a)     # Include revoked (completed) todos
+    --limit(-l): int  # Maximum number of records to return
 ] {
-    # Build args list with optional --all flag
-    let args = if $all {
-        [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TODO_COLUMNS | append "--all"
-    } else {
-        [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TODO_COLUMNS
-    }
+    # Build complete arguments array including flags
+    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TODO_COLUMNS
     
-    psql list-records ...$args --enum $STK_TODO_TYPE_ENUM
+    # Add --all flag to args if needed
+    let args = if $all { $args | append "--all" } else { $args }
+    
+    # Execute query
+    psql list-records ...$args --enum $STK_TODO_TYPE_ENUM --limit $limit
 }
 
 # Retrieve a specific todo by its UUID

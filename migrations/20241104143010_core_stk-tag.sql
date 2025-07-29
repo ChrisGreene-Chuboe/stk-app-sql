@@ -22,6 +22,7 @@ CREATE TYPE private.stk_tag_type_enum AS ENUM (
     'DATE_RANGE',
     'SHARE',
     'ERROR',
+    'FAVORITE',
     'TABLE',
     'COLUMN'
 );
@@ -29,6 +30,7 @@ COMMENT ON TYPE private.stk_tag_type_enum IS 'Enum used in code to automate and 
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default, record_json) VALUES
 ('stk_tag_type_enum', 'NONE', 'General purpose with no automation or validation', true, NULL),
+('stk_tag_type_enum', 'FAVORITE', 'Favorite records', false, NULL),
 ('stk_tag_type_enum', 'COLUMN', 'Column attributes with no automation or validation', false, NULL),
 ('stk_tag_type_enum', 'ADDRESS', 'Physical or mailing address information including street, city, postal code', false, 
     '{

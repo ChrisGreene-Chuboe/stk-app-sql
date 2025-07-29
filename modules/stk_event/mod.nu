@@ -103,7 +103,7 @@ export def ".append event" [
     }
 }
 
-# List the 10 most recent events from the chuck-stack system
+# List events from the chuck-stack system
 #
 # Displays events in chronological order (newest first) to help you
 # monitor recent activity, debug issues, or track system behavior.
@@ -126,15 +126,19 @@ export def ".append event" [
 #   event list | elaborate --detail | select name table_name_uu_json_resolved.name  # Show referenced record names
 #
 # Returns: name, description, table_name_uu_json, record_json, created, updated, is_revoked, uu, type_enum, type_name, type_description
-# Note: Only shows the 10 most recent events - use direct SQL for larger queries
+# Note: Returns all events by default - use --limit to control the number returned
 export def "event list" [
     --all(-a)     # Include revoked events
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Build complete arguments array including flags
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_EVENT_COLUMNS
     
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     # Execute query
     psql list-records ...$args

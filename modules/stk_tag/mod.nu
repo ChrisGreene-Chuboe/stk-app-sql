@@ -47,7 +47,7 @@ Type 'tag <tab>' to see available commands.
 # Returns: The UUID of the newly created tag record
 # Note: Exactly one type parameter (--type-name, --type-search-key, or --type-uu) must be provided
 export def ".append tag" [
-    --search-key(-k): string            # Optional search key for the tag (defaults to UUID if not provided)
+    --search-key(-s): string            # Optional search key for the tag (defaults to UUID if not provided)
     --description(-d): string = ""      # Description of the tag (optional)
     --type-name: string                 # Lookup type by name field
     --type-search-key: string           # Lookup type by search_key field  
@@ -127,12 +127,16 @@ export def ".append tag" [
 # Returns: search_key, description, table_name_uu_json, record_json, created, updated, is_revoked, uu, type_enum, type_name, type_description
 export def "tag list" [
     --all(-a)     # Include revoked tags
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Build complete arguments array including flags
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TAG_COLUMNS
     
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     # Execute query
     psql list-records ...$args

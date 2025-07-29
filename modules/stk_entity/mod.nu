@@ -77,7 +77,7 @@ export def "entity new" [
     psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 }
 
-# List the 10 most recent entities from the chuck-stack system
+# List entities from the chuck-stack system
 #
 # Displays entities in chronological order (newest first) to help you
 # monitor recent activity, track entity status, or review organizational structure.
@@ -89,9 +89,9 @@ export def "entity new" [
 #
 # Examples:
 #   entity list
-#   entity list 20
+#   entity list --limit 20
 #   entity list --all
-#   entity list --all 100
+#   entity list --all --limit 100
 #   entity list --templates
 #   entity list --detail
 #   entity list name description type_enum
@@ -100,11 +100,11 @@ export def "entity new" [
 # Returns: Table of entity records with essential columns
 # Note: Default shows only active (non-revoked, non-template) entities
 export def "entity list" [
-    limit: int = 10                # Number of entities to return (default: 10)
     ...columns: string             # Specific columns to display (overrides default columns)
     --all(-a)                      # Include ALL records (templates AND revoked entities)
     --templates(-t)                # Show ONLY template entities (excludes regular entities)
     --detail(-d)                   # Show all columns (equivalent to select *)
+    --limit(-l): int               # Maximum number of records to return
 ] {
     # Build args array with base parameters
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append (if ($columns | is-empty) { $STK_ENTITY_COLUMNS } else { $columns })
@@ -114,8 +114,11 @@ export def "entity list" [
     let args = if $templates { $args | append "--templates" } else { $args }
     let args = if $detail { $args | append "--detail" } else { $args }
     
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
+    
     # Execute with spread operator
-    psql list-records ...$args | first $limit
+    psql list-records ...$args
 }
 
 # Get details for a specific entity from the chuck-stack system

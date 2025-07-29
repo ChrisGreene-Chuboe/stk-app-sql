@@ -92,7 +92,7 @@ export def "project new" [
     psql new-record $STK_SCHEMA $STK_PROJECT_TABLE_NAME $params
 }
 
-# List the 10 most recent projects from the chuck-stack system
+# List projects from the chuck-stack system
 #
 # Displays projects in chronological order (newest first) to help you
 # monitor recent activity, track project status, or review project portfolio.
@@ -122,15 +122,19 @@ export def "project new" [
 #   project list | elaborate --detail | select name created_by_uu_resolved.psql_user  # Creator usernames
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name, type_enum, type_name, type_description
-# Note: Only shows the 10 most recent projects - use direct SQL for larger queries
+# Note: Returns all projects by default - use --limit to control the number returned
 export def "project list" [
     --all(-a)     # Include revoked projects
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Build complete arguments array including flags
     let args = [$STK_SCHEMA, $STK_PROJECT_TABLE_NAME] | append $STK_PROJECT_COLUMNS
     
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     # Execute query
     psql list-records ...$args
@@ -312,6 +316,7 @@ export def "project line new" [
 # Note: By default shows only active lines, use --all to include revoked
 export def "project line list" [
     --all(-a)  # Include revoked project lines
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Extract UUID from piped input
     let project_uu = ($in | extract-single-uu --error-msg "Project UUID is required via piped input")
@@ -321,6 +326,9 @@ export def "project line list" [
     
     # Add --all flag if needed
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     psql list-line-records ...$args
 }

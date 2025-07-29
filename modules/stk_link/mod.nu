@@ -106,12 +106,16 @@ export def "link new" [
 # Returns: search_key, description, source_table_name_uu_json, target_table_name_uu_json, created, updated, is_revoked, uu
 export def "link list" [
     --all(-a)           # Include revoked links
+    --limit(-l): int    # Maximum number of records to return
 ] {
     # Build complete arguments array including flags
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_LINK_COLUMNS
     
     # Add --all flag to args if needed  
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     # Execute query
     psql list-records ...$args

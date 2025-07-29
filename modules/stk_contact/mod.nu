@@ -116,9 +116,10 @@ export def "contact new" [
 #   def cl [] { contact list | select name stk_business_partner_uu search_key }
 #
 # Returns: name, description, is_valid, stk_business_partner_uu, created, updated, is_revoked, uu
-# Note: Only shows the 10 most recent contacts - use direct SQL for larger queries
+# Note: Returns all contacts by default - use --limit to control the number returned
 export def "contact list" [
     --all(-a)     # Include revoked contacts
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Extract info from piped input if provided
     let extracted = if ($in | is-not-empty) {
@@ -146,7 +147,7 @@ export def "contact list" [
     }
     
     # Execute query with where constraints
-    psql list-records ...$args --where $where_constraints
+    psql list-records ...$args --where $where_constraints --limit $limit
 }
 
 # Retrieve a specific contact by its UUID

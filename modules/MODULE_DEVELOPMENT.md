@@ -584,10 +584,14 @@ Specialized variant of the header-line pattern for financial and transactional d
    export def "invoice new" [
        search_key: string  # The unique identifier/number (e.g., "INV-2024-001")
    ```
-3. **Line numbering** - search_key used for line numbers:
+3. **Line items** - can reference items by search_key or name:
    ```nushell
-   # Lines use numeric search_keys: "10", "20", "30" for ordering
-   $invoice_uuid | invoice line new "10" --description "First line item"
+   # Add item by search_key or name (searches both fields)
+   $invoice_uuid | invoice line new "WIDGET-001" --qty 5 --price 29.99
+   $invoice_uuid | invoice line new "Consulting Service" --qty 40 --price 150
+   
+   # Custom line without item reference - specify line number
+   $invoice_uuid | invoice line new --line-number "15" --description "Custom charge" --price 100
    ```
 
 **Document numbering patterns**:

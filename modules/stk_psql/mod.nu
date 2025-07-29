@@ -97,7 +97,7 @@ export def "psql exec" [
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql list-records" [
     ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
-    --limit: int = 10               # Maximum number of records to return
+    --limit: int = 1000             # Maximum number of records to return
     --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
     --where: record = {}            # Record of column:value pairs for equality filtering (AND'ed together)
 ] {
@@ -194,6 +194,9 @@ export def "psql list-records" [
         ""
     }
     
+    # Build LIMIT clause only if limit is not null
+    let limit_clause = if $limit != null { $"LIMIT ($limit)" } else { "" }
+    
     # Always use LEFT JOIN to include type information
     # Using r.* to get all columns from the primary table
     let sql = $"
@@ -202,7 +205,7 @@ export def "psql list-records" [
         LEFT JOIN ($type_table) t ON r.type_uu = t.uu
         ($where_clause)
         ORDER BY r.created DESC
-        LIMIT ($limit)
+        ($limit_clause)
     "
     
     let result = (psql exec $sql)
@@ -243,7 +246,7 @@ export def "psql list-records" [
 #   psql list-line-records ...$args --all
 export def "psql list-line-records" [
     ...args: string         # Positional arguments: schema, line_table_name, header_uu, column1, column2, ... [, --all]
-    --limit: int = 10       # Maximum number of records to return
+    --limit: int = 1000     # Maximum number of records to return
 ] {
     # Check if --all flag is present in args
     let has_all = ("--all" in $args)
@@ -265,8 +268,11 @@ export def "psql list-line-records" [
     let table = $"($schema).($line_table_name)"
     let revoked_clause = if $has_all { "" } else { " AND is_revoked = false" }
     
+    # Build LIMIT clause only if limit is not null
+    let limit_clause = if $limit != null { $" LIMIT ($limit)" } else { "" }
+    
     # Use SELECT * to get all columns
-    let sql = $"SELECT * FROM ($table) WHERE header_uu = '($header_uu)'($revoked_clause) ORDER BY created DESC LIMIT ($limit)"
+    let sql = $"SELECT * FROM ($table) WHERE header_uu = '($header_uu)'($revoked_clause) ORDER BY created DESC($limit_clause)"
     let result = (psql exec $sql)
     
     # If specific columns were provided (for priority), move them to the front

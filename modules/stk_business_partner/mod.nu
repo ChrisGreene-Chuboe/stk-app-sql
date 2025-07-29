@@ -115,6 +115,7 @@ export def "bp new" [
 export def "bp list" [
     --all(-a)       # Include revoked business partners and templates
     --templates     # Show only templates
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Build complete arguments array
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_BUSINESS_PARTNER_COLUMNS
@@ -122,6 +123,9 @@ export def "bp list" [
     # Add flags to args if needed
     let args = if $all { $args | append "--all" } else { $args }
     let args = if $templates { $args | append "--templates" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     # Execute query
     psql list-records ...$args

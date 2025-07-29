@@ -120,7 +120,7 @@ export def "invoice new" [
     $invoice_result
 }
 
-# List the 10 most recent invoices from the chuck-stack system
+# List invoices from the chuck-stack system
 #
 # Displays invoices in chronological order (newest first) to help you
 # monitor recent transactions, track invoice status, or review billing history.
@@ -150,15 +150,19 @@ export def "invoice new" [
 #   invoice list | elaborate --detail | select search_key stk_business_partner_uu_resolved.name  # BP names
 #
 # Returns: search_key, description, is_template, is_valid, created, updated, is_revoked, uu, table_name, type_enum, type_name, type_description
-# Note: Only shows the 10 most recent invoices - use direct SQL for larger queries
+# Note: Returns all invoices by default - use --limit to control the number returned
 export def "invoice list" [
     --all(-a)     # Include revoked invoices
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Build complete arguments array including flags
     let args = [$STK_SCHEMA, $STK_INVOICE_TABLE_NAME] | append $STK_INVOICE_COLUMNS
     
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     # Execute query
     psql list-records ...$args
@@ -381,6 +385,7 @@ export def "invoice line new" [
 # Note: By default shows only active lines, use --all to include revoked
 export def "invoice line list" [
     --all(-a)  # Include revoked invoice lines
+    --limit(-l): int  # Maximum number of records to return
 ] {
     # Extract UUID from piped input
     let invoice_uu = ($in | extract-single-uu --error-msg "Invoice UUID is required via piped input")
@@ -390,6 +395,9 @@ export def "invoice line list" [
     
     # Add --all flag if needed
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     psql list-line-records ...$args
 }

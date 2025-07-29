@@ -71,7 +71,7 @@ export def "item new" [
     psql new-record $STK_SCHEMA $STK_TABLE_NAME $params
 }
 
-# List the 10 most recent items from the chuck-stack system
+# List items from the chuck-stack system
 #
 # Displays items in chronological order (newest first) to help you
 # browse available products, services, and charges. This is typically
@@ -99,15 +99,19 @@ export def "item new" [
 #   item list | elaborate --detail | select name type_uu_resolved.name  # Show items with type names
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, type_enum, type_name, type_description
-# Note: Only shows the 10 most recent items - use direct SQL for larger queries
+# Note: Returns up to 1000 items by default - use --limit to control the number returned
 export def "item list" [
     --all(-a)     # Include revoked items
+    --limit(-l): int  # Maximum number of records to return (default: 1000)
 ] {
     # Build complete arguments array including flags
     let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_ITEM_COLUMNS
     
     # Add --all flag to args if needed
     let args = if $all { $args | append "--all" } else { $args }
+    
+    # Add limit to args if provided
+    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
     
     # Execute query
     psql list-records ...$args
