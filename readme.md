@@ -59,9 +59,9 @@ When you exit the shell, the script's `trap` command will remove all shell artif
 
 ## Deployment
 
-One purpose of this repository is to support the [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/stk-todo-app.nix) chuck-stack application. 
+One purpose of this repository is to support the [stk-core.nix](https://github.com/chuckstack/chuck-stack-nixos/blob/main/nixos/stk-core.nix) chuck-stack application. 
 
-The [stk-todo-app.nix](https://github.com/chuckstack/chuck-stack-nix/blob/main/nixos/stk-todo-app.nix) configuration file creates a services that clones and executes this repository every time the migration service is restarted.
+The [stk-core.nix](https://github.com/chuckstack/chuck-stack-nixos/blob/main/nixos/stk-core.nix) configuration file creates a services that clones and executes this repository every time the migration service is restarted.
 
 ## Migration
 
