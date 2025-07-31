@@ -15,6 +15,7 @@ COMMENT ON TYPE private.stk_request_type_enum IS 'Enum used in code to automate 
 
 INSERT INTO private.enum_comment (enum_type, enum_value, comment, is_default) VALUES 
 ('stk_request_type_enum', 'NOTE', 'Action purpose with no automation or validation', true),
+('stk_request_type_enum', 'ACTION', 'Action purpose with no automation or validation', false),
 ('stk_request_type_enum', 'CHECKLIST', 'Action purpose with no automation or validation', false)
 ;
 

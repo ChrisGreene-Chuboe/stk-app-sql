@@ -432,6 +432,10 @@ print "# Add ACME to your favorites:"
 print "bp list | where name =~ ACME | .append tag --type-search-key favorite"
 print ""
 
+print "# Adding a request to ACME:"
+print "bp list | where name =~ ACME | .append request \"request higher credit limit\" --type-search-key action"
+print ""
+
 print "======================================="
 print "=== Create Quick Keyboard Shortcuts ==="
 print "======================================="
