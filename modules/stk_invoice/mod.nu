@@ -144,10 +144,10 @@ export def "invoice new" [
 # Create a useful alias:
 #   def il [] { invoice list | lines | select search_key description lines }  # Concise invoice view with lines
 #
-# Using elaborate to resolve foreign key references:
-#   invoice list | elaborate                                          # Resolve with default columns
-#   invoice list | elaborate search_key stk_business_partner_uu       # Show business partner details
-#   invoice list | elaborate --detail | select search_key stk_business_partner_uu_resolved.name  # BP names
+# Using resolve to resolve foreign key references:
+#   invoice list | resolve                                          # Resolve with default columns
+#   invoice list | resolve search_key stk_business_partner_uu       # Show business partner details
+#   invoice list | resolve --detail | select search_key stk_business_partner_uu_resolved.name  # BP names
 #
 # Returns: search_key, description, is_template, is_valid, created, updated, is_revoked, uu, table_name, type_enum, type_name, type_description
 # Note: Returns all invoices by default - use --limit to control the number returned
@@ -378,8 +378,8 @@ export def "invoice line new" [
 #   invoice list | where search_key == "INV-2024-001" | invoice line list
 #   $invoice_uuid | invoice line list | select name description | table
 #   $invoice_uuid | invoice line list | where search_key =~ "LINE"
-#   $invoice_uuid | invoice line list | elaborate  # Resolve all UUID references
-#   $invoice_uuid | invoice line list | elaborate | get type_uu_resolved  # See line type details
+#   $invoice_uuid | invoice line list | resolve  # Resolve all UUID references
+#   $invoice_uuid | invoice line list | resolve | get type_uu_resolved  # See line type details
 #
 # Returns: search_key, description, is_valid, created, updated, is_revoked, uu, table_name
 # Note: By default shows only active lines, use --all to include revoked
@@ -499,7 +499,7 @@ export def "invoice line types" [] {
 # Generate a PDF for an invoice (POC)
 #
 # This is a proof-of-concept command that generates a PDF document
-# from an invoice using Typst. The command uses elaborate and flatten-record
+# from an invoice using Typst. The command uses resolve and flatten-record
 # to automatically prepare all data with minimal code.
 #
 # Accepts piped input:
@@ -523,10 +523,10 @@ export def "invoice pdf" [
     # Extract invoice UUID from input
     let invoice_uuid = ($in | extract-uu-with-param $uu)
     
-    # Get invoice with all foreign keys elaborated and flattened
+    # Get invoice with all foreign keys resolved and flattened
     let invoice = (
         psql get-record $STK_SCHEMA $STK_INVOICE_TABLE_NAME $STK_INVOICE_COLUMNS $invoice_uuid 
-        | elaborate --detail 
+        | resolve --detail 
         | flatten-record --include-json --clean
     )
     
@@ -534,10 +534,10 @@ export def "invoice pdf" [
         error make {msg: "Invoice not found"}
     }
     
-    # Get invoice lines with elaborated and flattened data
+    # Get invoice lines with resolved and flattened data
     let lines = (
         psql list-line-records $STK_SCHEMA $STK_INVOICE_LINE_TABLE_NAME $invoice_uuid ...$STK_INVOICE_LINE_COLUMNS 
-        | elaborate --detail
+        | resolve --detail
         | flatten-record --include-json --clean
     )
     

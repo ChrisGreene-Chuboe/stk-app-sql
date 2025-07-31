@@ -116,10 +116,10 @@ export def "project new" [
 # Create a useful alias:
 #   def pl [] { project list | lines | select name description lines }  # Concise project view with lines
 #
-# Using elaborate to resolve foreign key references:
-#   project list | elaborate                                          # Resolve with default columns
-#   project list | elaborate name psql_user                          # Show who created each project
-#   project list | elaborate --detail | select name created_by_uu_resolved.psql_user  # Creator usernames
+# Using resolve to resolve foreign key references:
+#   project list | resolve                                          # Resolve with default columns
+#   project list | resolve name psql_user                          # Show who created each project
+#   project list | resolve --detail | select name created_by_uu_resolved.psql_user  # Creator usernames
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name, type_enum, type_name, type_description
 # Note: Returns all projects by default - use --limit to control the number returned
@@ -309,8 +309,8 @@ export def "project line new" [
 #   project list | first | project line list | where is_template == false
 #   $project_uuid | project line list | select name description | table
 #   $project_uuid | project line list | where name =~ "test"
-#   $project_uuid | project line list | elaborate  # Resolve all UUID references
-#   $project_uuid | project line list | elaborate | get type_uu_resolved  # See line type details
+#   $project_uuid | project line list | resolve  # Resolve all UUID references
+#   $project_uuid | project line list | resolve | get type_uu_resolved  # See line type details
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, table_name
 # Note: By default shows only active lines, use --all to include revoked

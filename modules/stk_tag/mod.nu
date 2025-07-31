@@ -120,9 +120,9 @@ export def ".append tag" [
 #   tag list | where search_key =~ "address"
 #   tag list | where type_enum == "ADDRESS"
 #
-# Using elaborate to resolve foreign key references:
-#   tag list | elaborate                  # Resolve with default columns
-#   tag list | elaborate search_key table_name  # Show referenced table names
+# Using resolve to resolve foreign key references:
+#   tag list | resolve                  # Resolve with default columns
+#   tag list | resolve search_key table_name  # Show referenced table names
 #
 # Returns: search_key, description, table_name_uu_json, record_json, created, updated, is_revoked, uu, type_enum, type_name, type_description
 export def "tag list" [

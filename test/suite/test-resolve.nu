@@ -1,9 +1,9 @@
 #!/usr/bin/env nu
 
-# Test script for elaborate command
+# Test script for resolve command
 # Template Version: 2025-01-08
 
-#print "=== Testing elaborate command ==="
+#print "=== Testing resolve command ==="
 
 # Import modules and assert
 use ../modules *
@@ -27,12 +27,12 @@ let event2 = ($item2.uu | .append event "item-stock-updated" --description "Stoc
 #print $event1
 #print $event2
 
-#print "=== Testing elaborate with table_name_uu_json column ==="
+#print "=== Testing resolve with table_name_uu_json column ==="
 
-# Test elaborate on event list
-let events = (event list | elaborate)
+# Test resolve on event list
+let events = (event list | resolve)
 
-#print "Events with elaboration:"
+#print "Events with resolution:"
 #print $events
 
 # Verify table_name_uu_json_resolved column was added
@@ -48,18 +48,18 @@ assert ($first_event_resolved.name? != null) "Resolved item should have name"
 assert ($first_event_resolved.description? != null) "Resolved item should have description"
 # Note: uu is no longer in default columns, and search_key may not exist in all tables
 
-#print "=== Testing elaborate with xxx_uu columns ==="
+#print "=== Testing resolve with xxx_uu columns ==="
 
 # Create a request that has stk_entity_uu column
-let request1 = (.append request "Test Request" --description "Testing elaborate on entity_uu")
+let request1 = (.append request "Test Request" --description "Testing resolve on entity_uu")
 
 #print "Created test request:"
 #print $request1
 
-# Get requests and elaborate
-let requests = (request list | elaborate)
+# Get requests and resolve
+let requests = (request list | resolve)
 
-#print "Requests with elaboration:"
+#print "Requests with resolution:"
 #print $requests
 
 # Check if stk_entity_uu_resolved was added
@@ -70,35 +70,35 @@ if ("stk_entity_uu_resolved" in ($requests | columns)) {
     #print $entity_resolved
 }
 
-#print "=== Testing elaborate with non-existent UUID ==="
+#print "=== Testing resolve with non-existent UUID ==="
 
 # Create a record with an invalid UUID reference to test error handling
 # This would require database manipulation, so we'll skip for now
 
-#print "=== Testing elaborate with empty table ==="
+#print "=== Testing resolve with empty table ==="
 
-# Test that elaborate handles empty input gracefully
-let empty_result = ([] | elaborate)
-assert ($empty_result | is-empty) "Elaborate should return empty for empty input"
+# Test that resolve handles empty input gracefully
+let empty_result = ([] | resolve)
+assert ($empty_result | is-empty) "Resolve should return empty for empty input"
 
-#print "=== Testing elaborate preserves original columns ==="
+#print "=== Testing resolve preserves original columns ==="
 
 # Verify all original columns are preserved
 let original_cols = (event list | columns)
-let elaborated_cols = (event list | elaborate | columns)
+let resolved_cols = (event list | resolve | columns)
 
 for col in $original_cols {
-    assert ($col in $elaborated_cols) $"Original column ($col) should be preserved"
+    assert ($col in $resolved_cols) $"Original column ($col) should be preserved"
 }
 
-#print "=== Testing elaborate with column selection ==="
+#print "=== Testing resolve with column selection ==="
 
 # Test default columns (no arguments)
-let default_elaborate = (event list | elaborate)
-let default_resolved = ($default_elaborate.table_name_uu_json_resolved.0)
+let default_resolve = (event list | resolve)
+let default_resolved = ($default_resolve.table_name_uu_json_resolved.0)
 if $default_resolved != null {
     let default_cols = ($default_resolved | columns)
-    #print $"Default elaborate columns: ($default_cols)"
+    #print $"Default resolve columns: ($default_cols)"
     # Should have the default columns (same as lines command)
     assert ("name" in $default_cols) "Default should include name"
     assert ("description" in $default_cols) "Default should include description"
@@ -107,38 +107,38 @@ if $default_resolved != null {
 }
 
 # Test specific column selection
-let specific_elaborate = (event list | elaborate name type_uu)
-let specific_resolved = ($specific_elaborate.table_name_uu_json_resolved.0)
+let specific_resolve = (event list | resolve name type_uu)
+let specific_resolved = ($specific_resolve.table_name_uu_json_resolved.0)
 if $specific_resolved != null {
     let specific_cols = ($specific_resolved | columns)
-    #print $"Specific elaborate columns: ($specific_cols)"
+    #print $"Specific resolve columns: ($specific_cols)"
     assert ($specific_cols == ["name", "type_uu"]) "Should have only requested columns"
 }
 
 # Test --detail flag
-let all_elaborate = (event list | elaborate --detail)
-let all_resolved = ($all_elaborate.table_name_uu_json_resolved.0)
+let all_resolve = (event list | resolve --detail)
+let all_resolved = ($all_resolve.table_name_uu_json_resolved.0)
 if $all_resolved != null {
     let all_cols = ($all_resolved | columns)
-    #print $"All elaborate columns count: ($all_cols | length)"
+    #print $"All resolve columns count: ($all_cols | length)"
     # Should have many more columns than default
     assert (($all_cols | length) > 5) "Should have many columns with --detail"
     assert ("table_name" in $all_cols) "Should include table_name with --detail"
     assert ("is_revoked" in $all_cols) "Should include is_revoked with --detail"
 }
 
-# === Testing elaborate with string 'null' in xxx_uu columns ===
+# === Testing resolve with string 'null' in xxx_uu columns ===
 
 # This test specifically checks the bug where parent_uu contains the string "null"
 # instead of actual null, which would cause UUID casting errors
 
-# Generate test suffix for idempotency (_el for elaborate + 2 random chars)
+# Generate test suffix for idempotency (_rs for resolve + 2 random chars)
 let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 let random_suffix = (0..1 | each {|_| 
     let idx = (random int 0..($chars | str length | $in - 1))
     $chars | str substring $idx..($idx + 1)
 } | str join)
-let test_suffix = $"_el($random_suffix)"
+let test_suffix = $"_rs($random_suffix)"
 
 # Create a project without parent (will have null parent_uu)
 let parent_project_name = $"Parent Project($test_suffix)"
@@ -148,8 +148,8 @@ let parent_project = (project new $parent_project_name --description "Top level 
 let child_project_name = $"Child Project($test_suffix)"
 let child_project = ($parent_project.uu | project new $child_project_name --description "Sub-project")
 
-# Now test elaborate on projects - it should handle both null and valid parent_uu
-let projects = (project list | where name =~ $test_suffix | elaborate)
+# Now test resolve on projects - it should handle both null and valid parent_uu
+let projects = (project list | where name =~ $test_suffix | resolve)
 
 # Check if parent_uu_resolved column was added for projects that have parent_uu
 if ("parent_uu_resolved" in ($projects | columns)) {
@@ -167,28 +167,28 @@ if ("parent_uu_resolved" in ($projects | columns)) {
 }
 
 # Test case for string "null" - simulate what happens when a record has "null" as string
-# We can't directly insert "null" string via the API, but we can verify elaborate handles it
-# by checking that elaborate completes without errors on all projects
-assert (true) "Elaborate completed without UUID casting errors"
+# We can't directly insert "null" string via the API, but we can verify resolve handles it
+# by checking that resolve completes without errors on all projects
+assert (true) "Resolve completed without UUID casting errors"
 
-# === Testing elaborate with mixed case 'NULL' and 'Null' ===
+# === Testing resolve with mixed case 'NULL' and 'Null' ===
 
 # The fix should handle any case variation of "null"
-# If there were any records with "NULL", "Null", "null" etc., elaborate should skip them
+# If there were any records with "NULL", "Null", "null" etc., resolve should skip them
 # rather than trying to cast them to UUID
-let test_projects_for_elaborate = (project list | where name =~ $test_suffix)
+let test_projects_for_resolve = (project list | where name =~ $test_suffix)
 
 # Check if we have any test projects before elaborating
-if ($test_projects_for_elaborate | is-not-empty) {
-    # Since elaborate preserves input type, and we're passing a table, it should return a table
-    let all_elaborated = ($test_projects_for_elaborate | elaborate --detail)
+if ($test_projects_for_resolve | is-not-empty) {
+    # Since resolve preserves input type, and we're passing a table, it should return a table
+    let all_resolved = ($test_projects_for_resolve | resolve --detail)
     # The type should match the input type - if input is table, output is table
-    # But if elaborate is returning list, let's check both possibilities
-    let elaborate_type = ($all_elaborated | describe)
-    assert (($elaborate_type | str starts-with "table") or ($elaborate_type | str starts-with "list")) "Elaborate should return table or list"
+    # But if resolve is returning list, let's check both possibilities
+    let resolve_type = ($all_resolved | describe)
+    assert (($resolve_type | str starts-with "table") or ($resolve_type | str starts-with "list")) "Resolve should return table or list"
 } else {
     # No test projects found - this shouldn't happen but let's handle it
-    assert false "No test projects found for elaborate test"
+    assert false "No test projects found for resolve test"
 }
 
 "=== All tests completed successfully ==="

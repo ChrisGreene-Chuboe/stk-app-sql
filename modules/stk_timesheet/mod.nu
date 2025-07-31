@@ -147,8 +147,8 @@ export def ".append timesheet" [
 #   # Group by day:
 #   timesheet list | group-by { $in.record_json.start_date | into datetime | format date "%Y-%m-%d" }
 #   
-#   # With elaborate to see attached records:
-#   timesheet list | elaborate name table_name
+#   # With resolve to see attached records:
+#   timesheet list | resolve name table_name
 #
 # Returns: name, description, table_name_uu_json, record_json, processed, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Results are ordered by creation time and filtered to type_enum = 'TIMESHEET'. Type information is always included.

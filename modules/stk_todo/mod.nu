@@ -105,10 +105,10 @@ export def "todo new" [
 #   todo list | where ($it.table_name_uu_json.uu | is-empty)  # Show only todo lists
 #   todo list | where type_name == "work-todo"
 #
-# Using elaborate to resolve foreign key references:
-#   todo list | elaborate                                               # Resolve with default columns
-#   todo list | elaborate name table_name                               # Show parent todo names
-#   todo list | elaborate --detail | select name table_name_uu_json_resolved.name  # Show parent names
+# Using resolve to resolve foreign key references:
+#   todo list | resolve                                               # Resolve with default columns
+#   todo list | resolve name table_name                               # Show parent todo names
+#   todo list | resolve --detail | select name table_name_uu_json_resolved.name  # Show parent names
 #
 # Returns: name, description, table_name_uu_json, record_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Results are ordered by creation time and filtered to type_enum in ['TODO']. Type information is always included.

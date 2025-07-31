@@ -465,7 +465,7 @@ Chuck-stack enriches records through pipeline commands that add columns containi
 Generic commands for structural relationships:
 - `lines` - Header-line pattern (`_line` tables)
 - `children` - Parent-child relationships
-- `elaborate` - Inline FK resolution
+- `resolve` - Inline FK resolution
 
 #### Implementation
 Modules create one-line wrappers:

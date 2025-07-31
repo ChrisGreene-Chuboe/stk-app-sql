@@ -120,10 +120,10 @@ export def ".append event" [
 #   event list | where is_revoked == false
 #   event list | select name created | table
 #
-# Using elaborate to resolve foreign key references:
-#   event list | elaborate                                               # Resolve with default columns
-#   event list | elaborate name table_name                               # Show referenced table names
-#   event list | elaborate --detail | select name table_name_uu_json_resolved.name  # Show referenced record names
+# Using resolve to resolve foreign key references:
+#   event list | resolve                                               # Resolve with default columns
+#   event list | resolve name table_name                               # Show referenced table names
+#   event list | resolve --detail | select name table_name_uu_json_resolved.name  # Show referenced record names
 #
 # Returns: name, description, table_name_uu_json, record_json, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Returns all events by default - use --limit to control the number returned

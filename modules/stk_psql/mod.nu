@@ -840,7 +840,7 @@ export def "psql get-table-name-uu" [
     return $parsed
 }
 
-# Elaborate foreign key references in a table by adding resolved columns
+# Resolve foreign key references in a table by adding resolved columns
 #
 # Takes a table with UUID references and adds new columns containing the full
 # referenced records. This enhances data exploration by automatically resolving
@@ -855,10 +855,10 @@ export def "psql get-table-name-uu" [
 # messages when lookups fail.
 #
 # Examples:
-#   event list | elaborate                      # Default columns: name, description, search_key
-#   event list | elaborate --detail             # All columns from resolved records  
-#   todo list | elaborate name created          # Select specific columns
-#   request list | where status == "OPEN" | elaborate type_enum name
+#   event list | resolve                      # Default columns: name, description, search_key
+#   event list | resolve --detail             # All columns from resolved records  
+#   todo list | resolve name created          # Select specific columns
+#   request list | where status == "OPEN" | resolve type_enum name
 #
 # Parameters:
 # - ...columns: Specific columns to include in resolved records (optional)
@@ -866,7 +866,7 @@ export def "psql get-table-name-uu" [
 #
 # Returns: Original table with additional _resolved columns for each UUID reference
 # Note: Resolution happens dynamically by querying the referenced tables directly
-export def elaborate [
+export def resolve [
     ...columns: string  # Specific columns to include in resolved records
     --detail(-d)        # Include all columns from resolved records
     --table            # Always return a table format (useful for scripts)
@@ -988,9 +988,9 @@ export def elaborate [
     }
 }
 
-# Flatten elaborated records into presentation-ready format
+# Flatten resolved records into presentation-ready format
 #
-# Takes records that have been processed by 'elaborate' and creates a flattened,
+# Takes records that have been processed by 'resolve' and creates a flattened,
 # presentation-friendly structure. This is particularly useful for document
 # generation, reporting, and data export where nested structures need to be
 # simplified.
@@ -1002,17 +1002,17 @@ export def elaborate [
 # - Preserves original structure while adding flattened fields
 #
 # Examples:
-#   # Basic flattening of elaborated invoice
-#   invoice get | elaborate --detail | flatten-record
+#   # Basic flattening of resolved invoice
+#   invoice get | resolve --detail | flatten-record
 #   
 #   # Include JSON fields and use custom prefix
-#   invoice list | elaborate | flatten-record --include-json --prefix "ref_"
+#   invoice list | resolve | flatten-record --include-json --prefix "ref_"
 #   
 #   # Flatten specific resolved fields only
-#   bp get | elaborate | flatten-record --fields "stk_entity_uu_resolved.name"
+#   bp get | resolve | flatten-record --fields "stk_entity_uu_resolved.name"
 #   
 #   # For document generation
-#   invoice get | elaborate --detail | flatten-record --include-json --clean
+#   invoice get | resolve --detail | flatten-record --include-json --clean
 #
 # The function transforms nested structures like:
 #   {

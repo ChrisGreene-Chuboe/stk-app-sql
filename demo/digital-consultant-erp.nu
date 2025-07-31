@@ -186,7 +186,7 @@ $client | tags | get tags | where {$in.search_key =~ "address"} | table -e | pri
 print ""
 
 print "======================================="
-print "=== Creating items for invoicing... ==="
+print "=== Creating Items for Invoicing... ==="
 print "======================================="
 print ""
 
@@ -208,7 +208,7 @@ print $"✓ Created item: ($project_fee.name) \(($project_fee.search_key))"
 print ""
 
 print "======================================"
-print "=== Creating invoice for client... ==="
+print "=== Creating Invoice for Client... ==="
 print "======================================"
 print ""
 
@@ -223,9 +223,9 @@ let invoice = ($client | invoice new "INV-2025-001"
 print $"✓ Created invoice: ($invoice.search_key) for ($client.name)"
 print ""
 
-print "======================================="
-print "=== Adding line items to invoice... ==="
-print "======================================="
+print "===================================="
+print "=== Add Line Items to Invoice... ==="
+print "===================================="
 print ""
 
 # Add consultation hours
@@ -290,9 +290,9 @@ $invoice | invoice get | tags | select tags | table -e | print
 print ""
 
 # Step 10: Generate PDF invoice
-print "============================="
+print "=============================="
 print "=== Generating PDF Invoice ==="
-print "============================="
+print "=============================="
 print ""
 
 # Check if typst is available
@@ -372,9 +372,9 @@ print "- Type system for classification and validation"
 print "- Automatic relationship inference and data inheritance"
 print ""
 
-print "======================================="
+print "===================================="
 print "=== Try These Commands Yourself! ==="
-print "======================================="
+print "===================================="
 print ""
 
 print "Explore the data we just created with these commands:"
@@ -430,7 +430,36 @@ print ""
 
 print "# Add ACME to your favorites:"
 print "bp list | where name =~ ACME | .append tag --type-search-key favorite"
+print ""
+
+print "======================================="
+print "=== Create Quick Keyboard Shortcuts ==="
+print "======================================="
+print ""
+
+print "Create quick custom shortcuts like a `bpp` (business partner profile) command/keystroke for common tasks."
+print "Note that `bpp` is completely made up as an example of something you might want easy access to."
+print ""
+
+print "def bpp [name: string] {"
+print "    bp list | where {($in.name =~ $name) or ($in.search_key =~ $name)} | first | tags search_key record_json | select name search_key tags"
+print "}"
+
+# Actually define the bpp command
+def bpp [name: string] {
+    bp list | where {($in.name =~ $name) or ($in.search_key =~ $name)} | first | tags search_key record_json | select name search_key tags
+}
+print "✓ Created 'bpp' command for for you."
+print ""
+
+print "Try it with our demo business partner:"
+print "  bpp ACME"
+print ""
+
+print "This demonstrates how easy it is to create shortcuts for common tasks."
+print "You can define similar commands for any frequently-used reports, queries or processes."
+print "Another example might be `oor` for generating an 'open order report'."
+print ""
 
 print "=== Scroll up to see a summary and sample commands ==="
-print ""
 print ""

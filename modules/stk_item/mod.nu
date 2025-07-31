@@ -93,10 +93,10 @@ export def "item new" [
 # Create a useful alias:
 #   def il [] { item list | select name description search_key }  # Concise item view
 #
-# Using elaborate to resolve foreign key references:
-#   item list | elaborate                                            # Resolve with default columns
-#   item list | elaborate name type_enum                             # Show item names with type
-#   item list | elaborate --detail | select name type_uu_resolved.name  # Show items with type names
+# Using resolve to resolve foreign key references:
+#   item list | resolve                                            # Resolve with default columns
+#   item list | resolve name type_enum                             # Show item names with type
+#   item list | resolve --detail | select name type_uu_resolved.name  # Show items with type names
 #
 # Returns: name, description, is_template, is_valid, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Returns up to 1000 items by default - use --limit to control the number returned

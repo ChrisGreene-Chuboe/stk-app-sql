@@ -49,7 +49,7 @@ Leverage nushell's pipeline capabilities:
 - Filter by date: `where record_json.start_date > "2024-01-01"`
 - Group by day: `group-by { $in.record_json.start_date | into datetime | format date "%Y-%m-%d" }`
 - Sum totals: `get record_json.minutes | math sum`
-- Join with projects: `elaborate name table_name`
+- Join with projects: `resolve name table_name`
 
 ## Commands
 

@@ -119,10 +119,10 @@ export def ".append request" [
 #   request list | where is_processed == false
 #   request list | select name description created | table
 #
-# Using elaborate to resolve foreign key references:
-#   request list | elaborate                                              # Resolve with default columns
-#   request list | elaborate name table_name                              # Show referenced table names
-#   request list | elaborate --detail | select name table_name_uu_json_resolved.name  # Show referenced record names
+# Using resolve to resolve foreign key references:
+#   request list | resolve                                              # Resolve with default columns
+#   request list | resolve name table_name                              # Show referenced table names
+#   request list | resolve --detail | select name table_name_uu_json_resolved.name  # Show referenced record names
 #
 # Returns: name, description, table_name_uu_json, is_processed, created, updated, is_revoked, uu, type_enum, type_name, type_description
 # Note: Returns all requests by default - use --limit to control the number returned
