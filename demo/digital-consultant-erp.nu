@@ -310,160 +310,167 @@ if (which typst | is-empty) {
 }
 print ""
 
-print "=================================="
-print "=== Complete BP → Invoice Flow ==="
-print "=================================="
-print ""
-
-print "This demonstration showed:"
-print ""
-
-print "1. Entity Management:"
-print "   - Created a transactional entity for financial operations"
-print "   - Understood entity types (TRX vs *) and their purposes"
-print "   - Assigned search keys for easy reference"
-print ""
-
-print "2. Business Partner Creation:"
-print "   - Built a complete organizational profile with structured data"
-print "   - Added custom attributes via JSON (tax ID, website, revenue)"
-print "   - Assigned to a transactional entity for automatic invoice routing"
-print ""
-
-print "3. Role-Based Classification:"
-print "   - Applied multiple business roles using tags (customer AND vendor)"
-print "   - Configured role-specific attributes (payment terms, credit limits)"
-print "   - Demonstrated how one BP can have multiple commercial relationships"
-print ""
-
-print "4. Contact Management:"
-print "   - Added contacts linked to business partners"
-print "   - Used pipeline syntax to establish relationships"
-print ""
-
-print "5. Address Management:"
-print "   - Created multiple address types (general, bill-to, ship-to)"
-print "   - Used structured JSON for consistent address data"
-print "   - Demonstrated type-specific address classification"
-print ""
-
-print "6. Service Item Creation:"
-print "   - Built reusable service items with search keys"
-print "   - Classified items by type for proper accounting"
-print ""
-
-print "7. Invoice Generation:"
-print "   - Created invoices by piping business partners"
-print "   - Automatic inheritance of BP tags (addresses, terms)"
-print "   - Added multiple line item types (items, custom lines, discounts)"
-print ""
-
-print "8. Financial Document Features:"
-print "   - Calculated invoice totals from line item data"
-print "   - Generated PDF output (when typst available)"
-print "   - Preserved business context through tag cloning"
-print ""
-
-print "Key Concepts Demonstrated:"
-print "- Pipeline-oriented data flow (BP → Invoice)"
-print "- Tag-based attribute system for flexible data modeling"
-print "- JSON storage for extensible business data"
-print "- Type system for classification and validation"
-print "- Automatic relationship inference and data inheritance"
-print ""
-
-print "===================================="
-print "=== Try These Commands Yourself! ==="
-print "===================================="
-print ""
-
-print "Explore the data we just created with these commands:"
-print ""
-
-print "# View all entities:"
-print "entity list"
-print ""
-
-print "# Find ACME Corporation by name:"
-print "bp list | where name =~ ACME | first"
-print ""
-
-print "# Find ACME Corporation by search_key:"
-print "bp list | where search_key == acme | first"
-print ""
-
-print "# View ACME's complete profile with all tags:"
-print "bp list | where name =~ ACME | first | tags search_key record_json | select name search_key tags"
-print ""
-
-print "# See ACME's addresses:"
-print "bp list | where name =~ ACME | first | tags search_key record_json | get tags | where search_key =~ address"
-print ""
-
-print "# List all contacts for ACME:"
-print "bp list | where name =~ ACME | first | contacts name record_json"
-print ""
-
-print "# View service items:"
-print "item list | where type_enum == SERVICE"
-print ""
-
-print "# Find the invoice we created:"
-print "invoice list | where search_key == INV-2025-001"
-print ""
-
-print "# View invoice with all line items:"
-print "invoice list | where search_key == INV-2025-001 | lines search_key description record_json | select search_key lines"
-print ""
-
-print "# View just the invoice lines:"
-print "invoice list | where search_key == INV-2025-001 | invoice line list"
-print ""
-
-print "# See inherited tags on the invoice:"
-print "invoice list | where search_key == INV-2025-001 | tags | select search_key tags"
-print ""
-
-print "# Create another invoice for the same client:"
-print "bp list | where name =~ ACME | invoice new INV-2025-002 --description \"February services\""
-print ""
-
-print "# Add ACME to your favorites:"
-print "bp list | where name =~ ACME | .append tag --type-search-key favorite"
-print ""
-
-print "# Adding a request to ACME:"
-print "bp list | where name =~ ACME | .append request \"request higher credit limit\" --type-search-key action"
-print ""
-
-print "======================================="
-print "=== Create Quick Keyboard Shortcuts ==="
-print "======================================="
-print ""
-
-print "Create quick custom shortcuts like a `bpp` (business partner profile) command/keystroke for common tasks."
-print "Note that `bpp` is completely made up as an example of something you might want easy access to."
-print ""
-
-print "def bpp [name: string] {"
-print "    bp list | where {($in.name =~ $name) or ($in.search_key =~ $name)} | first | tags search_key record_json | select name search_key tags"
-print "}"
-
-# Actually define the bpp command
+# define the bpp command as an example of a keyboard shortcut
 def bpp [name: string] {
     bp list | where {($in.name =~ $name) or ($in.search_key =~ $name)} | first | tags search_key record_json | select name search_key tags
 }
-print "✓ Created 'bpp' command for for you."
-print ""
 
-print "Try it with our demo business partner:"
-print "  bpp ACME"
-print ""
+export def "demo-show" [] {
+    r#'
+==================================
+=== Complete BP → Invoice Flow ===
+==================================
 
-print "This demonstrates how easy it is to create shortcuts for common tasks."
-print "You can define similar commands for any frequently-used reports, queries or processes."
-print "Another example might be `oor` for generating an 'open order report'."
-print ""
+This demonstration showed:
 
-print "=== Scroll up to see a summary and sample commands ==="
-print ""
+
+1. Entity Management:
+   - Created a transactional entity for financial operations
+   - Understood entity types (TRX vs *) and their purposes
+   - Assigned search keys for easy reference
+
+
+2. Business Partner Creation:
+   - Built a complete organizational profile with structured data
+   - Added custom attributes via JSON (tax ID, website, revenue)
+   - Assigned to a transactional entity for automatic invoice routing
+
+
+3. Role-Based Classification:
+   - Applied multiple business roles using tags (customer AND vendor)
+   - Configured role-specific attributes (payment terms, credit limits)
+   - Demonstrated how one BP can have multiple commercial relationships
+
+
+4. Contact Management:
+   - Added contacts linked to business partners
+   - Used pipeline syntax to establish relationships
+
+
+5. Address Management:
+   - Created multiple address types (general, bill-to, ship-to)
+   - Used structured JSON for consistent address data
+   - Demonstrated type-specific address classification
+
+
+6. Service Item Creation:
+   - Built reusable service items with search keys
+   - Classified items by type for proper accounting
+
+
+7. Invoice Generation:
+   - Created invoices by piping business partners
+   - Automatic inheritance of BP tags (addresses, terms)
+   - Added multiple line item types (items, custom lines, discounts)
+
+
+8. Financial Document Features:
+   - Calculated invoice totals from line item data
+   - Generated PDF output (when typst available)
+   - Preserved business context through tag cloning
+
+
+Key Concepts Demonstrated:
+- Pipeline-oriented data flow (BP → Invoice)
+- Tag-based attribute system for flexible data modeling
+- JSON storage for extensible business data
+- Type system for classification and validation
+- Automatic relationship inference and data inheritance
+'#
+}
+
+export def "demo-example" [] {
+    r#'
+====================================
+=== Try These Commands Yourself! ===
+====================================
+
+
+Explore the data we just created with these commands:
+
+
+# View all entities:
+entity list
+
+
+# Find ACME Corporation by name:
+bp list | where name =~ ACME | first
+
+
+# Find ACME Corporation by search_key:
+bp list | where search_key == acme | first
+
+
+# View ACME's complete profile with all tags:
+bp list | where name =~ ACME | first | tags search_key record_json | select name search_key tags
+
+
+# See ACME's addresses:
+bp list | where name =~ ACME | first | tags search_key record_json | get tags | where search_key =~ address
+
+
+# List all contacts for ACME:
+bp list | where name =~ ACME | first | contacts name record_json
+
+
+# View service items:
+item list | where type_enum == SERVICE
+
+
+# Find the invoice we created:
+invoice list | where search_key == INV-2025-001
+
+
+# View invoice with all line items:
+invoice list | where search_key == INV-2025-001 | lines search_key description record_json | select search_key lines
+
+
+# View just the invoice lines:
+invoice list | where search_key == INV-2025-001 | invoice line list
+
+
+# See inherited tags on the invoice:
+invoice list | where search_key == INV-2025-001 | tags | select search_key tags
+
+
+# Create another invoice for the same client:
+bp list | where name =~ ACME | invoice new INV-2025-002 --description \"February services\"
+
+
+# Add ACME to your favorites:
+bp list | where name =~ ACME | .append tag --type-search-key favorite
+
+
+# Adding a request to ACME:
+bp list | where name =~ ACME | .append request \"request higher credit limit\" --type-search-key action
+
+
+=======================================
+=== Create Quick Keyboard Shortcuts ===
+=======================================
+
+
+Create quick custom shortcuts like a `bpp` (business partner profile) command/keystroke for common tasks.
+Note that `bpp` is completely made up as an example of something you might want easy access to.
+
+
+def bpp [name: string] {
+    bp list | where {($in.name =~ $name) or ($in.search_key =~ $name)} | first | tags search_key record_json | select name search_key tags
+}
+
+Try it with our demo business partner:
+  bpp ACME
+
+
+This demonstrates how easy it is to create shortcuts for common tasks.
+You can define similar commands for any frequently-used reports, queries or processes.
+Another example might be `oor` for generating an 'open order report'.
+
+
+=== Scroll up to see a summary and sample commands ===
+
+'#
+}
+
+demo-show | print
+demo-example | print
