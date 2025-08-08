@@ -3,8 +3,8 @@
 
 # Module Constants
 const STK_SCHEMA = "api"
-const STK_TABLE_NAME = "stk_tag"
-const STK_ADDRESS_TYPE_KEY = "address"
+const STK_TABLE_NAME = "stk_tag"  
+const STK_ADDRESS_TYPE_ENUM = ["ADDRESS"]  # Filter for address tags
 
 # Address module overview
 export def "address" [] {
@@ -16,6 +16,50 @@ Natural language is the default for ease of use.
 
 Type 'address <tab>' to see available commands.
 '#
+}
+
+# Add an 'addresses' column to records, fetching associated address tags
+#
+# This command enriches piped records with an 'addresses' column containing
+# their associated address tag records (tags with type search keys like 
+# 'address', 'address-bill-to', 'address-ship-to', etc.).
+#
+# Examples:
+#   project list | addresses                          # Default columns
+#   project list | addresses --detail                 # All address columns
+#   project list | addresses search_key record_json   # Specific columns
+#   bp list | addresses record_json                   # Just the address JSON data
+#   invoice list | addresses --all                    # Include revoked addresses
+#
+# Returns: Original records with added 'addresses' column containing array of address tag records
+export def addresses [
+    ...columns: string  # Specific columns to include in address records
+    --detail(-d)        # Include all columns (select *)
+    --all(-a)           # Include revoked addresses
+] {
+    # Use the existing tags command and filter for ADDRESS enum types
+    # Always get all columns first for filtering, then select requested columns
+    $in | tags --detail --all=$all
+    | each {|record|
+        # Filter the tags array to only include ADDRESS enum type tags
+        let filtered_addresses = if ($record.tags? | is-not-empty) {
+            let addresses = ($record.tags | where type_enum in $STK_ADDRESS_TYPE_ENUM)
+            
+            # Apply column selection after filtering
+            if $detail {
+                $addresses  # Return all columns
+            } else if ($columns | is-not-empty) {
+                $addresses | select ...$columns  # Return specific columns
+            } else {
+                # Return default address columns (same as tag defaults)
+                $addresses | select search_key description table_name_uu_json record_json
+            }
+        } else {
+            []
+        }
+        # Replace tags column with addresses column containing filtered results
+        $record | reject tags | insert addresses $filtered_addresses
+    }
 }
 
 # Append an address tag to a record using natural language, JSON, or interactive input
@@ -67,7 +111,7 @@ Type 'address <tab>' to see available commands.
 #   - When tag creation fails
 export def ".append address" [
     address_text?: string         # Natural language address text (required unless --json or --interactive is provided)
-    --type-search-key: string = $STK_ADDRESS_TYPE_KEY  # Tag type search key (default: ADDRESS)
+    --type-search-key: string = "address"  # Tag type search key (default: address)
     --model: string               # AI model to use (optional, ignored with --json or --interactive)
     --json: string                # Direct JSON input matching ADDRESS schema (alternative to address_text)
     --interactive                 # Interactively build address data using the type's schema

@@ -238,6 +238,50 @@ export def "timesheet revoke" [
     psql revoke-record $STK_SCHEMA $STK_TABLE_NAME $target_uuid --enum $STK_TIMESHEET_TYPE_ENUM
 }
 
+# Add a 'timesheets' column to records, fetching associated timesheet entries
+#
+# This command enriches piped records with a 'timesheets' column containing
+# their associated timesheet event records. It uses the table_name_uu_json pattern
+# to find timesheets that reference the input records.
+#
+# Examples:
+#   project list | timesheets                          # Default columns
+#   project list | timesheets --detail                 # All timesheet columns
+#   project list | timesheets name record_json         # Specific columns
+#   request list | timesheets record_json              # Just the time data
+#   project line list $proj | timesheets --all         # Include revoked timesheets
+#
+# Returns: Original records with added 'timesheets' column containing array of timesheet event records
+export def timesheets [
+    ...columns: string  # Specific columns to include in timesheet records
+    --detail(-d)        # Include all columns (select *)
+    --all(-a)           # Include revoked timesheets
+] {
+    # Use the existing events command and filter for TIMESHEET enum types
+    # Always get all columns first for filtering, then select requested columns
+    $in | events --detail --all=$all
+    | each {|record|
+        # Filter the events array to only include TIMESHEET enum type events
+        let filtered_timesheets = if ($record.events? | is-not-empty) {
+            let timesheets = ($record.events | where type_enum in $STK_TIMESHEET_TYPE_ENUM)
+            
+            # Apply column selection after filtering
+            if $detail {
+                $timesheets  # Return all columns
+            } else if ($columns | is-not-empty) {
+                $timesheets | select ...$columns  # Return specific columns
+            } else {
+                # Return default timesheet columns (same as event defaults)
+                $timesheets | select name description table_name_uu_json record_json processed is_processed
+            }
+        } else {
+            []
+        }
+        # Replace events column with timesheets column containing filtered results
+        $record | reject events | insert timesheets $filtered_timesheets
+    }
+}
+
 # List available timesheet types
 #
 # Shows all available event types with type_enum = 'TIMESHEET' that can be 
