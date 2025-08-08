@@ -157,10 +157,23 @@ export def ".append address" [
     } else {
         # AI conversion from natural language
         let schema = ($tag_type | get record_json)
-        let structured_address = if ($model | is-not-empty) {
-            ($address_text | ai text-to-json --schema $schema --model $model)
+        
+        # Build domain-specific instruction file path
+        # Look for the file relative to the modules directory
+        let module_dir = (["modules", "stk_address"] | path join)
+        let address_format_file = ([$module_dir "ADDRESS_FORMAT.md"] | path join)
+        
+        # Only include the file if it exists
+        let address_instructions = if ($address_format_file | path exists) {
+            [$address_format_file]
         } else {
-            ($address_text | ai text-to-json --schema $schema)
+            []
+        }
+        
+        let structured_address = if ($model | is-not-empty) {
+            ($address_text | ai text-to-json --schema $schema --model $model --instructions $address_instructions)
+        } else {
+            ($address_text | ai text-to-json --schema $schema --instructions $address_instructions)
         }
         let address_json = ($structured_address | to json)
         

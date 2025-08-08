@@ -19,6 +19,11 @@ const STK_AI_TOOL = "aichat"
 #   
 #   # Use specific AI model
 #   "Product info..." | ai text-to-json --schema $schema --model gpt-4
+#   
+#   # Include domain-specific instruction files (base JSON_RESPONSE.md is auto-included)
+#   # Files are passed to aichat using -f parameters for native file handling
+#   let address_instructions = [([$env.FILE_PWD ".." "stk_address" "ADDRESS_FORMAT.md"] | path join)]
+#   "123 Main St" | ai text-to-json --schema $schema --instructions $address_instructions
 #
 # Pipeline Input:
 #   text: string - The natural language text to convert
@@ -37,6 +42,7 @@ const STK_AI_TOOL = "aichat"
 export def "ai text-to-json" [
     --schema(-s): record      # JSON schema as a record (from tag type record_json)
     --model(-m): string = $STK_DEFAULT_MODEL  # AI model to use
+    --instructions: list<string> = []  # Domain-specific instruction file paths (JSON_RESPONSE.md auto-included)
 ] {
     let text = $in
     
@@ -49,7 +55,29 @@ export def "ai text-to-json" [
         error make {msg: "Schema must be provided via --schema parameter"}
     }
     
-    # Build AI prompt
+    # Build list of instruction files to include
+    # Look for the file relative to the modules directory
+    let module_dir = (["modules", "stk_ai"] | path join)
+    let base_instructions_path = ([$module_dir "JSON_RESPONSE.md"] | path join)
+    mut instruction_files = []
+    
+    # Add base instructions if they exist
+    if ($base_instructions_path | path exists) {
+        $instruction_files = ($instruction_files | append $base_instructions_path)
+    }
+    
+    # Add domain-specific instruction files
+    if ($instructions | is-not-empty) {
+        for file in $instructions {
+            if ($file | path exists) {
+                $instruction_files = ($instruction_files | append $file)
+            } else {
+                print $"Warning: Instruction file not found: ($file)"
+            }
+        }
+    }
+    
+    # Build AI prompt (main content only, instructions in files)
     let prompt = $"Convert the following text into JSON matching this schema:
 
 Schema:
@@ -57,12 +85,21 @@ Schema:
 ($schema | to json --indent 2)
 ```
 
-Text to convert: ($text)
-
-Return ONLY valid JSON that matches the schema. Do not include any explanation or markdown formatting."
+Text to convert: ($text)"
     
-    # Execute AI command
-    let result = (do { ^echo $prompt | ^$STK_AI_TOOL --no-stream --model $model} | complete)
+    # Build aichat command with -f parameters for each instruction file
+    mut ai_args = ["--no-stream", "--model", $model]
+    
+    # Add -f parameters for each instruction file
+    for file in $instruction_files {
+        $ai_args = ($ai_args | append ["-f", $file])
+    }
+    
+    # Create immutable copy for use in closure
+    let final_args = $ai_args
+    
+    # Execute AI command with instruction files
+    let result = (do { echo $prompt | ^$STK_AI_TOOL ...$final_args } | complete)
     
     if $result.exit_code != 0 {
         error make {msg: $"AI conversion failed: ($result.stderr)"}

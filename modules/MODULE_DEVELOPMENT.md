@@ -29,6 +29,7 @@ This guide provides patterns for creating chuck-stack nushell modules. Modules e
   - [17. Foreign Key Pipeline Pattern](#17-foreign-key-pipeline-pattern)
   - [18. Edit Pattern (Update in CRUD)](#18-edit-pattern-update-in-crud)
   - [19. Transactional Document Pattern](#19-transactional-document-pattern)
+  - [20. AI Work Instructions Pattern](#20-ai-work-instructions-pattern)
 - [Implementation Guide](#implementation-guide)
 - [Module Development Checklist](#module-development-checklist)
 - [Documentation Standards](#documentation-standards)
@@ -605,6 +606,21 @@ Specialized variant of the header-line pattern for financial and transactional d
 - Any header-line that represents a transaction vs. master data
 
 **Reference**: See `stk_invoice` for complete transactional document implementation including both header and line handling.
+
+### 20. AI Work Instructions Pattern
+
+Externalizes AI transformation instructions into maintainable markdown files, separating domain knowledge from code.
+
+**Key principles**:
+- **Schema first**: Express constraints in JSON schema when possible
+- **Separation**: AI module knows HOW, domain modules provide WHAT
+- **Maintainability**: Non-developers can update markdown instructions
+- **Layered**: Base instructions auto-included, domain-specific added as needed
+
+**Reference**: 
+- Implementation: `.append address` in stk_address
+- Base instructions: stk_ai/JSON_RESPONSE.md
+- Domain example: stk_address/ADDRESS_FORMAT.md
 
 ## Implementation Guide
 
