@@ -55,7 +55,7 @@ print ""
 # future invoices will automatically go to that entity/company.
 # Note: you can use the --interactive flag to prompt you for
 # the below details.
-let client = (bp new "ACME Corporation" 
+let bp = (bp new "ACME Corporation" 
     --type-search-key organization
     --search-key acme
     --entity-uu $my_company.uu
@@ -72,7 +72,7 @@ let client = (bp new "ACME Corporation"
         "primary_email": "john.smith@acme-corp.com"
     }')
 
-print $"✓ Created business partner: ($client.name) with UUID: ($client.uu)"
+print $"✓ Created business partner: ($bp.name) with UUID: ($bp.uu)"
 print ""
 
 print "Add business roles via tags..."
@@ -81,7 +81,7 @@ print ""
 # Mark as customer with customer-specific details
 # Note: bp-customer knows what details it needs to be a customer.
 # You can use the --interactive command to have the system prompt you.
-let customer_tag = $client | .append tag --type-search-key bp-customer --json '{
+let customer_tag = $bp | .append tag --type-search-key bp-customer --json '{
     "payment_terms": "Net 30",
     "payment_terms_days": 30,
     "credit_limit": 100000,
@@ -94,7 +94,7 @@ print ""
 
 # Also mark them as vendor (because they occasionally provide services to us)
 # Note: the same Busienss Partner can participate in multiple roles using tags.
-let vendor_tag = $client | .append tag --type-search-key bp-vendor --json '{
+let vendor_tag = $bp | .append tag --type-search-key bp-vendor --json '{
     "payment_terms": "Net 45",
     "payment_terms_days": 45,
     "our_account_number": "ACCT-0001",
@@ -111,7 +111,7 @@ print ""
 # Add a contact
 # Note: we are adding the contact to the BP.
 # We use the '|' to say: add this contact to this BP.
-$client | contact new "Julie Smith" --json '{
+$bp | contact new "Julie Smith" --json '{
         "primary_phone": "+1-555-123-4567",
         "primary_email": "julie.smith@acme-corp.com"
     }'
@@ -122,7 +122,7 @@ print "Adding addresses..."
 print ""
 
 # Headquarters address - using general (unspecified) address type.
-$client | .append address --json '{
+$bp | .append address --json '{
     "address1": "123 Main Street",
     "address2": "Suite 1000",
     "city": "New York",
@@ -136,7 +136,7 @@ print ""
 # Billing address - using specific bill-to type.
 # Note: the use of `--type-search-key` below to
 # specify the exact type.
-$client | .append address --json '{
+$bp | .append address --json '{
     "address1": "456 Finance Blvd",
     "city": "Jersey City",
     "region": "NJ",
@@ -147,7 +147,7 @@ print "✓ Added billing address (bill-to)"
 print ""
 
 # Shipping address - using specific ship-to type
-$client | .append address --json '{
+$bp | .append address --json '{
     "address1": "789 Warehouse Way",
     "city": "Newark",
     "region": "NJ",
@@ -165,24 +165,24 @@ print ""
 # Get BP with details and display as a record.
 # Note: `table -e` ensures details are printed.
 print "Business Partner:"
-$client | table -e | print
+$bp | table -e | print
 print ""
 
 # Show JSON attributes as a formatted table
 print "Business Partner attributes:"
-$client.record_json | print
+$bp.record_json | print
 print ""
 
 # Show tags as a table
 print "Business Roles & Classifications:"
-$client | tags | select type_enum description created | print
+$bp | tags | select type_enum description created | print
 print ""
 
 # Show addresses with their JSON data.
 # This will be greatly simplified by when we add the `addresses`
 # command to stk_address.
 print "Addresses:"
-$client | tags | get tags | where {$in.search_key =~ "address"} | table -e | print
+$bp | tags | get tags | where {$in.search_key =~ "address"} | table -e | print
 print ""
 
 print "======================================="
@@ -216,11 +216,11 @@ print ""
 # We can also create an invoice by piping in another invoice.
 # The system is smart enough to look for the appropriate tags (address
 # and bp) needed for invoice creation. If it finds them => success!
-let invoice = ($client | invoice new "INV-2025-001"
+let invoice = ($bp | invoice new "INV-2025-001"
     --type-search-key sales-standard
     --entity-uu $my_company.uu
     --description "January 2025 Consulting Services")
-print $"✓ Created invoice: ($invoice.search_key) for ($client.name)"
+print $"✓ Created invoice: ($invoice.search_key) for ($bp.name)"
 print ""
 
 print "===================================="
@@ -252,7 +252,7 @@ $invoice | invoice get | select search_key description type_enum created | print
 print ""
 
 # Display linked business partner
-print $"Customer: ($client.name)"
+print $"Customer: ($bp.name)"
 print ""
 
 # Display line items
@@ -323,52 +323,43 @@ export def "demo-show" [] {
 
 This demonstration showed:
 
-
 1. Entity Management:
    - Created a transactional entity for financial operations
    - Understood entity types (TRX vs *) and their purposes
    - Assigned search keys for easy reference
-
 
 2. Business Partner Creation:
    - Built a complete organizational profile with structured data
    - Added custom attributes via JSON (tax ID, website, revenue)
    - Assigned to a transactional entity for automatic invoice routing
 
-
 3. Role-Based Classification:
    - Applied multiple business roles using tags (customer AND vendor)
    - Configured role-specific attributes (payment terms, credit limits)
    - Demonstrated how one BP can have multiple commercial relationships
 
-
 4. Contact Management:
    - Added contacts linked to business partners
    - Used pipeline syntax to establish relationships
-
 
 5. Address Management:
    - Created multiple address types (general, bill-to, ship-to)
    - Used structured JSON for consistent address data
    - Demonstrated type-specific address classification
 
-
 6. Service Item Creation:
    - Built reusable service items with search keys
    - Classified items by type for proper accounting
-
 
 7. Invoice Generation:
    - Created invoices by piping business partners
    - Automatic inheritance of BP tags (addresses, terms)
    - Added multiple line item types (items, custom lines, discounts)
 
-
 8. Financial Document Features:
    - Calculated invoice totals from line item data
    - Generated PDF output (when typst available)
    - Preserved business context through tag cloning
-
 
 Key Concepts Demonstrated:
 - Pipeline-oriented data flow (BP → Invoice)
@@ -385,74 +376,56 @@ export def "demo-example" [] {
 === Try These Commands Yourself! ===
 ====================================
 
-
 Explore the data we just created with these commands:
-
 
 # View all entities:
 entity list
 
-
 # Find ACME Corporation by name:
 bp list | where name =~ ACME | first
-
 
 # Find ACME Corporation by search_key:
 bp list | where search_key == acme | first
 
-
 # View ACME's complete profile with all tags:
 bp list | where name =~ ACME | first | tags search_key record_json | select name search_key tags
-
 
 # See ACME's addresses:
 bp list | where name =~ ACME | first | tags search_key record_json | get tags | where search_key =~ address
 
-
 # List all contacts for ACME:
 bp list | where name =~ ACME | first | contacts name record_json
-
 
 # View service items:
 item list | where type_enum == SERVICE
 
-
 # Find the invoice we created:
 invoice list | where search_key == INV-2025-001
-
 
 # View invoice with all line items:
 invoice list | where search_key == INV-2025-001 | lines search_key description record_json | select search_key lines
 
-
 # View just the invoice lines:
 invoice list | where search_key == INV-2025-001 | invoice line list
-
 
 # See inherited tags on the invoice:
 invoice list | where search_key == INV-2025-001 | tags | select search_key tags
 
-
 # Create another invoice for the same client:
 bp list | where name =~ ACME | invoice new INV-2025-002 --description \"February services\"
-
 
 # Add ACME to your favorites:
 bp list | where name =~ ACME | .append tag --type-search-key favorite
 
-
 # Adding a request to ACME:
 bp list | where name =~ ACME | .append request \"request higher credit limit\" --type-search-key action
-
 
 =======================================
 === Create Quick Keyboard Shortcuts ===
 =======================================
 
-
 Create quick custom shortcuts like a `bpp` (business partner profile) command/keystroke for common tasks.
 Note that `bpp` is completely made up as an example of something you might want easy access to.
-
 
 def bpp [name: string] {
     bp list | where {($in.name =~ $name) or ($in.search_key =~ $name)} | first | tags search_key record_json | select name search_key tags
@@ -461,11 +434,9 @@ def bpp [name: string] {
 Try it with our demo business partner:
   bpp ACME
 
-
 This demonstrates how easy it is to create shortcuts for common tasks.
 You can define similar commands for any frequently-used reports, queries or processes.
 Another example might be `oor` for generating an 'open order report'.
-
 
 === Scroll up to see a summary and sample commands ===
 
