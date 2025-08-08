@@ -29,13 +29,13 @@ print ""
 # Create a 'trx' entity for our consulting company.
 # If we had not specified 'trx' as the type, it would default to '*'.
 # '*' is the default, non-transactional entity used to hold data.
-let my_company = (entity new "My Consulting Company" 
+let entity_myco = (entity new "My Consulting Company" 
     --type-search-key trx
-    --search-key my-consulting
+    --search-key myco
     --description "Primary transactional entity for invoicing")
 
-print $"✓ Created entity: ($my_company.name) with search key: ($my_company.search_key)"
-print $"  Entity UUID: ($my_company.uu)"
+print $"✓ Created entity: ($entity_myco.name) with search key: ($entity_myco.search_key)"
+print $"  Entity UUID: ($entity_myco.uu)"
 print $"  Type: TRX \(transactional - can create invoices)"
 print ""
 
@@ -55,10 +55,10 @@ print ""
 # future invoices will automatically go to that entity/company.
 # Note: you can use the --interactive flag to prompt you for
 # the below details.
-let bp = (bp new "ACME Corporation" 
+let bp_acme = (bp new "ACME Corporation" 
     --type-search-key organization
     --search-key acme
-    --entity-uu $my_company.uu
+    --entity-uu $entity_myco.uu
     --description "Enterprise retail company - our largest client" 
     --json '{
         "tax_id": "12-3456789",
@@ -72,7 +72,7 @@ let bp = (bp new "ACME Corporation"
         "primary_email": "john.smith@acme-corp.com"
     }')
 
-print $"✓ Created business partner: ($bp.name) with UUID: ($bp.uu)"
+print $"✓ Created business partner: ($bp_acme.name) with UUID: ($bp_acme.uu)"
 print ""
 
 print "Add business roles via tags..."
@@ -81,7 +81,7 @@ print ""
 # Mark as customer with customer-specific details
 # Note: bp-customer knows what details it needs to be a customer.
 # You can use the --interactive command to have the system prompt you.
-let customer_tag = $bp | .append tag --type-search-key bp-customer --json '{
+let customer_tag = $bp_acme | .append tag --type-search-key bp-customer --json '{
     "payment_terms": "Net 30",
     "payment_terms_days": 30,
     "credit_limit": 100000,
@@ -94,7 +94,7 @@ print ""
 
 # Also mark them as vendor (because they occasionally provide services to us)
 # Note: the same Busienss Partner can participate in multiple roles using tags.
-let vendor_tag = $bp | .append tag --type-search-key bp-vendor --json '{
+let vendor_tag = $bp_acme | .append tag --type-search-key bp-vendor --json '{
     "payment_terms": "Net 45",
     "payment_terms_days": 45,
     "our_account_number": "ACCT-0001",
@@ -111,7 +111,7 @@ print ""
 # Add a contact
 # Note: we are adding the contact to the BP.
 # We use the '|' to say: add this contact to this BP.
-$bp | contact new "Julie Smith" --json '{
+$bp_acme | contact new "Julie Smith" --json '{
         "primary_phone": "+1-555-123-4567",
         "primary_email": "julie.smith@acme-corp.com"
     }'
@@ -122,7 +122,7 @@ print "Adding addresses..."
 print ""
 
 # Headquarters address - using general (unspecified) address type.
-$bp | .append address --json '{
+$bp_acme | .append address --json '{
     "address1": "123 Main Street",
     "address2": "Suite 1000",
     "city": "New York",
@@ -136,7 +136,7 @@ print ""
 # Billing address - using specific bill-to type.
 # Note: the use of `--type-search-key` below to
 # specify the exact type.
-$bp | .append address --json '{
+$bp_acme | .append address --json '{
     "address1": "456 Finance Blvd",
     "city": "Jersey City",
     "region": "NJ",
@@ -147,7 +147,7 @@ print "✓ Added billing address (bill-to)"
 print ""
 
 # Shipping address - using specific ship-to type
-$bp | .append address --json '{
+$bp_acme | .append address --json '{
     "address1": "789 Warehouse Way",
     "city": "Newark",
     "region": "NJ",
@@ -165,24 +165,24 @@ print ""
 # Get BP with details and display as a record.
 # Note: `table -e` ensures details are printed.
 print "Business Partner:"
-$bp | table -e | print
+$bp_acme | table -e | print
 print ""
 
 # Show JSON attributes as a formatted table
 print "Business Partner attributes:"
-$bp.record_json | print
+$bp_acme.record_json | print
 print ""
 
 # Show tags as a table
 print "Business Roles & Classifications:"
-$bp | tags | select type_enum description created | print
+$bp_acme | tags | select type_enum description created | print
 print ""
 
 # Show addresses with their JSON data.
 # This will be greatly simplified by when we add the `addresses`
 # command to stk_address.
 print "Addresses:"
-$bp | tags | get tags | where {$in.search_key =~ "address"} | table -e | print
+$bp_acme | tags | get tags | where {$in.search_key =~ "address"} | table -e | print
 print ""
 
 print "======================================="
@@ -194,17 +194,17 @@ print ""
 # We refer to these items as 'HC' and 'PSF' (search_key) below.
 # We only use the variables (consultation and project_fee) for 
 # providing feedback.
-let consultation = (item new "Hourly Consultation" 
+let item_hc = (item new "Hourly Consultation" 
     --search-key hc
     --type-search-key service
     --description "Professional consulting services")
-print $"✓ Created item: ($consultation.name) \(($consultation.search_key))"
+print $"✓ Created item: ($item_hc.name) \(($item_hc.search_key))"
 
-let project_fee = (item new "Project Setup Fee"
+let item_psf = (item new "Project Setup Fee"
     --search-key psf
     --type-search-key service
     --description "One-time project initialization fee")
-print $"✓ Created item: ($project_fee.name) \(($project_fee.search_key))"
+print $"✓ Created item: ($item_psf.name) \(($item_psf.search_key))"
 print ""
 
 print "======================================"
@@ -216,11 +216,11 @@ print ""
 # We can also create an invoice by piping in another invoice.
 # The system is smart enough to look for the appropriate tags (address
 # and bp) needed for invoice creation. If it finds them => success!
-let invoice = ($bp | invoice new "INV-2025-001"
+let invoice = ($bp_acme | invoice new "INV-2025-001"
     --type-search-key sales-standard
-    --entity-uu $my_company.uu
+    --entity-uu $entity_myco.uu
     --description "January 2025 Consulting Services")
-print $"✓ Created invoice: ($invoice.search_key) for ($bp.name)"
+print $"✓ Created invoice: ($invoice.search_key) for ($bp_acme.name)"
 print ""
 
 print "===================================="
@@ -252,7 +252,7 @@ $invoice | invoice get | select search_key description type_enum created | print
 print ""
 
 # Display linked business partner
-print $"Customer: ($bp.name)"
+print $"Customer: ($bp_acme.name)"
 print ""
 
 # Display line items
