@@ -504,26 +504,22 @@ You can explore and run chuck-stack commands directly without creating test file
 
 #### Ad-hoc Command Execution
 
-**IMPORTANT Claude Code Limitation**: Claude Code cannot properly handle pipeline operations in `nu -c` commands due to stdin/stdout handling limitations. Avoid commands that pipe data between multiple operations.
-
 ```bash
-# ✅ WORKS - Simple commands without pipelines
+# Simple commands
 nix-shell --run "nu -l -c 'use ./modules *; bp list'"
 nix-shell --run "nu -l -c 'use ./modules *; tag types'"
 nix-shell --run "nu -l -c 'use ./modules *; project types'"
 nix-shell --run "nu -l -c 'use ./modules *; item types'"
 
-# ✅ WORKS - Get help for commands
+# Get help for commands
 nix-shell --run "nu -l -c 'use ./modules *; bp new --help'"
 nix-shell --run "nu -l -c 'use ./modules *; project line new --help'"
 
-# ❌ AVOID in Claude Code - Pipeline operations
-# These may fail or produce unexpected results:
-# nix-shell --run "nu -l -c 'use ./modules *; bp list | where name =~ \"ACME\"'"
-# nix-shell --run "nu -l -c 'use ./modules *; tag types | where search_key =~ ADDRESS'"
+# Pipeline operations work fine too
+nix-shell --run "nu -l -c 'use ./modules *; bp list | where name =~ \"ACME\"'"
+nix-shell --run "nu -l -c 'use ./modules *; tag types | where search_key =~ \"ADDRESS\"'"
 
-# ✅ ALTERNATIVE - Write test files for complex operations
-# Create a test script for pipeline operations instead:
+# For more complex operations, you can also create test files:
 echo '#!/usr/bin/env nu
 use ../modules *
 bp list | where name =~ "ACME" | print

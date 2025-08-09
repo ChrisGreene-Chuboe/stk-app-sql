@@ -74,6 +74,13 @@ def setup_directories [] {
     print "Copying template-print directory..."
     cp -rf $"($env.STK_PWD_SHELL)/../template-print" $env.STK_TEST_DIR
     print $"  Copied: template-print directory to ($env.STK_TEST_DIR)/template-print"
+    
+    # Copy test-claude.md as CLAUDE.md for Claude Code guidance in test environment
+    if ($"($env.STK_PWD_SHELL)/test-claude.md" | path exists) {
+        print "Copying test-claude.md for test environment guidance..."
+        cp -f $"($env.STK_PWD_SHELL)/test-claude.md" $"($env.STK_TEST_DIR)/CLAUDE.md"
+        print $"  Copied: test-claude.md to ($env.STK_TEST_DIR)/CLAUDE.md"
+    }
 }
 
 # Setup PostgreSQL cluster and database
