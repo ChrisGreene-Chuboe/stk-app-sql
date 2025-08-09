@@ -373,19 +373,23 @@ Chuck-stack uses strict naming conventions for JSON columns that enable automati
 - **Migration**: Search for "jsonb" in migrations for table definitions
 
 ### 12. Dynamic Command Building
-Optional flags are passed via args array to enable clean command composition:
+Commands use explicit parameters with direct value passing for clean composition:
 
 ```nushell
-# Build args array with optional flags
-let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_MODULE_COLUMNS
-let args = if $all { $args | append "--all" } else { $args }
-let args = if $templates { $args | append "--templates" } else { $args }
+# Direct call with explicit parameters - psql handles null values internally
+psql list-records $STK_SCHEMA $STK_TABLE_NAME --all=$all --limit=$limit --priority-columns=$STK_MODULE_COLUMNS
 
-# Single invocation point
-psql list-records ...$args
+# For boolean flags: always pass with --flag=$value syntax
+# For optional value parameters: psql commands handle null gracefully
 ```
 
-This pattern avoids nested if/else blocks when combining optional parameters.
+**Key principles:**
+- Boolean flags use `--flag=$value` syntax (always pass the value)
+- Optional parameters like `--limit` can be passed as null (psql applies defaults)
+- No conditional branching needed for flags
+- Makes command intent immediately clear
+
+**Reference**: Search for `"item list"` in stk_item module for implementation example.
 
 ### 13. UUID Input Enhancement Pattern
 

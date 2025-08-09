@@ -129,12 +129,6 @@ export def "contact list" [
         null
     }
     
-    # Build complete arguments array including flags
-    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_CONTACT_COLUMNS
-    
-    # Add --all flag to args if needed
-    let args = if $all { $args | append "--all" } else { $args }
-    
     # Build where constraints if we have foreign key input
     let where_constraints = if ($extracted != null) {
         let fk_column = $"($extracted.table_name)_uu"
@@ -146,8 +140,8 @@ export def "contact list" [
         {}
     }
     
-    # Execute query with where constraints
-    psql list-records ...$args --where $where_constraints --limit $limit
+    # Direct call - psql handles null limit internally
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME --all=$all --limit=$limit --where=$where_constraints --priority-columns=$STK_CONTACT_COLUMNS
 }
 
 # Retrieve a specific contact by its UUID

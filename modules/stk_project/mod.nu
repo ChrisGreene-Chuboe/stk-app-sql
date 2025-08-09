@@ -127,17 +127,8 @@ export def "project list" [
     --all(-a)     # Include revoked projects
     --limit(-l): int  # Maximum number of records to return
 ] {
-    # Build complete arguments array including flags
-    let args = [$STK_SCHEMA, $STK_PROJECT_TABLE_NAME] | append $STK_PROJECT_COLUMNS
-    
-    # Add --all flag to args if needed
-    let args = if $all { $args | append "--all" } else { $args }
-    
-    # Add limit to args if provided
-    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
-    
-    # Execute query
-    psql list-records ...$args
+    # Direct call - psql handles null limit internally
+    psql list-records $STK_SCHEMA $STK_PROJECT_TABLE_NAME --all=$all --limit=$limit --priority-columns=$STK_PROJECT_COLUMNS
 }
 
 # Retrieve a specific project by its UUID
@@ -321,16 +312,8 @@ export def "project line list" [
     # Extract UUID from piped input
     let project_uu = ($in | extract-single-uu --error-msg "Project UUID is required via piped input")
     
-    # Build arguments array
-    let args = [$STK_SCHEMA, $STK_PROJECT_LINE_TABLE_NAME, $project_uu] | append $STK_PROJECT_LINE_COLUMNS
-    
-    # Add --all flag if needed
-    let args = if $all { $args | append "--all" } else { $args }
-    
-    # Add limit to args if provided
-    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
-    
-    psql list-line-records ...$args
+    # Direct call - psql handles null limit internally
+    psql list-line-records $STK_SCHEMA $STK_PROJECT_LINE_TABLE_NAME $project_uu --all=$all --limit=$limit --priority-columns=$STK_PROJECT_LINE_COLUMNS
 }
 
 # Retrieve a specific project line by its UUID

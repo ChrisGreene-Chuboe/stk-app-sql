@@ -12,6 +12,7 @@ This guide provides patterns for testing chuck-stack nushell modules in the test
   - [Test Data Idempotency](#test-data-idempotency)
 - [Testing JSON Parameters](#testing-json-parameters)
 - [Running Tests](#running-tests)
+  - [Quick Module Validation (Without Database)](#quick-module-validation-without-database)
   - [Running Chuck-Stack Commands](#running-chuck-stack-commands)
 - [Common Issues](#common-issues)
   - [Permission Denied](#permission-denied)
@@ -497,6 +498,37 @@ nix-shell --run "./suite/test-new.nu" 2>&1 | tail -50
 # Run all with filtered output
 nix-shell --run "cd suite && ./test-all.nu" 2>/dev/null | grep -E "PASSED|FAILED"
 ```
+
+### Quick Module Validation (Without Database)
+
+For rapid syntax checking and module structure validation during development, you can test modules without nix-shell:
+
+```bash
+# From chuck-stack-core/test directory (no database required)
+nu -l -c 'use ../modules *; item list | print'
+
+# Validate module loads and check command signatures
+nu -l -c 'use ../modules/stk_project *; project --help'
+
+# Test utility functions that don't require database
+nu -l -c 'use ../modules/stk_utility *; "test" | extract-single-uu'
+
+# Or from chuck-stack-core root
+nu -l -c 'use ./modules *; item list | print'
+```
+
+**When to use:**
+- Syntax validation after module changes
+- Testing utility functions
+- Checking command signatures and help text
+- Rapid iteration during development
+
+**Limitations:**
+- No database access (psql commands will fail)
+- No test environment variables
+- Module path differs from test environment
+
+**Note**: Full test suite execution always requires nix-shell for database access.
 
 ### Running Chuck-Stack Commands
 

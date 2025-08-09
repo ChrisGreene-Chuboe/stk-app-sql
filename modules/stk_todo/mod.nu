@@ -116,14 +116,8 @@ export def "todo list" [
     --all(-a)     # Include revoked (completed) todos
     --limit(-l): int  # Maximum number of records to return
 ] {
-    # Build complete arguments array including flags
-    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_TODO_COLUMNS
-    
-    # Add --all flag to args if needed
-    let args = if $all { $args | append "--all" } else { $args }
-    
-    # Execute query
-    psql list-records ...$args --enum $STK_TODO_TYPE_ENUM --limit $limit
+    # Direct call - psql handles null limit internally
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME --all=$all --limit=$limit --enum=$STK_TODO_TYPE_ENUM --priority-columns=$STK_TODO_COLUMNS
 }
 
 # Retrieve a specific todo by its UUID

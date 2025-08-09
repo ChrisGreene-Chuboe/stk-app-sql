@@ -96,27 +96,17 @@ export def "psql exec" [
 # Returns: All specified columns from the table, newest records first
 # Note: Uses the same column processing as psql exec (datetime, json, boolean conversion)
 export def "psql list-records" [
-    ...args: string                 # Positional arguments: schema, table_name, column1, column2, ... [, --all, --templates]
-    --limit: int = 1000             # Maximum number of records to return
-    --enum: list<string> = []       # Type enum constraint(s) to filter by (optional)
+    schema: string                  # Database schema (e.g., "api")
+    table_name: string              # Table name (e.g., "stk_business_partner")
+    --all(-a)                       # Include revoked records and templates
+    --templates                     # Show only templates
+    --limit: int                    # Maximum number of records to return (null = 1000)
+    --enum: list<string> = []       # Type enum constraint(s) to filter by
     --where: record = {}            # Record of column:value pairs for equality filtering (AND'ed together)
+    --priority-columns: list<string> = []  # Columns to display first (for visual priority)
 ] {
-    # Check if --all or --templates flags are present in args
-    let has_all = ("--all" in $args)
-    let has_templates = ("--templates" in $args)
-    
-    # Filter out any flags from the args to get only positional arguments
-    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
-    
-    # Validate minimum arguments
-    if ($positional_args | length) < 2 {
-        error make {msg: "Expected at least 2 arguments: schema and table_name"}
-    }
-    
-    let schema = $positional_args.0
-    let table_name = $positional_args.1
-    # Note: specific_columns is ignored now but kept for backward compatibility
-    let specific_columns = ($positional_args | skip 2)  # Ignored - using SELECT * instead
+    # Apply default if limit not provided
+    let actual_limit = if $limit == null { 1000 } else { $limit }
     
     let table = $"($schema).($table_name)"
     let type_table = $"($schema).($table_name)_type"
@@ -132,9 +122,9 @@ export def "psql list-records" [
     } | str join ", "
     
     # Build WHERE clause based on flags and table capabilities
-    let base_where = if $has_all {
+    let base_where = if $all {
         ""  # Show everything
-    } else if $has_templates {
+    } else if $templates {
         # Check if table has is_template column
         let has_template_col = (column-exists "is_template" $table_name)
         if $has_template_col {
@@ -194,9 +184,6 @@ export def "psql list-records" [
         ""
     }
     
-    # Build LIMIT clause only if limit is not null
-    let limit_clause = if $limit != null { $"LIMIT ($limit)" } else { "" }
-    
     # Always use LEFT JOIN to include type information
     # Using r.* to get all columns from the primary table
     let sql = $"
@@ -205,15 +192,15 @@ export def "psql list-records" [
         LEFT JOIN ($type_table) t ON r.type_uu = t.uu
         ($where_clause)
         ORDER BY r.created DESC
-        ($limit_clause)
+        LIMIT ($actual_limit)
     "
     
     let result = (psql exec $sql)
     
-    # If specific columns were provided (for priority), move them to the front
-    if ($specific_columns | length) > 0 {
+    # If priority columns were provided, move them to the front
+    if ($priority_columns | length) > 0 {
         # Filter to only columns that exist in the result
-        let existing_priority = ($specific_columns | where { |col| $col in ($result | columns) })
+        let existing_priority = ($priority_columns | where { |col| $col in ($result | columns) })
         
         if ($existing_priority | length) > 0 {
             # Move priority columns to the beginning
@@ -245,40 +232,29 @@ export def "psql list-records" [
 #   psql list-line-records ...$args
 #   psql list-line-records ...$args --all
 export def "psql list-line-records" [
-    ...args: string         # Positional arguments: schema, line_table_name, header_uu, column1, column2, ... [, --all]
-    --limit: int = 1000     # Maximum number of records to return
+    schema: string                  # Database schema (e.g., "api")
+    line_table_name: string         # Line table name (e.g., "stk_project_line")
+    header_uu: string               # UUID of header record
+    --all(-a)                       # Include revoked line records
+    --limit: int                    # Maximum number of records to return (null = 1000)
+    --priority-columns: list<string> = []  # Columns to display first (for visual priority)
 ] {
-    # Check if --all flag is present in args
-    let has_all = ("--all" in $args)
-    
-    # Filter out any flags from the args to get only positional arguments
-    let positional_args = ($args | where {|it| not ($it | str starts-with "--") })
-    
-    # Validate minimum arguments
-    if ($positional_args | length) < 3 {
-        error make {msg: "Expected at least 3 arguments: schema, line_table_name, and header_uu"}
-    }
-    
-    let schema = $positional_args.0
-    let line_table_name = $positional_args.1
-    let header_uu = $positional_args.2
-    # Note: specific_columns is ignored now but kept for backward compatibility
-    let specific_columns = ($positional_args | skip 3)  # Ignored - using SELECT * instead
+    # Apply default if limit not provided
+    let actual_limit = if $limit == null { 1000 } else { $limit }
     
     let table = $"($schema).($line_table_name)"
-    let revoked_clause = if $has_all { "" } else { " AND is_revoked = false" }
     
-    # Build LIMIT clause only if limit is not null
-    let limit_clause = if $limit != null { $" LIMIT ($limit)" } else { "" }
+    # Build WHERE clause based on --all flag
+    let revoked_clause = if $all { "" } else { " AND is_revoked = false" }
     
     # Use SELECT * to get all columns
-    let sql = $"SELECT * FROM ($table) WHERE header_uu = '($header_uu)'($revoked_clause) ORDER BY created DESC($limit_clause)"
+    let sql = $"SELECT * FROM ($table) WHERE header_uu = '($header_uu)'($revoked_clause) ORDER BY created DESC LIMIT ($actual_limit)"
     let result = (psql exec $sql)
     
-    # If specific columns were provided (for priority), move them to the front
-    if ($specific_columns | length) > 0 {
+    # If priority columns were provided, move them to the front
+    if ($priority_columns | length) > 0 {
         # Filter to only columns that exist in the result
-        let existing_priority = ($specific_columns | where { |col| $col in ($result | columns) })
+        let existing_priority = ($priority_columns | where { |col| $col in ($result | columns) })
         
         if ($existing_priority | length) > 0 {
             # Move priority columns to the beginning

@@ -155,17 +155,8 @@ export def "invoice list" [
     --all(-a)     # Include revoked invoices
     --limit(-l): int  # Maximum number of records to return
 ] {
-    # Build complete arguments array including flags
-    let args = [$STK_SCHEMA, $STK_INVOICE_TABLE_NAME] | append $STK_INVOICE_COLUMNS
-    
-    # Add --all flag to args if needed
-    let args = if $all { $args | append "--all" } else { $args }
-    
-    # Add limit to args if provided
-    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
-    
-    # Execute query
-    psql list-records ...$args
+    # Direct call - psql handles null limit internally
+    psql list-records $STK_SCHEMA $STK_INVOICE_TABLE_NAME --all=$all --limit=$limit --priority-columns=$STK_INVOICE_COLUMNS
 }
 
 # Retrieve a specific invoice by its UUID
@@ -390,16 +381,8 @@ export def "invoice line list" [
     # Extract UUID from piped input
     let invoice_uu = ($in | extract-single-uu --error-msg "Invoice UUID is required via piped input")
     
-    # Build arguments array
-    let args = [$STK_SCHEMA, $STK_INVOICE_LINE_TABLE_NAME, $invoice_uu] | append $STK_INVOICE_LINE_COLUMNS
-    
-    # Add --all flag if needed
-    let args = if $all { $args | append "--all" } else { $args }
-    
-    # Add limit to args if provided
-    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
-    
-    psql list-line-records ...$args
+    # Direct call - psql handles null limit internally
+    psql list-line-records $STK_SCHEMA $STK_INVOICE_LINE_TABLE_NAME $invoice_uu --all=$all --limit=$limit --priority-columns=$STK_INVOICE_LINE_COLUMNS
 }
 
 # Retrieve a specific invoice line by its UUID
@@ -536,7 +519,7 @@ export def "invoice pdf" [
     
     # Get invoice lines with resolved and flattened data
     let lines = (
-        psql list-line-records $STK_SCHEMA $STK_INVOICE_LINE_TABLE_NAME $invoice_uuid ...$STK_INVOICE_LINE_COLUMNS 
+        psql list-line-records $STK_SCHEMA $STK_INVOICE_LINE_TABLE_NAME $invoice_uuid --priority-columns=$STK_INVOICE_LINE_COLUMNS 
         | resolve --detail
         | flatten-record --include-json --clean
     )

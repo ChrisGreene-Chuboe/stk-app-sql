@@ -130,17 +130,8 @@ export def "request list" [
     --all(-a)     # Include revoked requests
     --limit(-l): int  # Maximum number of records to return
 ] {
-    # Build complete arguments array including flags
-    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append $STK_REQUEST_COLUMNS
-    
-    # Add --all flag to args if needed
-    let args = if $all { $args | append "--all" } else { $args }
-    
-    # Add limit to args if provided
-    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
-    
-    # Execute query
-    psql list-records ...$args
+    # Direct call - psql handles null limit internally
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME --all=$all --limit=$limit --priority-columns=$STK_REQUEST_COLUMNS
 }
 
 # Retrieve a specific request by its UUID

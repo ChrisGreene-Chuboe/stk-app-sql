@@ -107,18 +107,12 @@ export def "entity list" [
     --limit(-l): int               # Maximum number of records to return
 ] {
     # Build args array with base parameters
-    let args = [$STK_SCHEMA, $STK_TABLE_NAME] | append (if ($columns | is-empty) { $STK_ENTITY_COLUMNS } else { $columns })
+    # Determine priority columns (use provided columns or defaults)
+    let priority_cols = if ($columns | is-empty) { $STK_ENTITY_COLUMNS } else { $columns }
     
-    # Add optional flags dynamically
-    let args = if $all { $args | append "--all" } else { $args }
-    let args = if $templates { $args | append "--templates" } else { $args }
-    let args = if $detail { $args | append "--detail" } else { $args }
-    
-    # Add limit to args if provided
-    let args = if $limit != null { $args | append ["--limit" ($limit | into string)] } else { $args }
-    
-    # Execute with spread operator
-    psql list-records ...$args
+    # Direct call - psql handles null limit internally
+    # Note: --detail flag is for future use when implemented in psql
+    psql list-records $STK_SCHEMA $STK_TABLE_NAME --all=$all --templates=$templates --limit=$limit --priority-columns=$priority_cols
 }
 
 # Get details for a specific entity from the chuck-stack system
