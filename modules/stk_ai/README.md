@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `stk_ai` module provides AI-powered text transformation capabilities for chuck-stack. It acts as a wrapper around AI tools (currently `aichat`) to enable natural language processing within chuck-stack workflows.
+The `stk_ai` module provides AI-powered text transformation capabilities for chuck-stack. It acts as a wrapper around the Claude CLI tool to enable natural language processing within chuck-stack workflows.
 
 ## Purpose
 
@@ -44,8 +44,8 @@ ai info --help
 
 ## Prerequisites
 
-- `aichat` must be installed and configured
-- Valid AI model access (default: gpt-4o-mini)
+- `claude` CLI must be installed and configured
+- Valid Claude API access
 
 ## Related Documentation
 

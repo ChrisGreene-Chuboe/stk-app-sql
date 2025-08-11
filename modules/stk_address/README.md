@@ -60,7 +60,7 @@ For detailed command usage and examples, use the built-in help:
 
 ### For Natural Language Input (.append address)
 - `stk_ai` module must be available and configured
-- `aichat` must be installed with a valid AI model
+- `claude` CLI must be installed and configured
 - ADDRESS tag type must exist in the database
 
 ### For Direct JSON Input (.append address --json)

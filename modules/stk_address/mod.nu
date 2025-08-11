@@ -88,8 +88,8 @@ export def addresses [
 #   # Add shipping address with custom type
 #   $contact_uuid | .append address "123 Main St Austin TX" --type-search-key address-ship-to
 #   
-#   # Add address with custom AI model
-#   $entity_uuid | .append address "123 Main St" --model gpt-4
+#   # Add address (AI model is configured globally via claude CLI)
+#   $entity_uuid | .append address "123 Main St"
 #   
 #   # Add address interactively
 #   $project_uuid | .append address --interactive
@@ -112,7 +112,7 @@ export def addresses [
 export def ".append address" [
     address_text?: string         # Natural language address text (required unless --json or --interactive is provided)
     --type-search-key: string = "address"  # Tag type search key (default: address)
-    --model: string               # AI model to use (optional, ignored with --json or --interactive)
+    --model: string               # AI model to use (deprecated - claude uses configured model)
     --json: string                # Direct JSON input matching ADDRESS schema (alternative to address_text)
     --interactive                 # Interactively build address data using the type's schema
 ] {
@@ -170,11 +170,8 @@ export def ".append address" [
             []
         }
         
-        let structured_address = if ($model | is-not-empty) {
-            ($address_text | ai text-to-json --schema $schema --model $model --instructions $address_instructions)
-        } else {
-            ($address_text | ai text-to-json --schema $schema --instructions $address_instructions)
-        }
+        # Model parameter is now ignored (claude uses configured model)
+        let structured_address = ($address_text | ai text-to-json --schema $schema --instructions $address_instructions)
         let address_json = ($structured_address | to json)
         
         # Create the tag with the structured address data
