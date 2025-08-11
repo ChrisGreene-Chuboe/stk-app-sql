@@ -186,6 +186,53 @@ $bp_acme | tags | get tags | where {$in.search_key =~ "address"} | table -e | pr
 print ""
 
 print "======================================="
+print "=== Creating Project for Client... ==="
+print "======================================="
+print ""
+
+# Create a project for ACME Corporation
+let project_acme = (project new "ACME Digital Transformation"
+    --search-key acme-dt-2025
+    --entity-uu $entity_myco.uu
+    --description "Q1 2025 Digital transformation initiative"
+    --json '{
+        "start_date": "2025-01-01",
+        "end_date": "2025-03-31",
+        "budget": 50000,
+        "status": "active",
+        "project_manager": "Julie Smith"
+    }')
+print $"✓ Created project: ($project_acme.name) with search key: ($project_acme.search_key)"
+print $"  Project UUID: ($project_acme.uu)"
+print ""
+
+# Link the project to the business partner via tag
+$project_acme | .append tag --json $'{
+    "bp_uu": "($bp_acme.uu)",
+    "bp_name": "($bp_acme.name)",
+    "relationship": "client"
+}'
+print $"✓ Linked project to business partner: ($bp_acme.name)"
+print ""
+
+print "Adding project deliverables..."
+print ""
+
+# Add project deliverables as project lines
+$project_acme | project line new "System Architecture Review" --description "Comprehensive review of current system architecture" --json '{"estimated_hours": 40, "status": "pending"}'
+print "✓ Added deliverable: System Architecture Review"
+
+$project_acme | project line new "Cloud Migration Plan" --description "Detailed plan for cloud infrastructure migration" --json '{"estimated_hours": 60, "status": "pending"}'
+print "✓ Added deliverable: Cloud Migration Plan"
+
+$project_acme | project line new "Security Assessment" --description "Security audit and vulnerability assessment" --json '{"estimated_hours": 30, "status": "pending"}'
+print "✓ Added deliverable: Security Assessment"
+
+$project_acme | project line new "Implementation Roadmap" --description "Phased implementation strategy and timeline" --json '{"estimated_hours": 20, "status": "pending"}'
+print "✓ Added deliverable: Implementation Roadmap"
+print ""
+
+print "======================================="
 print "=== Creating Items for Invoicing... ==="
 print "======================================="
 print ""
@@ -216,11 +263,19 @@ print ""
 # We can also create an invoice by piping in another invoice.
 # The system is smart enough to look for the appropriate tags (address
 # and bp) needed for invoice creation. If it finds them => success!
+# We can also link the invoice to a project for tracking purposes.
 let invoice = ($bp_acme | invoice new "INV-2025-001"
     --type-search-key sales-standard
     --entity-uu $entity_myco.uu
-    --description "January 2025 Consulting Services")
+    --description "January 2025 Consulting Services - ACME Digital Transformation"
+    --json $'{
+        "project_uu": "($project_acme.uu)",
+        "project_name": "($project_acme.name)",
+        "project_phase": "Phase 1 - Assessment",
+        "billing_period": "January 2025"
+    }')
 print $"✓ Created invoice: ($invoice.search_key) for ($bp_acme.name)"
+print $"  Linked to project: ($project_acme.search_key)"
 print ""
 
 print "===================================="
@@ -347,26 +402,34 @@ This demonstration showed:
    - Used structured JSON for consistent address data
    - Demonstrated type-specific address classification
 
-6. Service Item Creation:
+6. Project Management:
+   - Created a project linked to the business partner
+   - Defined project timeline, budget, and deliverables
+   - Established project context for invoice tracking
+
+7. Service Item Creation:
    - Built reusable service items with search keys
    - Classified items by type for proper accounting
 
-7. Invoice Generation:
+8. Invoice Generation:
    - Created invoices by piping business partners
+   - Linked invoice to specific project for tracking
    - Automatic inheritance of BP tags (addresses, terms)
    - Added multiple line item types (items, custom lines, discounts)
 
-8. Financial Document Features:
+9. Financial Document Features:
    - Calculated invoice totals from line item data
    - Generated PDF output (when typst available)
    - Preserved business context through tag cloning
+   - Project linkage for financial tracking
 
 Key Concepts Demonstrated:
-- Pipeline-oriented data flow (BP → Invoice)
+- Pipeline-oriented data flow (BP → Project → Invoice)
 - Tag-based attribute system for flexible data modeling
 - JSON storage for extensible business data
 - Type system for classification and validation
 - Automatic relationship inference and data inheritance
+- Project-based financial tracking
 '#
 }
 
@@ -395,6 +458,15 @@ bp list | where name =~ ACME | first | tags search_key record_json | get tags | 
 
 # List all contacts for ACME:
 bp list | where name =~ ACME | first | contacts name record_json
+
+# View the project we created:
+project list | where search_key == acme-dt-2025 | first
+
+# View project with deliverables:
+project list | where search_key == acme-dt-2025 | first | project line list
+
+# See project deliverables with estimated hours:
+project list | where search_key == acme-dt-2025 | first | project line list | select search_key description record_json
 
 # View service items:
 item list | where type_enum == SERVICE
