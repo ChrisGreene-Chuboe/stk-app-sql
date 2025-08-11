@@ -192,12 +192,11 @@ print ""
 
 # Create a project for ACME Corporation
 let project_acme = (project new "ACME Digital Transformation"
-    --search-key acme-dt-2025
+    --search-key acme-dt-q1
     --entity-uu $entity_myco.uu
-    --description "Q1 2025 Digital transformation initiative"
+    --description "Q1 Digital transformation initiative"
     --json '{
-        "start_date": "2025-01-01",
-        "end_date": "2025-03-31",
+        "quarter": "Q1",
         "budget": 50000,
         "status": "active",
         "project_manager": "Julie Smith"
@@ -206,12 +205,8 @@ print $"✓ Created project: ($project_acme.name) with search key: ($project_acm
 print $"  Project UUID: ($project_acme.uu)"
 print ""
 
-# Link the project to the business partner via tag
-$project_acme | .append tag --json $'{
-    "bp_uu": "($bp_acme.uu)",
-    "bp_name": "($bp_acme.name)",
-    "relationship": "client"
-}'
+# Link the project to the business partner using stk_link
+$project_acme | link new $bp_acme --description "Client for digital transformation project"
 print $"✓ Linked project to business partner: ($bp_acme.name)"
 print ""
 
@@ -230,6 +225,32 @@ print "✓ Added deliverable: Security Assessment"
 
 $project_acme | project line new "Implementation Roadmap" --description "Phased implementation strategy and timeline" --json '{"estimated_hours": 20, "status": "pending"}'
 print "✓ Added deliverable: Implementation Roadmap"
+print ""
+
+print "======================================="
+print "=== Recording Timesheet Entries... ==="
+print "======================================="
+print ""
+
+print "Recording work performed on project..."
+print ""
+
+# Add timesheet entries for work performed
+# Note: timesheets use .append timesheet command with minutes or hours
+$project_acme | .append timesheet --hours 16 --description "Architecture Review Sessions - Reviewed microservices architecture, documented current state"
+print "✓ Recorded 16 hours: Architecture Review Sessions"
+
+$project_acme | .append timesheet --hours 12 --description "Security Assessment Work - Performed security audit, identified vulnerabilities"
+print "✓ Recorded 12 hours: Security Assessment Work"
+
+$project_acme | .append timesheet --hours 8 --description "Cloud Migration Planning - Analyzed current infrastructure, designed cloud architecture"
+print "✓ Recorded 8 hours: Cloud Migration Planning"
+
+$project_acme | .append timesheet --hours 4 --description "Project Coordination - Client meetings, status updates, roadmap refinement"
+print "✓ Recorded 4 hours: Project Coordination"
+
+print ""
+print "Total billable hours recorded: 40 hours"
 print ""
 
 print "======================================="
@@ -264,15 +285,15 @@ print ""
 # The system is smart enough to look for the appropriate tags (address
 # and bp) needed for invoice creation. If it finds them => success!
 # We can also link the invoice to a project for tracking purposes.
-let invoice = ($bp_acme | invoice new "INV-2025-001"
+let invoice = ($bp_acme | invoice new "INV-001"
     --type-search-key sales-standard
     --entity-uu $entity_myco.uu
-    --description "January 2025 Consulting Services - ACME Digital Transformation"
+    --description "January Consulting Services - ACME Digital Transformation"
     --json $'{
         "project_uu": "($project_acme.uu)",
         "project_name": "($project_acme.name)",
         "project_phase": "Phase 1 - Assessment",
-        "billing_period": "January 2025"
+        "billing_period": "January"
     }')
 print $"✓ Created invoice: ($invoice.search_key) for ($bp_acme.name)"
 print $"  Linked to project: ($project_acme.search_key)"
@@ -403,21 +424,30 @@ This demonstration showed:
    - Demonstrated type-specific address classification
 
 6. Project Management:
-   - Created a project linked to the business partner
-   - Defined project timeline, budget, and deliverables
+   - Created a project with timeline and budget
+   - Linked project to business partner using stk_link module
+   - Added project deliverables as structured project lines
+   - Tracked estimated hours for each deliverable
    - Established project context for invoice tracking
 
-7. Service Item Creation:
+7. Timesheet Recording:
+   - Recorded actual work performed against project
+   - Used .append timesheet for immutable time entries
+   - Captured detailed work descriptions
+   - Accumulated 40 billable hours for invoicing
+   - Created audit trail of time spent
+
+8. Service Item Creation:
    - Built reusable service items with search keys
    - Classified items by type for proper accounting
 
-8. Invoice Generation:
+9. Invoice Generation:
    - Created invoices by piping business partners
    - Linked invoice to specific project for tracking
    - Automatic inheritance of BP tags (addresses, terms)
    - Added multiple line item types (items, custom lines, discounts)
 
-9. Financial Document Features:
+10. Financial Document Features:
    - Calculated invoice totals from line item data
    - Generated PDF output (when typst available)
    - Preserved business context through tag cloning
@@ -460,31 +490,37 @@ bp list | where name =~ ACME | first | tags search_key record_json | get tags | 
 bp list | where name =~ ACME | first | contacts name record_json
 
 # View the project we created:
-project list | where search_key == acme-dt-2025 | first
+project list | where search_key == acme-dt-q1 | first
 
 # View project with deliverables:
-project list | where search_key == acme-dt-2025 | first | project line list
+project list | where search_key == acme-dt-q1 | first | project line list
 
 # See project deliverables with estimated hours:
-project list | where search_key == acme-dt-2025 | first | project line list | select search_key description record_json
+project list | where search_key == acme-dt-q1 | first | project line list | select search_key description record_json
+
+# View timesheet entries for the project:
+project list | where search_key == acme-dt-q1 | first | timesheets
+
+# Calculate total hours from timesheets:
+project list | where search_key == acme-dt-q1 | first | timesheets | get timesheets.record_json.minutes | math sum | $in / 60
 
 # View service items:
 item list | where type_enum == SERVICE
 
 # Find the invoice we created:
-invoice list | where search_key == INV-2025-001
+invoice list | where search_key == INV-001
 
 # View invoice with all line items:
-invoice list | where search_key == INV-2025-001 | lines search_key description record_json | select search_key lines
+invoice list | where search_key == INV-001 | lines search_key description record_json | select search_key lines
 
 # View just the invoice lines:
-invoice list | where search_key == INV-2025-001 | invoice line list
+invoice list | where search_key == INV-001 | invoice line list
 
 # See inherited tags on the invoice:
-invoice list | where search_key == INV-2025-001 | tags | select search_key tags
+invoice list | where search_key == INV-001 | tags | select search_key tags
 
 # Create another invoice for the same client:
-bp list | where name =~ ACME | invoice new INV-2025-002 --description \"February services\"
+bp list | where name =~ ACME | invoice new INV-002 --description \"February services\"
 
 # Add ACME to your favorites:
 bp list | where name =~ ACME | .append tag --type-search-key favorite
