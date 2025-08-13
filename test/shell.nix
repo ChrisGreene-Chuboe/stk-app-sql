@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import <nixpkgs-unstable> {} }:
 
 # Prerequisites
   # install Nix package manager or use NixOS

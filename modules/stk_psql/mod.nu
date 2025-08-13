@@ -1242,7 +1242,7 @@ export def lines [
         let line_table_name = $"($table_name)_line"
         
         # Look up in the pre-built cache
-        let line_table_exists = $table_cache | get -i $line_table_name | default false
+        let line_table_exists = $table_cache | get -o $line_table_name | default false
         
         if $line_table_exists {
             # Line table exists, fetch the actual lines

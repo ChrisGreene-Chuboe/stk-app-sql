@@ -729,7 +729,7 @@ def interactive-build-json [
                 field: $prop.field
                 spec: $prop.spec
                 required: ($prop.field in $required)
-                current: ($current | get -i $prop.field)
+                current: ($current | get -o $prop.field)
             }
         }
     )
@@ -750,7 +750,7 @@ def interactive-build-json [
     
     # Validate required fields
     let missing = $required | where {|field| 
-        ($result | get -i $field | is-empty)
+        ($result | get -o $field | is-empty)
     }
     
     if ($missing | length) > 0 {
