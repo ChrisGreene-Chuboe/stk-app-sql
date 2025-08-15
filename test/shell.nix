@@ -72,6 +72,7 @@ in pkgs.mkShell {
     pkgs.bat
     pkgs.aichat
     pkgs.typst
+    pkgs.zathura
     #pkgs.git
     startTest
     stopTest

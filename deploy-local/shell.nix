@@ -69,6 +69,7 @@ in pkgs.mkShell {
     pkgs.bat
     pkgs.aichat
     pkgs.typst
+    pkgs.zathura
     #pkgs.git
     startDeploy
     stopDeploy
