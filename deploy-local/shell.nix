@@ -16,8 +16,8 @@ let
   # Fetch chuck-stack-nushell-psql-migration source
   migrationUtilSrc = pkgs.fetchgit {
     url = "https://github.com/chuckstack/chuck-stack-nushell-psql-migration";
-    rev = "aeb2a5fe185e09ba46d1422a01d8caf4715bc16e";  # updated roadmap with hash comparison
-    sha256 = "sha256-aiUikB6o/GdBoiREWe7BSpLX2tlyKfQN26Z5QhJRBK8=";
+    rev = "e309c1ac019cf7afeb549eebb6367215aaf471cb";
+    sha256 = "sha256-zYB1TcPQY3hK7MR/OyCi2xwpahdjbOc2+F0Qn6L+zCY=";
   };
 
   # Create pg_jsonschema extension package
