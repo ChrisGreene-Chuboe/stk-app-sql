@@ -142,6 +142,11 @@ in pkgs.mkShell {
       cp -r ../demo/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../demo not found"
       cp -r ../template-print/ "$STK_DEPLOY_DIR/" 2>/dev/null || echo "Note: ../template-print not found"
       
+      # Copy test-claude.md as CLAUDE.md for Claude Code guidance in deployment environment
+      if [ -f test-claude.md ]; then
+        cp test-claude.md "$STK_DEPLOY_DIR/CLAUDE.md" 2>/dev/null && echo "Copied test-claude.md to CLAUDE.md"
+      fi
+      
       echo ""
       echo "******************************************************"
       echo "Instance created in: $STK_DEPLOY_DIR"
